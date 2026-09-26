@@ -239,15 +239,36 @@ class _Desglose extends StatelessWidget {
 }
 
 /// Tabla completa: nota y faltas primero (lo que va a SACE), luego cada actividad.
-/// Tocar una celda permite corregir esa nota ahí mismo.
-class _Tabla extends ConsumerWidget {
+/// Cada celda se edita ahí mismo, como en una hoja de cálculo: Enter baja al siguiente
+/// alumno en la misma actividad. La nota se recalcula al salir de la celda.
+class _Tabla extends ConsumerStatefulWidget {
   const _Tabla({required this.plan, required this.resultado});
 
   final PlanParcial plan;
   final ResultadoParcial resultado;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Tabla> createState() => _TablaState();
+}
+
+class _TablaState extends ConsumerState<_Tabla> {
+  final Map<String, FocusNode> _focos = {};
+
+  FocusNode _foco(String actividadId, String alumnoId) =>
+      _focos.putIfAbsent('$actividadId|$alumnoId', FocusNode.new);
+
+  @override
+  void dispose() {
+    for (final f in _focos.values) {
+      f.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final plan = widget.plan;
+    final resultado = widget.resultado;
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     return Scrollbar(
@@ -293,17 +314,14 @@ class _Tabla extends ConsumerWidget {
                   DataCell(_Nota(resultado.porAlumno[alumno.id]!)),
                   DataCell(Text('${resultado.porAlumno[alumno.id]!.inasistencias}')),
                   for (final a in plan.actividades)
-                    DataCell(
-                      Text(
-                        switch (plan.calificaciones[a.id]?[alumno.id]) {
-                          final double v => formatoPuntos(v),
-                          null => '—',
-                        },
-                        style: TextStyle(
-                            color: plan.calificaciones[a.id]?[alumno.id] == null ? scheme.onSurfaceVariant : null),
-                      ),
-                      onTap: plan.cerrado ? null : () => _editarCelda(context, ref, alumno, a),
-                    ),
+                    DataCell(_CeldaNota(
+                      key: ValueKey('${a.id}|${alumno.id}'),
+                      plan: plan,
+                      actividad: a,
+                      alumno: alumno,
+                      foco: _foco(a.id, alumno.id),
+                      siguiente: i + 1 < plan.alumnos.length ? _foco(a.id, plan.alumnos[i + 1].id) : null,
+                    )),
                 ]),
             ],
           ),
@@ -311,53 +329,114 @@ class _Tabla extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Future<void> _editarCelda(BuildContext context, WidgetRef ref, AlumnoPlan alumno, Actividad actividad) async {
-    final actual = plan.calificaciones[actividad.id]?[alumno.id];
-    final campo = TextEditingController(text: actual == null ? '' : formatoPuntos(actual));
-    final form = GlobalKey<FormState>();
-    final guardar = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: const RoundedRectangleBorder(),
-        title: Text(actividad.titulo),
-        content: Form(
-          key: form,
-          child: TextFormField(
-            controller: campo,
-            autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
-            decoration: InputDecoration(
-              labelText: alumno.nombre,
-              suffixText: '/ ${formatoPuntos(actividad.puntos)}',
-              helperText: 'Vacío = pendiente',
+/// Celda editable del libro. Guarda al escribir; al salir refresca nota y tablero.
+class _CeldaNota extends ConsumerStatefulWidget {
+  const _CeldaNota({
+    super.key,
+    required this.plan,
+    required this.actividad,
+    required this.alumno,
+    required this.foco,
+    this.siguiente,
+  });
+
+  final PlanParcial plan;
+  final Actividad actividad;
+  final AlumnoPlan alumno;
+  final FocusNode foco;
+  final FocusNode? siguiente;
+
+  @override
+  ConsumerState<_CeldaNota> createState() => _CeldaNotaState();
+}
+
+class _CeldaNotaState extends ConsumerState<_CeldaNota> {
+  late final _texto = TextEditingController(text: _formato(_valor));
+  var _error = false;
+  var _cambio = false;
+
+  double? get _valor => widget.plan.calificaciones[widget.actividad.id]?[widget.alumno.id];
+
+  static String _formato(double? v) => v == null ? '' : formatoPuntos(v);
+
+  @override
+  void initState() {
+    super.initState();
+    widget.foco.addListener(_alSalir);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CeldaNota anterior) {
+    super.didUpdateWidget(anterior);
+    if (anterior.foco != widget.foco) {
+      anterior.foco.removeListener(_alSalir);
+      widget.foco.addListener(_alSalir);
+    }
+    // Lo que llegó de otro dispositivo, sin pisar lo que se está escribiendo.
+    if (!widget.foco.hasFocus && !_error && _formato(_valor) != _texto.text) _texto.text = _formato(_valor);
+  }
+
+  @override
+  void dispose() {
+    widget.foco.removeListener(_alSalir);
+    _texto.dispose();
+    super.dispose();
+  }
+
+  void _alSalir() {
+    if (widget.foco.hasFocus || !_cambio) return;
+    _cambio = false;
+    planCambiado(ref, widget.plan.claseId, widget.plan.parcial.clave);
+  }
+
+  Future<void> _guardar(String texto) async {
+    final limpio = texto.trim();
+    final valor = limpio.isEmpty ? null : leerPuntos(limpio);
+    final invalido = limpio.isNotEmpty && (valor == null || valor < 0 || valor > widget.actividad.puntos);
+    setState(() => _error = invalido);
+    if (invalido) return;
+    _cambio = true;
+    await ref.read(planesRepositoryProvider).calificar(widget.actividad.id, widget.alumno.id, valor);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 64,
+      child: Tooltip(
+        message: _error ? 'Entre 0 y ${formatoPuntos(widget.actividad.puntos)}' : '',
+        child: TextField(
+          controller: _texto,
+          focusNode: widget.foco,
+          enabled: !widget.plan.cerrado,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+            LengthLimitingTextInputFormatter(5),
+          ],
+          textAlign: TextAlign.center,
+          textInputAction: widget.siguiente == null ? TextInputAction.done : TextInputAction.next,
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: '—',
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(color: _error ? scheme.error : scheme.outlineVariant, width: _error ? 2 : 1),
             ),
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) return null;
-              final n = leerPuntos(v);
-              return n == null || n < 0 || n > actividad.puntos ? '0–${formatoPuntos(actividad.puntos)}' : null;
-            },
-            onFieldSubmitted: (_) {
-              if (form.currentState!.validate()) Navigator.pop(context, true);
-            },
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.zero,
+              borderSide: BorderSide(color: _error ? scheme.error : scheme.primary, width: 2),
+            ),
           ),
+          onChanged: _guardar,
+          onSubmitted: (_) => widget.siguiente == null ? widget.foco.unfocus() : widget.siguiente!.requestFocus(),
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(
-            onPressed: () {
-              if (form.currentState!.validate()) Navigator.pop(context, true);
-            },
-            child: const Text('Guardar'),
-          ),
-        ],
       ),
     );
-    if (guardar != true) return;
-    final texto = campo.text.trim();
-    await ref.read(planesRepositoryProvider).calificar(actividad.id, alumno.id, texto.isEmpty ? null : leerPuntos(texto));
-    planCambiado(ref, plan.claseId, plan.parcial.clave);
   }
 }
 
