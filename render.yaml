@@ -1,0 +1,27 @@
+# Blueprint de Render para la API. Ver docs/despliegue.md.
+# Los valores con sync: false se cargan a mano en el panel (son secretos).
+services:
+  - type: web
+    name: profeapp
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    region: virginia
+    plan: free
+    # /health/live no toca la base: si Render consultara /health cada pocos segundos,
+    # Neon nunca se suspendería y se gastarían las horas del plan gratis.
+    healthCheckPath: /health/live
+    autoDeploy: true
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: App__TimeZone
+        value: America/Tegucigalpa
+      - key: App__ApplyMigrationsOnStartup
+        value: "true"
+      - key: App__CorsOrigins__0
+        value: https://profeapp.pages.dev
+      - key: ConnectionStrings__Default
+        sync: false
+      - key: Jwt__Key
+        sync: false

@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter sólo la declara en debug: sin esto el APK release no puede sincronizar ni exportar. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
-        android:label="profeapp"
+        android:label="ProfeApp"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

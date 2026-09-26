@@ -1,0 +1,48 @@
+name: deploy-web
+
+# Compila la app Flutter para web y la publica en Cloudflare Pages en cada push a main.
+# Requiere configurar en el repositorio:
+#   Variable  API_BASE_URL            https://profeapp.onrender.com
+#   Secretos  CLOUDFLARE_API_TOKEN    token con permiso Cloudflare Pages: Edit
+#             CLOUDFLARE_ACCOUNT_ID   id de cuenta de Cloudflare
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+jobs:
+  pages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Sin esto el build cae al localhost de desarrollo y la web queda sin datos,
+      # sin ningún error visible en el despliegue.
+      - name: Verificar API_BASE_URL
+        run: |
+          if [ -z "${{ vars.API_BASE_URL }}" ]; then
+            echo "Falta la variable de repositorio API_BASE_URL." >&2
+            exit 1
+          fi
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.1'
+          cache: true
+
+      - run: flutter pub get
+        working-directory: mobile
+
+      # web/sqlite3.wasm y web/sqflite_sw.js ya están en el repo: la base local funciona
+      # en el navegador sin pasos extra.
+      - run: flutter build web --release --dart-define=API_BASE_URL=${{ vars.API_BASE_URL }}
+        working-directory: mobile
+
+      - uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy mobile/build/web --project-name=profeapp --branch=main
