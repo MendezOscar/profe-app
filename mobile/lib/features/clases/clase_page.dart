@@ -8,6 +8,7 @@ import '../../core/api/api_exception.dart';
 import '../../core/models/clase.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
+import '../../ui/barra_teclado.dart';
 
 /// El cuadro de SACE tal cual: captura directa de sus columnas, una a la vez, y exportar.
 /// Lo normal es que NOTA TOTAL e INASISTENCIAS lleguen al cerrar el parcial; aquí se
@@ -183,6 +184,8 @@ class _CapturaState extends ConsumerState<_Captura> {
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
+      // bottomSheet y no bottomNavigationBar: se acomoda sobre el teclado.
+      bottomSheet: const BarraTeclado(),
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,6 +241,7 @@ class _CapturaState extends ConsumerState<_Captura> {
                 const Divider(height: 1),
                 Expanded(
                   child: ListView.builder(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     key: ValueKey(_columna),
                     padding: const EdgeInsets.only(bottom: 48),
                     itemCount: _clase.alumnos.length,

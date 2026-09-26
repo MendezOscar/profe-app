@@ -7,6 +7,7 @@ import '../../core/planes/calculo_parcial.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
+import '../../ui/barra_teclado.dart';
 import '../../ui/shell.dart';
 import 'plan_tab.dart';
 
@@ -140,6 +141,8 @@ class _CapturaState extends ConsumerState<_Captura> {
     final rubro = _plan.rubros.where((r) => r.id == _actividad.rubroId).firstOrNull;
 
     return Scaffold(
+      // bottomSheet y no bottomNavigationBar: se acomoda sobre el teclado.
+      bottomSheet: const BarraTeclado(),
       appBar: AppBar(
         leading: BackButton(
           onPressed: () => context.canPop() ? context.pop() : context.go('/inicio/asignaturas/${_plan.claseId}'),
@@ -219,6 +222,7 @@ class _CapturaState extends ConsumerState<_Captura> {
             const Divider(height: 2),
             Expanded(
               child: ListView.builder(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.only(bottom: 48),
                 itemCount: visibles.length,
                 itemBuilder: (context, i) {

@@ -21,6 +21,12 @@ class ProfeApp extends ConsumerWidget {
       // La marca define sólo tema claro.
       theme: profeTheme(),
       routerConfig: ref.watch(routerProvider),
+      // En el teléfono, tocar fuera de un campo cierra el teclado.
+      builder: (context, child) => GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+        child: child,
+      ),
       locale: const Locale('es', 'HN'),
       supportedLocales: const [Locale('es', 'HN'), Locale('es'), Locale('en')],
       localizationsDelegates: const [

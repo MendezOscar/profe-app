@@ -7,6 +7,7 @@ import '../../core/planes/calculo_parcial.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
+import '../../ui/barra_teclado.dart';
 import '../../ui/shell.dart';
 import 'plan_tab.dart';
 
@@ -199,6 +200,8 @@ class _CapturaState extends ConsumerState<_Captura> {
     final completos = _plan.alumnos.where((al) => _actividades.every((a) => _notas[a.id]![al.id] != null)).length;
 
     return Scaffold(
+      // bottomSheet y no bottomNavigationBar: se acomoda sobre el teclado.
+      bottomSheet: const BarraTeclado(),
       appBar: AppBar(
         leading: BackButton(
           onPressed: () => context.canPop() ? context.pop() : context.go('/inicio/asignaturas/${_plan.claseId}'),
@@ -278,6 +281,7 @@ class _CapturaState extends ConsumerState<_Captura> {
             const Divider(height: 2),
             Expanded(
               child: ListView.separated(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                 padding: const EdgeInsets.only(bottom: 48),
                 itemCount: _plan.alumnos.length,
                 separatorBuilder: (_, _) => const Divider(height: 1, thickness: 1),
@@ -296,10 +300,10 @@ class _CapturaState extends ConsumerState<_Captura> {
     final scheme = Theme.of(context).colorScheme;
     final ultimoAlumno = i == _plan.alumnos.length - 1;
 
-    Widget campo(Actividad? actividad, int indice, String etiqueta, double maximo) {
+    Widget campo(Actividad? actividad, int indice, double maximo) {
       final ultimo = ultimoAlumno && (actividad == null || indice == _actividades.length - 1);
-      return SizedBox(
-        width: actividad == null ? 120 : 76,
+      final caja = SizedBox(
+        width: actividad == null ? 120 : 84,
         child: TextField(
           controller: _campo(alumno.id, actividad?.id),
           focusNode: _foco(alumno.id, actividad?.id),
@@ -310,7 +314,6 @@ class _CapturaState extends ConsumerState<_Captura> {
           textInputAction: ultimo ? TextInputAction.done : TextInputAction.next,
           decoration: InputDecoration(
             isDense: true,
-            labelText: etiqueta,
             hintText: '—',
             suffixText: '/${formatoPuntos(maximo)}',
             errorText: _errores.contains(_clave(alumno.id, actividad?.id)) ? '0–${formatoPuntos(maximo)}' : null,
@@ -319,6 +322,25 @@ class _CapturaState extends ConsumerState<_Captura> {
           onChanged: (v) => _escribir(alumno, actividad, v),
           onSubmitted: (_) => _siguiente(i, indice),
         ),
+      );
+      if (actividad == null) return caja;
+      // El número de la actividad va afuera, como insignia igual a la de arriba: dentro de
+      // la caja se confundía con la nota.
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            label: actividad.titulo,
+            excludeSemantics: true,
+            child: CircleAvatar(
+              radius: 11,
+              backgroundColor: scheme.primary,
+              child: Text('${indice + 1}', style: TextStyle(color: scheme.onPrimary, fontSize: 12)),
+            ),
+          ),
+          const SizedBox(width: 6),
+          caja,
+        ],
       );
     }
 
@@ -332,15 +354,15 @@ class _CapturaState extends ConsumerState<_Captura> {
       ],
     );
     final campos = _combinada
-        ? [campo(null, 0, 'Total', _total)]
-        : [for (final (j, a) in _actividades.indexed) campo(a, j, '${j + 1}', a.puntos)];
+        ? [campo(null, 0, _total)]
+        : [for (final (j, a) in _actividades.indexed) campo(a, j, a.puntos)];
 
     // En pantallas anchas todo en una línea; en el teléfono los campos bajan debajo del nombre.
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: LayoutBuilder(
         builder: (context, c) {
-          final enLinea = _combinada || c.maxWidth >= 280 + campos.length * 84;
+          final enLinea = _combinada || c.maxWidth >= 280 + campos.length * 124;
           if (enLinea) {
             return Row(
               children: [
@@ -357,7 +379,7 @@ class _CapturaState extends ConsumerState<_Captura> {
               const SizedBox(height: 8),
               Padding(
                 padding: const EdgeInsets.only(left: 28),
-                child: Wrap(spacing: 8, runSpacing: 8, children: campos),
+                child: Wrap(spacing: 16, runSpacing: 8, children: campos),
               ),
             ],
           );
