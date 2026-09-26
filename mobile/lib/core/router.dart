@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/asignatura/asignatura_page.dart';
 import '../features/asignatura/calificar_page.dart';
+import '../features/asignatura/calificar_varias_page.dart';
 import '../features/asistencia/asistencia_page.dart';
 import '../features/auth/login_page.dart';
 import '../features/bienvenida/bienvenida_page.dart';
@@ -68,6 +69,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'cuadro',
                     builder: (context, state) => ClasePage(claseId: state.pathParameters['id']!),
+                  ),
+                  GoRoute(
+                    path: 'calificar',
+                    builder: (context, state) => CalificarVariasPage(
+                      claseId: state.pathParameters['id']!,
+                      parcial: state.uri.queryParameters['parcial'] ?? '',
+                      actividadIds: (state.uri.queryParameters['actividades'] ?? '').split(',').where((id) => id.isNotEmpty).toList(),
+                    ),
                   ),
                   GoRoute(
                     path: 'actividades/:actividadId',

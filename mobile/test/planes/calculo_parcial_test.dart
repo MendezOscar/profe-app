@@ -78,4 +78,11 @@ void main() {
     expect(avisos, contains('Tareas: las actividades suman 40 y el rubro vale 30.'));
     expect(avisos, contains('No se ha pasado lista en este parcial.'));
   });
+
+  test('Una nota combinada se reparte en proporción y la suma cuadra', () {
+    expect(repartirNota(8, [5, 5]), [4, 4]);
+    expect(repartirNota(7, [5, 10]), [2.3, 4.7]);
+    expect(repartirNota(10, [3, 3, 4]), [3, 3, 4]);
+    expect(repartirNota(0, [5, 5]), [0, 0]);
+  });
 }

@@ -63,6 +63,15 @@ class ActividadesTab extends ConsumerWidget {
                 padding: const EdgeInsets.only(bottom: 96),
                 children: [
                   if (plan.cerrado) ParcialCerrado(plan: plan),
+                  if (!plan.cerrado && plan.actividades.length > 1)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      child: OutlinedButton.icon(
+                        onPressed: () => calificarVarias(context, plan),
+                        icon: const Icon(Icons.library_add_check_outlined),
+                        label: const Text('Calificar varias a la vez'),
+                      ),
+                    ),
                   for (final rubro in plan.rubros) ...[
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
@@ -168,6 +177,99 @@ class _TileActividad extends ConsumerWidget {
         },
       ),
     ));
+  }
+}
+
+/// Elegir qué actividades calificar juntas. Vienen marcadas las que tienen notas pendientes.
+Future<void> calificarVarias(BuildContext context, PlanParcial plan) async {
+  final resultado = calcularParcial(plan);
+  final elegidas = await showModalBottomSheet<List<String>>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    shape: const RoundedRectangleBorder(),
+    builder: (_) => _ElegirActividades(
+      plan: plan,
+      iniciales: {for (final a in resultado.actividadesIncompletas) a.id},
+    ),
+  );
+  if (elegidas == null || elegidas.isEmpty || !context.mounted) return;
+  context.go(Uri(
+    path: '/inicio/asignaturas/${plan.claseId}/calificar',
+    queryParameters: {'parcial': plan.parcial.clave, 'actividades': elegidas.join(',')},
+  ).toString());
+}
+
+class _ElegirActividades extends StatefulWidget {
+  const _ElegirActividades({required this.plan, required this.iniciales});
+
+  final PlanParcial plan;
+  final Set<String> iniciales;
+
+  @override
+  State<_ElegirActividades> createState() => _ElegirActividadesState();
+}
+
+class _ElegirActividadesState extends State<_ElegirActividades> {
+  late final Set<String> _marcadas = {...widget.iniciales};
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final plan = widget.plan;
+    final total = plan.actividades.where((a) => _marcadas.contains(a.id)).fold(0.0, (s, a) => s + a.puntos);
+    return SafeArea(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('¿Qué actividades vas a calificar?', style: text.titleLarge),
+                  const SizedBox(height: 4),
+                  Text('Las calificas todas en una sola pantalla, alumno por alumno.', style: text.bodyMedium),
+                ],
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final a in plan.actividades)
+                    CheckboxListTile(
+                      value: _marcadas.contains(a.id),
+                      onChanged: (v) => setState(() => v! ? _marcadas.add(a.id) : _marcadas.remove(a.id)),
+                      title: Text(a.titulo),
+                      subtitle: Text([
+                        plan.rubros.where((r) => r.id == a.rubroId).firstOrNull?.nombre ?? '',
+                        '${formatoPuntos(a.puntos)} pts',
+                        if (widget.iniciales.contains(a.id)) 'con pendientes',
+                      ].where((t) => t.isNotEmpty).join(' · ')),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: FilledButton(
+                onPressed: _marcadas.isEmpty ? null : () => Navigator.pop(context, [
+                  for (final a in plan.actividades)
+                    if (_marcadas.contains(a.id)) a.id,
+                ]),
+                child: Text(_marcadas.isEmpty
+                    ? 'Elige al menos una'
+                    : 'Calificar ${_marcadas.length} (${formatoPuntos(total)} pts)'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
