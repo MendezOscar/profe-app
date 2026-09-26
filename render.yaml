@@ -4,8 +4,14 @@ services:
   - type: web
     name: profeapp
     runtime: docker
-    rootDir: backend
-    dockerfilePath: ./Dockerfile
+    # Rutas desde la raíz del repo. El contexto es backend/ porque el Dockerfile copia
+    # Directory.Build.props y los .csproj con rutas relativas a esa carpeta.
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    # Sólo redesplegar cuando cambia el backend, no con cada cambio de la app.
+    buildFilter:
+      paths:
+        - backend/**
     region: virginia
     plan: free
     # /health/live no toca la base: un tropiezo de la base no debe hacer que Render
