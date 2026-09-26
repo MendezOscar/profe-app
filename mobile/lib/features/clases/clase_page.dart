@@ -1,8 +1,10 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/api/api_exception.dart';
 import '../../core/models/clase.dart';
 import '../../core/providers.dart';
 
@@ -40,6 +42,7 @@ class _CapturaState extends ConsumerState<_Captura> {
   };
   final Map<String, String> _errores = {};
   var _columna = 0;
+  var _exportando = false;
   List<TextEditingController> _controllers = [];
   List<FocusNode> _focus = [];
 
@@ -98,6 +101,53 @@ class _CapturaState extends ConsumerState<_Captura> {
     await ref.read(clasesRepositoryProvider).guardarValor(alumno.id, columna.clave, valor);
   }
 
+  /// Pide a la API el cuadro relleno y lo guarda donde el docente elija, listo para
+  /// subirlo en SACE. Avisa antes si hay notas a medio capturar.
+  Future<void> _exportar() async {
+    final repo = ref.read(clasesRepositoryProvider);
+    final cuadro = await repo.paraExportar(_clase.resumen.id);
+
+    if (cuadro.faltantes.isNotEmpty && mounted) {
+      final seguir = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Hay notas sin capturar'),
+          content: Text('${cuadro.faltantes.join('\n')}\n\nSe exportarán vacías. ¿Continuar?'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Revisar')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Exportar igual')),
+          ],
+        ),
+      );
+      if (seguir != true) return;
+    }
+
+    setState(() => _exportando = true);
+    try {
+      final bytes = await ref.read(exportadorCuadroProvider).exportar(cuadro);
+      final extension = cuadro.nombreArchivo.toLowerCase().endsWith('.xlsx') ? 'xlsx' : 'xls';
+      await FilePicker.saveFile(
+        dialogTitle: 'Guardar cuadro para SACE',
+        fileName: cuadro.nombreArchivo,
+        type: FileType.custom,
+        allowedExtensions: [extension],
+        bytes: bytes,
+      );
+      _avisar('Cuadro listo. Súbelo en SACE: Notas → Cargar Archivos Notas.');
+    } on ApiException catch (error) {
+      _avisar(error.isNetworkError
+          ? 'Necesitas internet para generar el archivo. Lo capturado sigue guardado en el teléfono.'
+          : error.message);
+    } finally {
+      if (mounted) setState(() => _exportando = false);
+    }
+  }
+
+  void _avisar(String mensaje) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
   Future<void> _eliminar() async {
     final confirmar = await showDialog<bool>(
       context: context,
@@ -137,6 +187,13 @@ class _CapturaState extends ConsumerState<_Captura> {
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Exportar para SACE',
+            onPressed: _exportando ? null : _exportar,
+            icon: _exportando
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Icon(Icons.upload_file),
+          ),
           // onSelected y no onTap del ítem: onTap corre antes de cerrar el menú y el
           // cierre se llevaría por delante el diálogo de confirmación.
           PopupMenuButton<String>(

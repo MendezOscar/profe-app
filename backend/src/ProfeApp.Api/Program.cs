@@ -114,6 +114,7 @@ app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 
 app.MapAuthEndpoints();
+app.MapCuadroEndpoints();
 
 // Migraciones automáticas en desarrollo; en producción son opt-in (App:ApplyMigrationsOnStartup).
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("App:ApplyMigrationsOnStartup"))

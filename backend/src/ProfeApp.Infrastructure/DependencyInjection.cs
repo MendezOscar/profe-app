@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Infrastructure.Identity;
 using ProfeApp.Infrastructure.Persistence;
+using ProfeApp.Infrastructure.Sace;
 
 namespace ProfeApp.Infrastructure;
 
@@ -44,6 +45,7 @@ public static class DependencyInjection
 
         services.AddScoped<TokenService>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddSingleton<ICuadroSaceWriter, CuadroSaceWriter>();
 
         return services;
     }

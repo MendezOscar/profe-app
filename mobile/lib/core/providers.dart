@@ -7,6 +7,7 @@ import 'local/clases_repository.dart';
 import 'local/local_db.dart';
 import 'models/clase.dart';
 import 'models/session.dart';
+import 'sace/exportador_cuadro.dart';
 
 /// Cliente HTTP atado a la sesión vigente: al renovarse el token se recrea.
 final apiClientProvider = Provider<ApiClient>((ref) {
@@ -29,6 +30,8 @@ final localDbProvider = Provider<Future<Database>>((ref) {
 });
 
 final clasesRepositoryProvider = Provider((ref) => ClasesRepository(ref.watch(localDbProvider)));
+
+final exportadorCuadroProvider = Provider((ref) => ExportadorCuadro(ref.watch(apiClientProvider)));
 
 final clasesProvider = FutureProvider<List<ClaseResumen>>((ref) => ref.watch(clasesRepositoryProvider).listar());
 

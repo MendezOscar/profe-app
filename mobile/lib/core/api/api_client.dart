@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
@@ -95,6 +97,33 @@ class ApiClient {
       _send(() => _dio.put(path, data: body), parse);
 
   Future<void> delete(String path) => _send<void>(() => _dio.delete(path), null);
+
+  /// Para respuestas que son un archivo, como el cuadro exportado. Si falla, el cuerpo
+  /// también llega como bytes: se decodifica el problem details para mostrar su mensaje.
+  Future<Uint8List> postBytes(String path, {Object? body}) async {
+    try {
+      final response =
+          await _dio.post<List<int>>(path, data: body, options: Options(responseType: ResponseType.bytes));
+      return Uint8List.fromList(response.data ?? const []);
+    } on DioException catch (error) {
+      final data = error.response?.data;
+      if (data is List<int>) {
+        try {
+          final json = jsonDecode(utf8.decode(data));
+          if (json is Map<String, dynamic>) {
+            throw ApiException(
+              json['detail'] as String? ?? json['title'] as String? ?? 'Error inesperado.',
+              code: json['code'] as String?,
+              statusCode: error.response?.statusCode,
+            );
+          }
+        } on FormatException {
+          // No era JSON: cae al mensaje genérico.
+        }
+      }
+      throw ApiException.fromDio(error);
+    }
+  }
 
   Future<T> _send<T>(Future<Response> Function() request, T Function(dynamic)? parse) async {
     try {

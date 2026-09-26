@@ -60,4 +60,20 @@ void main() {
     final clase = await repo.detalle(resultado.claseId);
     expect(clase.valores[alumno.id]?.containsKey('PARCIAL I|NOTA TOTAL'), isFalse);
   });
+
+  test('Para exportar manda cada celda editable, con lo capturado o vacía, y avisa lo incompleto', () async {
+    final resultado = await repo.importar(cuadroMedia(), 'QUIMICA.xls');
+    final clase = await repo.detalle(resultado.claseId);
+    await repo.guardarValor(clase.alumnos.first.id, 'PARCIAL II|NOTA TOTAL', null);
+
+    final cuadro = await repo.paraExportar(resultado.claseId);
+
+    expect(cuadro.hoja, 'Notas');
+    expect(cuadro.nombreArchivo, 'QUIMICA.xls');
+    expect(cuadro.celdas, hasLength(3 * 6));
+    // Adriana: fila 7 de la hoja; PARCIAL I · NOTA TOTAL está en la columna E (4).
+    expect(cuadro.celdas, contains((fila: 7, col: 4, valor: 72)));
+    expect(cuadro.celdas, contains((fila: 7, col: 7, valor: null)), reason: 'la nota borrada se exporta vacía');
+    expect(cuadro.faltantes, ['PARCIAL I · NOTA TOTAL: faltan 1', 'PARCIAL II · NOTA TOTAL: faltan 2']);
+  });
 }

@@ -171,6 +171,46 @@ class ClasesRepository {
     );
   }
 
+  /// Todas las celdas editables de los alumnos vigentes, con lo capturado o vacías: así
+  /// una nota que el docente borró en el teléfono también queda borrada en el cuadro.
+  Future<CuadroParaExportar> paraExportar(String claseId) async {
+    final db = await _db;
+    final clase = (await db.query('clases',
+            columns: ['archivo', 'archivo_nombre', 'hoja'], where: 'id = ?', whereArgs: [claseId]))
+        .first;
+    final columnas = await db.query('columnas', where: 'clase_id = ?', whereArgs: [claseId], orderBy: 'orden');
+    final alumnos = await db.query('alumnos',
+        columns: ['id', 'fila'], where: 'clase_id = ? AND activo = 1', whereArgs: [claseId], orderBy: 'orden');
+    final detalle = await this.detalle(claseId);
+
+    final celdas = <({int fila, int col, int? valor})>[
+      for (final a in alumnos)
+        for (final c in columnas)
+          (
+            fila: a['fila'] as int,
+            col: c['col'] as int,
+            valor: detalle.valores[a['id']]?[c['clave']],
+          ),
+    ];
+
+    // RECUPERACIÓN no cuenta: sólo la llevan los que reprueban.
+    final faltantes = <String>[
+      for (final c in detalle.columnas
+          .where((c) => c.tipo == TipoColumna.nota && !normalizar(c.nombre).contains('RECUPERACION')))
+        if (detalle.alumnos.where((a) => detalle.valores[a.id]?[c.clave] != null).length case final hechos
+            when hechos > 0 && hechos < detalle.alumnos.length)
+          '${c.titulo}: faltan ${detalle.alumnos.length - hechos}',
+    ];
+
+    return CuadroParaExportar(
+      archivo: clase['archivo'] as Uint8List,
+      nombreArchivo: clase['archivo_nombre'] as String,
+      hoja: clase['hoja'] as String,
+      celdas: celdas,
+      faltantes: faltantes,
+    );
+  }
+
   Future<void> eliminar(String claseId) async {
     final db = await _db;
     await db.delete('clases', where: 'id = ?', whereArgs: [claseId]);

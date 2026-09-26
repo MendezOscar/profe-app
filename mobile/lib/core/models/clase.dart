@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import '../sace/cuadro_sace.dart';
 
 class ClaseResumen {
@@ -71,4 +73,24 @@ class ResultadoImportacion {
   final bool nueva;
   final int alumnos;
   final List<String> columnasNuevas;
+}
+
+/// Lo que se manda a la API para rellenar el cuadro: el archivo original, la hoja y
+/// cada celda editable con su valor (null = vacía).
+class CuadroParaExportar {
+  const CuadroParaExportar({
+    required this.archivo,
+    required this.nombreArchivo,
+    required this.hoja,
+    required this.celdas,
+    required this.faltantes,
+  });
+
+  final Uint8List archivo;
+  final String nombreArchivo;
+  final String hoja;
+  final List<({int fila, int col, int? valor})> celdas;
+
+  /// Columnas de nota ya empezadas pero incompletas, para avisar antes de exportar.
+  final List<String> faltantes;
 }
