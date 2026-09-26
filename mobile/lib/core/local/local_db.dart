@@ -18,11 +18,12 @@ class LocalDb {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) => _create(db),
         onUpgrade: (db, from, to) async {
           if (from < 2) await _sync(db);
+          if (from < 3) await _planes(db);
         },
       ),
     );
@@ -82,6 +83,7 @@ class LocalDb {
       )''');
     _crearValores(batch, 'valores');
     _crearSyncEstado(batch);
+    _crearPlanes(batch);
     await batch.commit(noResult: true);
   }
 
@@ -118,5 +120,92 @@ class LocalDb {
     batch.execute('ALTER TABLE valores_v2 RENAME TO valores');
     _crearSyncEstado(batch);
     await batch.commit(noResult: true);
+  }
+
+  /// v2 → v3: planes de calificación y asistencia.
+  static Future<void> _planes(Database db) async {
+    final batch = db.batch();
+    _crearPlanes(batch);
+    await batch.commit(noResult: true);
+  }
+
+  /// Plan de calificación por puntos y asistencia. Cada fila lleva su propia marca de
+  /// sincronización: sucia = 1 hasta que el servidor la recibe con ese actualizado_en.
+  /// Los borrados son lápidas (eliminado = 1, o valor/estado NULL) hasta avisarle al servidor.
+  /// Los id nacen en el teléfono y viajan tal cual: una actividad no tiene otra clave natural.
+  /// parcial es la clave normalizada del grupo del cuadro (`PARCIAL I`).
+  static void _crearPlanes(Batch batch) {
+    const sync = 'actualizado_en TEXT NOT NULL, sucia INTEGER NOT NULL DEFAULT 1';
+    // Plantillas del docente: los rubros van como JSON porque son pocos y se editan juntos.
+    batch.execute('''
+      CREATE TABLE plantillas (
+        id TEXT PRIMARY KEY,
+        nombre TEXT NOT NULL,
+        rubros_json TEXT NOT NULL,
+        eliminado INTEGER NOT NULL DEFAULT 0,
+        $sync
+      )''');
+    // El plan concreto de una clase en un parcial: copia de una plantilla, editable aparte.
+    batch.execute('''
+      CREATE TABLE rubros (
+        id TEXT PRIMARY KEY,
+        clase_id TEXT NOT NULL REFERENCES clases(id) ON DELETE CASCADE,
+        parcial TEXT NOT NULL,
+        nombre TEXT NOT NULL,
+        puntos REAL NOT NULL,
+        orden INTEGER NOT NULL,
+        eliminado INTEGER NOT NULL DEFAULT 0,
+        $sync
+      )''');
+    batch.execute('''
+      CREATE TABLE actividades (
+        id TEXT PRIMARY KEY,
+        clase_id TEXT NOT NULL REFERENCES clases(id) ON DELETE CASCADE,
+        parcial TEXT NOT NULL,
+        rubro_id TEXT NOT NULL,
+        titulo TEXT NOT NULL,
+        fecha TEXT NOT NULL,
+        puntos REAL NOT NULL,
+        descripcion TEXT,
+        eliminado INTEGER NOT NULL DEFAULT 0,
+        $sync
+      )''');
+    // valor NULL = pendiente (o un borrado por avisar); 0 = no entregó.
+    batch.execute('''
+      CREATE TABLE calificaciones (
+        actividad_id TEXT NOT NULL REFERENCES actividades(id) ON DELETE CASCADE,
+        alumno_id TEXT NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
+        valor REAL,
+        $sync,
+        PRIMARY KEY (actividad_id, alumno_id)
+      )''');
+    batch.execute('''
+      CREATE TABLE sesiones (
+        id TEXT PRIMARY KEY,
+        clase_id TEXT NOT NULL REFERENCES clases(id) ON DELETE CASCADE,
+        parcial TEXT NOT NULL,
+        fecha TEXT NOT NULL,
+        eliminado INTEGER NOT NULL DEFAULT 0,
+        $sync
+      )''');
+    // estado: P presente, A ausente, T tarde, J justificada. Sin fila = presente.
+    batch.execute('''
+      CREATE TABLE asistencias (
+        sesion_id TEXT NOT NULL REFERENCES sesiones(id) ON DELETE CASCADE,
+        alumno_id TEXT NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
+        estado TEXT,
+        $sync,
+        PRIMARY KEY (sesion_id, alumno_id)
+      )''');
+    batch.execute('''
+      CREATE TABLE parciales (
+        clase_id TEXT NOT NULL REFERENCES clases(id) ON DELETE CASCADE,
+        parcial TEXT NOT NULL,
+        cerrado_en TEXT,
+        $sync,
+        PRIMARY KEY (clase_id, parcial)
+      )''');
+    batch.execute('CREATE INDEX ix_actividades_clase ON actividades (clase_id, parcial)');
+    batch.execute('CREATE INDEX ix_sesiones_clase ON sesiones (clase_id, parcial)');
   }
 }

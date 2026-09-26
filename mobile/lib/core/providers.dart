@@ -8,6 +8,7 @@ import 'local/local_db.dart';
 import 'local/sync_repository.dart';
 import 'models/clase.dart';
 import 'models/session.dart';
+import 'planes/planes_repository.dart';
 import 'sace/exportador_cuadro.dart';
 
 /// Cliente HTTP atado a la sesión vigente: al renovarse el token se recrea.
@@ -31,6 +32,9 @@ final localDbProvider = Provider<Future<Database>>((ref) {
 });
 
 final clasesRepositoryProvider = Provider((ref) => ClasesRepository(ref.watch(localDbProvider)));
+
+final planesRepositoryProvider =
+    Provider((ref) => PlanesRepository(ref.watch(localDbProvider), ref.watch(clasesRepositoryProvider)));
 
 final syncRepositoryProvider = Provider((ref) => SyncRepository(ref.watch(localDbProvider)));
 
