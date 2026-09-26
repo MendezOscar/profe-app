@@ -26,7 +26,7 @@ services:
       - key: App__ApplyMigrationsOnStartup
         value: "true"
       - key: App__CorsOrigins__0
-        value: https://profeapp.pages.dev
+        value: https://profe-app.pages.dev
       - key: ConnectionStrings__Default
         sync: false
       - key: Jwt__Key

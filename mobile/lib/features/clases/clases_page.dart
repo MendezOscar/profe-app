@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../auth/cambiar_clave_dialog.dart';
 import '../../core/models/clase.dart';
 import '../../core/providers.dart';
 import '../../core/sace/hoja.dart';
@@ -23,10 +24,17 @@ class ClasesPage extends ConsumerWidget {
         title: const Text('Mis clases'),
         actions: [
           const _EstadoSync(),
-          IconButton(
-            tooltip: 'Cerrar sesión',
-            onPressed: () => ref.read(authControllerProvider.notifier).logout(),
-            icon: const Icon(Icons.logout),
+          PopupMenuButton<String>(
+            tooltip: 'Cuenta',
+            icon: const Icon(Icons.account_circle_outlined),
+            onSelected: (opcion) => switch (opcion) {
+              'clave' => mostrarCambiarClave(context),
+              _ => ref.read(authControllerProvider.notifier).logout(),
+            },
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'clave', child: Text('Cambiar contraseña')),
+              PopupMenuItem(value: 'salir', child: Text('Cerrar sesión')),
+            ],
           ),
         ],
       ),

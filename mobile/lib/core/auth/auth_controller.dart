@@ -126,19 +126,6 @@ class AuthController extends Notifier<AuthState> {
     await _storage.clear();
     state = const AuthState(isRestoring: false);
   }
-
-  Future<String?> changePassword(String current, String next) async {
-    final session = state.session;
-    if (session == null) return 'Sin sesión activa.';
-    try {
-      await _dio.post('/auth/change-password',
-          data: {'currentPassword': current, 'newPassword': next},
-          options: Options(headers: {'Authorization': 'Bearer ${session.accessToken}'}));
-      return null;
-    } on DioException catch (error) {
-      return ApiException.fromDio(error).message;
-    }
-  }
 }
 
 final authControllerProvider = NotifierProvider<AuthController, AuthState>(AuthController.new);

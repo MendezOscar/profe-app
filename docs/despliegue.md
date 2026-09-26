@@ -6,7 +6,7 @@ Todo con planes gratis, sin servidor propio:
 |---|---|---|
 | API (.NET) | **Render** | 512 MB; se duerme tras 15 min sin tráfico |
 | PostgreSQL | **Aiven** | 1 GB, 1 CPU; no se suspende, pero puede apagarse tras mucho tiempo sin uso |
-| App web (Flutter) | **Cloudflare Pages** | ancho de banda ilimitado |
+| App web (Flutter) | **Cloudflare Pages** | ancho de banda ilimitado; 500 builds al mes |
 | App Android | **APK firmado** | se reparte a mano mientras no haya cuenta de Play Store |
 
 Cómo encaja el sueño de Render con el uso: la app funciona sin servidor. Capturar, importar y guardar pasa en el teléfono; lo único que necesita la API es la sincronización (se reintenta sola) y la exportación. Si la API está dormida, la primera petición tarda de 30 a 60 segundos en despertarla y después responde normal.
@@ -51,21 +51,25 @@ Si la web se publica en otro dominio que no sea `profeapp.pages.dev`, hay que ca
 
 ## 3. Cloudflare Pages (web)
 
-Automático con [deploy-web.yml](../.github/workflows/deploy-web.yml) en cada push a `main` que toque `mobile/`. En *Settings → Secrets and variables → Actions* del repositorio:
+Pages compila la web desde GitHub en cada push a `main`. Su imagen no trae Flutter: lo instala [scripts/cloudflare-build.sh](../scripts/cloudflare-build.sh).
 
-| Tipo | Nombre | Valor |
-|---|---|---|
-| Variable | `API_BASE_URL` | `https://profeapp-o7hw.onrender.com` |
-| Secreto | `CLOUDFLARE_API_TOKEN` | token con permiso *Cloudflare Pages: Edit* |
-| Secreto | `CLOUDFLARE_ACCOUNT_ID` | id de la cuenta |
+En Cloudflare: *Workers & Pages* → *Create* → *Pages* → *Connect to Git* → `MendezOscar/profe-app`:
 
-El proyecto `profeapp` se crea en Pages la primera vez que corre el workflow. A mano:
+| Campo | Valor |
+|---|---|
+| Project name | `profe-app` (queda en `https://profe-app.pages.dev`) |
+| Production branch | `main` |
+| Framework preset | `None` |
+| Build command | `bash scripts/cloudflare-build.sh` |
+| Build output directory | `mobile/build/web` |
+| Root directory | vacío (raíz del repo) |
+| Environment variables | `API_BASE_URL` = `https://profeapp-o7hw.onrender.com` |
 
-```bash
-cd mobile
-flutter build web --release --dart-define-from-file=env/prod.json
-npx wrangler pages deploy build/web --project-name profeapp --branch main
-```
+El primer build tarda unos minutos porque baja Flutter. Para no recompilar la web con cambios que sólo tocan el backend: *Settings → Build → Build watch paths* → incluir `mobile/*` y `scripts/*`.
+
+No hace falta configurar rutas: si no hay `404.html`, Pages sirve `index.html` en cualquier ruta, y el router de Flutter resuelve el resto.
+
+**CORS:** la API sólo acepta al navegador desde `App__CorsOrigins__0`, que en [render.yaml](../render.yaml) es `https://profe-app.pages.dev`. Si el dominio cambia, hay que actualizar esa variable en Render.
 
 ## 4. APK de Android
 

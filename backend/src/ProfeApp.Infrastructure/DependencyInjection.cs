@@ -40,6 +40,7 @@ public static class DependencyInjection
                 options.Lockout.MaxFailedAccessAttempts = 10;
             })
             .AddRoles<AppRole>()
+            .AddErrorDescriber<IdentityErrorsEs>()
             .AddEntityFrameworkStores<AppDbContext>()
             .AddTokenProvider<DataProtectorTokenProvider<AppUser>>(TokenOptions.DefaultProvider);
         services.AddDataProtection();
