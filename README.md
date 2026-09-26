@@ -85,7 +85,7 @@ dispositivos del mismo docente, por celda gana la captura más nueva.
 
 ## Despliegue
 
-API en Render, base en Neon, web en Cloudflare Pages y APK firmado: ver
+API en Render, base en Aiven, web en Cloudflare Pages y APK firmado: ver
 [docs/despliegue.md](docs/despliegue.md).
 
 ## Pruebas

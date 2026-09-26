@@ -8,8 +8,8 @@ services:
     dockerfilePath: ./Dockerfile
     region: virginia
     plan: free
-    # /health/live no toca la base: si Render consultara /health cada pocos segundos,
-    # Neon nunca se suspendería y se gastarían las horas del plan gratis.
+    # /health/live no toca la base: un tropiezo de la base no debe hacer que Render
+    # reinicie la API, que igual responde (la app reintenta la sincronización sola).
     healthCheckPath: /health/live
     autoDeploy: true
     envVars:

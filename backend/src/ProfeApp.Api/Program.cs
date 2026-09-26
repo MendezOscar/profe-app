@@ -109,8 +109,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapHealthChecks("/health");
-// Sonda de vida que no toca la base: con Neon, consultarla cada pocos segundos
-// impediría que la base se suspenda.
+// Sonda de vida que no toca la base: si la base tropieza, la plataforma no debe reiniciar
+// la API por eso; la app reintenta la sincronización sola.
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
 
 app.MapAuthEndpoints();
