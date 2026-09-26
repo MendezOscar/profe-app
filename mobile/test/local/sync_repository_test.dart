@@ -5,6 +5,8 @@ import 'package:path/path.dart' as p;
 import 'package:profeapp/core/local/clases_repository.dart';
 import 'package:profeapp/core/local/local_db.dart';
 import 'package:profeapp/core/local/sync_repository.dart';
+import 'package:profeapp/core/planes/modelos.dart';
+import 'package:profeapp/core/planes/planes_repository.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 import '../sace/xlsx_de_prueba.dart';
@@ -97,5 +99,58 @@ void main() {
     await syncA.marcarSubida(pendiente.id, pendiente.version);
 
     expect(await dbA.query('clases'), isEmpty);
+  });
+
+  test('El plan, las notas y la asistencia pasan de un teléfono al otro', () async {
+    final planesA = PlanesRepository(Future.value(dbA), clasesA);
+    final planesB = PlanesRepository(Future.value(dbB), clasesB);
+    final claseA = (await clasesA.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final claseB = (await clasesB.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final parcialA = (await planesA.parciales(claseA)).first;
+
+    final rubro = await planesA.guardarRubro(claseA, parcialA.clave, nombre: 'Examen', puntos: 100);
+    final examen = await planesA.guardarActividad(claseA, parcialA.clave,
+        rubroId: rubro, titulo: 'Examen', fecha: DateTime(2026, 3, 1), puntos: 100);
+    final alumnoA = (await planesA.plan(claseA, parcialA)).alumnos.first;
+    await planesA.calificar(examen, alumnoA.id, 88);
+    final sesion = await planesA.sesion(claseA, parcialA.clave, DateTime(2026, 2, 2));
+    await planesA.marcarAsistencia(sesion, alumnoA.id, EstadoAsistencia.ausente);
+    await planesA.guardarPlantilla(nombre: 'Mi plan', rubros: const [RubroPlantilla('Todo', 100)]);
+
+    final pendientes = await syncA.registrosPendientes();
+    expect(pendientes.map((r) => r.json['tipo']).toSet(),
+        {'plantilla', 'rubro', 'actividad', 'calificacion', 'sesion', 'asistencia'});
+
+    // Al revés a propósito: la nota llega antes que su actividad.
+    await syncB.aplicarRegistros([for (final r in pendientes.reversed) r.json]);
+    await syncA.marcarRegistrosSubidos(pendientes);
+
+    final planB = await planesB.plan(claseB, (await planesB.parciales(claseB)).first);
+    final alumnoB = planB.alumnos.first;
+    expect(planB.rubros.single.nombre, 'Examen');
+    expect(planB.calificaciones[examen]?[alumnoB.id], 88);
+    expect(planB.asistencias[sesion]?[alumnoB.id], EstadoAsistencia.ausente);
+    expect((await planesB.plantillas()).first.nombre, 'Mi plan');
+    expect(await syncA.registrosPendientes(), isEmpty);
+    expect(await syncB.registrosPendientes(), isEmpty, reason: 'lo bajado no se vuelve a subir');
+  });
+
+  test('Por registro gana el cambio más nuevo', () async {
+    final planesA = PlanesRepository(Future.value(dbA), clasesA);
+    final planesB = PlanesRepository(Future.value(dbB), clasesB);
+    final claseA = (await clasesA.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final claseB = (await clasesB.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final parcial = (await planesA.parciales(claseA)).first.clave;
+
+    final rubro = await planesA.guardarRubro(claseA, parcial, nombre: 'Tareas', puntos: 40);
+    final viejo = (await syncA.registrosPendientes()).single.json;
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await planesB.guardarRubro(claseB, parcial, id: rubro, nombre: 'Tareas y trabajos', puntos: 50);
+
+    await syncB.aplicarRegistros([viejo]);
+
+    final rubroB = (await dbB.query('rubros', where: 'id = ?', whereArgs: [rubro])).single;
+    expect(rubroB['nombre'], 'Tareas y trabajos');
+    expect(rubroB['sucia'], 1, reason: 'el cambio local sigue pendiente de subir');
   });
 }

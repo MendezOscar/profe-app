@@ -2,7 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
+using System.Text.Json;
 using ProfeApp.Domain.Cuadros;
+using ProfeApp.Domain.Planes;
 
 namespace ProfeApp.Application.Services;
 
@@ -16,17 +18,25 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
 {
     private const int MaxClasesPorPush = 50;
     private const int MaxArchivoBytes = 5 * 1024 * 1024;
+    private const int MaxRegistrosPorPush = 2_000;
 
     public async Task<Result> PushAsync(SyncPushRequest request, CancellationToken ct = default)
     {
-        if (request.Clases is null || request.Clases.Count > MaxClasesPorPush)
+        var clases = request.Clases ?? [];
+        var registros = request.Registros ?? [];
+        if (clases.Count > MaxClasesPorPush)
             return Result.Fail(Error.Validation($"Se pueden enviar hasta {MaxClasesPorPush} clases por vez."));
+        if (registros.Count > MaxRegistrosPorPush)
+            return Result.Fail(Error.Validation($"Se pueden enviar hasta {MaxRegistrosPorPush} registros por vez."));
 
-        foreach (var entrante in request.Clases)
+        foreach (var entrante in clases)
         {
             var error = await AplicarAsync(entrante, ct);
             if (error is not null) return Result.Fail(error);
         }
+        var errorRegistros = await AplicarRegistrosAsync(registros, ct);
+        if (errorRegistros is not null) return Result.Fail(errorRegistros);
+
         await db.SaveChangesAsync(ct);
         return Result.Success();
     }
@@ -47,7 +57,71 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
             .OrderBy(c => c.ModificadoEn)
             .ToListAsync(ct);
 
-        return new SyncPullResponse(hasta, clases.Select(c => ADto(c, incluirArchivo: c.PlantillaModificadaEn > inicio)).ToList());
+        var registros = await db.Registros
+            .AsNoTracking()
+            .Where(r => r.ModificadoEn > inicio)
+            .OrderBy(r => r.ModificadoEn)
+            .Select(r => new RegistroSync(r.Tipo, r.ClaseClave, r.Clave, r.Datos, r.Eliminado, r.ActualizadoEn))
+            .ToListAsync(ct);
+
+        return new SyncPullResponse(
+            hasta,
+            clases.Select(c => ADto(c, incluirArchivo: c.PlantillaModificadaEn > inicio)).ToList(),
+            registros);
+    }
+
+    /// <summary>Por fila, gana el cambio más nuevo según la hora del teléfono.</summary>
+    private async Task<Error?> AplicarRegistrosAsync(IReadOnlyList<RegistroSync> entrantes, CancellationToken ct)
+    {
+        if (entrantes.Count == 0) return null;
+        foreach (var r in entrantes)
+        {
+            if (r is null || !Registro.Tipos.Contains(r.Tipo) || string.IsNullOrWhiteSpace(r.Clave)
+                || r.Clave.Length > 200 || r.ClaseClave is null || r.ClaseClave.Length > 600)
+                return Error.Validation("Registro incompleto.");
+            if (r.Datos is not null && (r.Datos.Length > Registro.MaxDatos || !EsJson(r.Datos)))
+                return Error.Validation("Registro con datos inválidos.");
+        }
+
+        // Candidatos por clase y clave; el cruce exacto (tipo, clase, clave) se hace en memoria.
+        var claseClaves = entrantes.Select(r => r.ClaseClave).Distinct().ToList();
+        var claves = entrantes.Select(r => r.Clave).Distinct().ToList();
+        var existentes = (await db.Registros
+                .Where(r => claseClaves.Contains(r.ClaseClave) && claves.Contains(r.Clave))
+                .ToListAsync(ct))
+            .ToDictionary(r => (r.Tipo, r.ClaseClave, r.Clave));
+
+        var now = clock.Now;
+        foreach (var r in entrantes)
+        {
+            var clave = (r.Tipo, r.ClaseClave, r.Clave);
+            if (!existentes.TryGetValue(clave, out var registro))
+            {
+                registro = new Registro { Tipo = r.Tipo, ClaseClave = r.ClaseClave, Clave = r.Clave, ActualizadoEn = DateTimeOffset.MinValue };
+                existentes[clave] = registro;
+                db.Registros.Add(registro);
+            }
+            var cuando = r.ActualizadoEn.ToUniversalTime();
+            if (cuando <= registro.ActualizadoEn) continue;
+            registro.Datos = r.Datos;
+            registro.Eliminado = r.Eliminado;
+            registro.ActualizadoEn = cuando;
+            registro.ModificadoEn = now;
+        }
+        return null;
+    }
+
+    private static bool EsJson(string texto)
+    {
+        try
+        {
+            using var _ = JsonDocument.Parse(texto);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private async Task<Error?> AplicarAsync(ClaseSync entrante, CancellationToken ct)

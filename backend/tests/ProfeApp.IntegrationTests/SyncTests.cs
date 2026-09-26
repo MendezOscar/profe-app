@@ -133,4 +133,68 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         pull.GetProperty("clases").GetArrayLength().Should().Be(0);
     }
+
+    private static object Registro(string tipo, string clave, object? datos, DateTimeOffset cuando, bool eliminado = false, string claseClave = "quimica") =>
+        new { tipo, claseClave, clave, datos = datos is null ? null : JsonSerializer.Serialize(datos), eliminado, actualizadoEn = cuando };
+
+    private static async Task PushRegistrosAsync(HttpClient client, params object[] registros)
+    {
+        var response = await client.PostAsJsonAsync("/api/v1/sync/push", new { clases = Array.Empty<object>(), registros });
+        response.StatusCode.Should().Be(HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync());
+    }
+
+    private static JsonElement RegistroDe(JsonElement pull, string tipo, string clave) =>
+        pull.GetProperty("registros").EnumerateArray()
+            .Single(r => r.GetProperty("tipo").GetString() == tipo && r.GetProperty("clave").GetString() == clave);
+
+    [Fact]
+    public async Task Por_nota_de_actividad_gana_la_mas_nueva()
+    {
+        var client = await RegisterAsync();
+        await PushRegistrosAsync(client, Registro("calificacion", "act1|0501", new { valor = 9.5 }, Importada.AddHours(2)));
+        await PushRegistrosAsync(client, Registro("calificacion", "act1|0501", new { valor = 4 }, Importada.AddHours(1)));
+
+        var nota = RegistroDe(await PullAsync(client), "calificacion", "act1|0501");
+
+        JsonDocument.Parse(nota.GetProperty("datos").GetString()!).RootElement.GetProperty("valor").GetDouble().Should().Be(9.5);
+    }
+
+    [Fact]
+    public async Task Borrar_una_actividad_deja_la_lapida_y_el_pull_incremental_la_trae()
+    {
+        var client = await RegisterAsync();
+        await PushRegistrosAsync(client, Registro("actividad", "act2", new { titulo = "Tarea 1", puntos = 10 }, Importada.AddHours(1)));
+        var cursor = (await PullAsync(client)).GetProperty("hasta").GetString();
+
+        await PushRegistrosAsync(client, Registro("actividad", "act2", new { titulo = "Tarea 1", puntos = 10 }, Importada.AddHours(2), eliminado: true));
+        var pull = await PullAsync(client, cursor);
+
+        pull.GetProperty("registros").GetArrayLength().Should().Be(1);
+        RegistroDe(pull, "actividad", "act2").GetProperty("eliminado").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Las_plantillas_son_del_docente_y_no_se_mezclan_entre_docentes()
+    {
+        var uno = await RegisterAsync();
+        var otro = await RegisterAsync();
+        await PushRegistrosAsync(uno, Registro("plantilla", "p1", new { nombre = "Mi plan" }, Importada, claseClave: ""));
+
+        (await PullAsync(uno)).GetProperty("registros").GetArrayLength().Should().Be(1);
+        (await PullAsync(otro)).GetProperty("registros").GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Un_registro_de_tipo_desconocido_o_datos_que_no_son_json_se_rechaza()
+    {
+        var client = await RegisterAsync();
+
+        var tipo = await client.PostAsJsonAsync("/api/v1/sync/push",
+            new { registros = new[] { Registro("otra-cosa", "x", new { }, Importada) } });
+        var datos = await client.PostAsJsonAsync("/api/v1/sync/push",
+            new { registros = new[] { new { tipo = "rubro", claseClave = "c", clave = "r", datos = "{no es json", eliminado = false, actualizadoEn = Importada } } });
+
+        tipo.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        datos.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
 }

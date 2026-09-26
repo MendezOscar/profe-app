@@ -84,6 +84,10 @@ El teléfono es la fuente de verdad. Lo capturado se respalda en la API (`/api/v
 al abrir la app, al volver la señal y unos segundos después de cada cambio. Entre dos
 dispositivos del mismo docente, por celda gana la captura más nueva.
 
+El plan de calificación (plantillas, rubros, actividades, notas, asistencia y cierre de
+parciales) viaja como *registros* genéricos (`registros` en la base): el servidor guarda
+el JSON sin interpretarlo y por fila gana el cambio más nuevo.
+
 ## Despliegue
 
 API en Render, base en Aiven, web en Cloudflare Pages y APK firmado: ver

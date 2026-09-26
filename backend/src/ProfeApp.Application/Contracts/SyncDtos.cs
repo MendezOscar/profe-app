@@ -28,7 +28,14 @@ public sealed record AlumnoSync(string Clave, string Identidad, string Documento
 /// <summary>Valor null = la celda se borró.</summary>
 public sealed record ValorSync(string AlumnoClave, string ColumnaClave, int? Valor, DateTimeOffset ActualizadoEn);
 
-public sealed record SyncPushRequest(IReadOnlyList<ClaseSync> Clases);
+/// <summary>
+/// Una fila del plan de calificación (ver <c>Registro</c>). <c>Datos</c> es JSON que el
+/// servidor no interpreta.
+/// </summary>
+public sealed record RegistroSync(string Tipo, string ClaseClave, string Clave, string? Datos, bool Eliminado, DateTimeOffset ActualizadoEn);
+
+/// <summary>Registros es opcional: las versiones de la app sin planes no lo mandan.</summary>
+public sealed record SyncPushRequest(IReadOnlyList<ClaseSync>? Clases, IReadOnlyList<RegistroSync>? Registros = null);
 
 /// <summary><c>Hasta</c> es el cursor para el próximo pull.</summary>
-public sealed record SyncPullResponse(DateTimeOffset Hasta, IReadOnlyList<ClaseSync> Clases);
+public sealed record SyncPullResponse(DateTimeOffset Hasta, IReadOnlyList<ClaseSync> Clases, IReadOnlyList<RegistroSync> Registros);

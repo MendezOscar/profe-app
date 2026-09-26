@@ -32,6 +32,8 @@ class SyncController extends Notifier<SyncState> {
   /// dos veces lo mismo no cambia nada.
   static const _margen = Duration(minutes: 2);
 
+  static const _tanda = 500;
+
   @override
   SyncState build() {
     // Otro usuario, otra base: se vuelve a empezar.
@@ -67,7 +69,14 @@ class SyncController extends Notifier<SyncState> {
         await _ciclo();
       } while (_otraVez);
       state = SyncState(EstadoSync.alDia, ultima: DateTime.now());
-      ref.invalidate(clasesProvider);
+      // Lo bajado puede tocar cualquier pantalla: listas, planes, notas, plantillas.
+      ref
+        ..invalidate(clasesProvider)
+        ..invalidate(claseProvider)
+        ..invalidate(parcialesProvider)
+        ..invalidate(planProvider)
+        ..invalidate(plantillasProvider)
+        ..invalidate(tableroProvider);
     } on ApiException catch (error) {
       state = error.isNetworkError
           ? SyncState(EstadoSync.sinConexion, ultima: state.ultima)
@@ -101,12 +110,26 @@ class SyncController extends Notifier<SyncState> {
       await repo.marcarSubida(pendiente.id, pendiente.version);
     }
 
+    // El plan va aparte y por tandas: una clase con muchas actividades junta miles de notas.
+    // Después de las clases, para que el servidor ya las conozca.
+    final registros = await repo.registrosPendientes();
+    for (var i = 0; i < registros.length; i += _tanda) {
+      final tanda = registros.skip(i).take(_tanda).toList();
+      await api.post('/sync/push', body: {
+        'clases': const [],
+        'registros': [for (final r in tanda) r.json],
+      });
+      await repo.marcarRegistrosSubidos(tanda);
+    }
+
     final cursor = await repo.cursor();
     final desde = cursor == null ? null : DateTime.parse(cursor).subtract(_margen).toUtc().toIso8601String();
     final pull = await api.get('/sync/pull', query: {'desde': desde}, parse: (d) => d as Map<String, dynamic>);
     for (final clase in (pull['clases'] as List).cast<Map<String, dynamic>>()) {
       await repo.aplicar(clase);
     }
+    // Después de las clases: los registros se enganchan a clases y alumnos que ya deben existir.
+    await repo.aplicarRegistros(((pull['registros'] as List?) ?? const []).cast<Map<String, dynamic>>());
     await repo.guardarCursor(pull['hasta'] as String);
   }
 }
