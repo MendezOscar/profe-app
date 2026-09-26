@@ -78,7 +78,8 @@ ResultadoParcial calcularParcial(PlanParcial plan) {
       if (valor == null) {
         pendientes++;
       } else {
-        obtenidos += valor;
+        // Si bajaron los puntos de la actividad después de calificar, no se pasa del nuevo máximo.
+        obtenidos += valor.clamp(0, a.puntos).toDouble();
       }
     }
     porAlumno[alumno.id] =

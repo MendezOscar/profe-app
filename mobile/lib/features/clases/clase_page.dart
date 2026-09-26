@@ -9,6 +9,9 @@ import '../../core/models/clase.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
 
+/// El cuadro de SACE tal cual: captura directa de sus columnas, una a la vez, y exportar.
+/// Lo normal es que NOTA TOTAL e INASISTENCIAS lleguen al cerrar el parcial; aquí se
+/// corrigen a mano o se llenan NIVELACIÓN y RECUPERACIÓN.
 /// Captura de una clase, una columna a la vez: en el teléfono es más rápido bajar por la
 /// lista escribiendo con el teclado numérico que moverse por una cuadrícula ancha.
 /// Las columnas son las que trae la plantilla de SACE, sean las que sean.
@@ -100,6 +103,8 @@ class _CapturaState extends ConsumerState<_Captura> {
       }
     });
     await ref.read(clasesRepositoryProvider).guardarValor(alumno.id, columna.clave, valor);
+    // Para que al volver a entrar no se muestre lo que había antes de este cambio.
+    ref.invalidate(claseProvider(_clase.resumen.id));
     ref.read(syncControllerProvider.notifier).programar();
   }
 
@@ -166,7 +171,7 @@ class _CapturaState extends ConsumerState<_Captura> {
     await ref.read(clasesRepositoryProvider).eliminar(_clase.resumen.id);
     ref.invalidate(clasesProvider);
     ref.read(syncControllerProvider.notifier).programar();
-    if (mounted) context.pop();
+    if (mounted) context.go('/inicio');
   }
 
   int _capturados(String clave) => _clase.alumnos.where((a) => _valores[a.id]?[clave] != null).length;
