@@ -1,6 +1,9 @@
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
+using ProfeApp.Application.Abstractions;
+using ProfeApp.Application.Contracts;
 
 namespace ProfeApp.IntegrationTests.Infrastructure;
 
@@ -19,17 +22,19 @@ public abstract class ApiTestBase(ApiFixture fixture)
         return client;
     }
 
-    /// <summary>Docente nuevo, con su propio espacio: sirve para probar el aislamiento.</summary>
+    /// <summary>
+    /// Docente nuevo, con su propio espacio: sirve para probar el aislamiento. Se crea con
+    /// el servicio porque la API no tiene registro público.
+    /// </summary>
     protected async Task<HttpClient> RegisterAsync(string? email = null)
     {
+        using var scope = Fixture.Services.CreateScope();
+        var result = await scope.ServiceProvider.GetRequiredService<IAuthService>().RegisterAsync(
+            new RegisterRequest(email ?? $"docente-{Guid.NewGuid():N}@prueba.hn", "Prueba1234!", "Docente de Prueba"), null);
+        result.IsSuccess.Should().BeTrue(result.Error?.Message);
+
         var client = Fixture.CreateClient();
-        var response = await client.PostAsJsonAsync("/api/v1/auth/register", new
-        {
-            email = email ?? $"docente-{Guid.NewGuid():N}@prueba.hn",
-            password = "Prueba1234!",
-            fullName = "Docente de Prueba"
-        });
-        Authorize(client, await ReadAsync(response));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Value.Tokens.AccessToken);
         return client;
     }
 

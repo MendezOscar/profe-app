@@ -28,15 +28,12 @@ public class AuthTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
-    public async Task No_se_puede_registrar_dos_veces_el_mismo_correo()
+    public async Task No_hay_registro_publico()
     {
-        var email = $"repetido-{Guid.NewGuid():N}@prueba.hn";
-        await RegisterAsync(email);
-
         var response = await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/register",
-            new { email, password = "Prueba1234!", fullName = "Otro" });
+            new { email = "nuevo@prueba.hn", password = "Prueba1234!", fullName = "Nuevo" });
 
-        response.StatusCode.Should().Be(HttpStatusCode.Conflict);
+        response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]

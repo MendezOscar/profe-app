@@ -66,14 +66,6 @@ class AuthController extends Notifier<AuthState> {
         'deviceName': 'ProfeApp',
       });
 
-  /// Alta del docente: el servidor le crea su espacio y devuelve la sesión ya iniciada.
-  Future<bool> register(String fullName, String email, String password) => _authenticate('/auth/register', {
-        'fullName': fullName.trim(),
-        'email': email.trim(),
-        'password': password,
-        'deviceName': 'ProfeApp',
-      });
-
   Future<bool> _authenticate(String path, Map<String, dynamic> body) async {
     state = state.copyWith(isLoading: true, error: null);
     try {

@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_controller.dart';
 
-/// Entrada y alta en la misma pantalla: el docente que llega por primera vez
-/// no debería tener que buscar dónde crear su cuenta.
+/// Entrada del docente. Las cuentas no se crean desde la app.
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -14,15 +13,12 @@ class LoginPage extends ConsumerStatefulWidget {
 
 class _LoginPageState extends ConsumerState<LoginPage> {
   final _form = GlobalKey<FormState>();
-  final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
-  bool _registering = false;
 
   @override
   void dispose() {
-    _name.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -30,12 +26,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
-    final auth = ref.read(authControllerProvider.notifier);
-    if (_registering) {
-      await auth.register(_name.text, _email.text, _password.text);
-    } else {
-      await auth.login(_email.text, _password.text);
-    }
+    await ref.read(authControllerProvider.notifier).login(_email.text, _password.text);
   }
 
   @override
@@ -61,16 +52,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   Text('Tus notas sin internet, listas para subir a SACE',
                       style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
                   const SizedBox(height: 28),
-                  if (_registering) ...[
-                    TextFormField(
-                      controller: _name,
-                      textCapitalization: TextCapitalization.words,
-                      autofillHints: const [AutofillHints.name],
-                      decoration: const InputDecoration(labelText: 'Nombre completo', prefixIcon: Icon(Icons.person_outline)),
-                      validator: (value) => (value == null || value.trim().length < 3) ? 'Ingresa tu nombre' : null,
-                    ),
-                    const SizedBox(height: 12),
-                  ],
                   TextFormField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
@@ -83,20 +64,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   TextFormField(
                     controller: _password,
                     obscureText: _obscure,
-                    autofillHints: [_registering ? AutofillHints.newPassword : AutofillHints.password],
+                    autofillHints: const [AutofillHints.password],
                     onFieldSubmitted: (_) => _submit(),
                     decoration: InputDecoration(
                       labelText: 'Contraseña',
-                      helperText: _registering ? 'Mínimo 8 caracteres, con mayúscula, minúscula y número' : null,
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
                         onPressed: () => setState(() => _obscure = !_obscure),
                         icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                       ),
                     ),
-                    validator: (value) => (value == null || value.length < (_registering ? 8 : 4))
-                        ? 'Contraseña muy corta'
-                        : null,
+                    validator: (value) => (value == null || value.length < 4) ? 'Contraseña muy corta' : null,
                   ),
                   if (auth.error != null) ...[
                     const SizedBox(height: 16),
@@ -122,12 +100,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     onPressed: auth.isLoading ? null : _submit,
                     child: auth.isLoading
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text(_registering ? 'Crear cuenta' : 'Entrar'),
-                  ),
-                  const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: auth.isLoading ? null : () => setState(() => _registering = !_registering),
-                    child: Text(_registering ? 'Ya tengo cuenta' : 'Soy nuevo, crear cuenta'),
+                        : const Text('Entrar'),
                   ),
                 ],
               ),

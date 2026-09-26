@@ -43,7 +43,9 @@ Antes del primer deploy, cargar los dos secretos en *Environment*:
 | `ConnectionStrings__Default` | la cadena de Aiven del paso 1 |
 | `Jwt__Key` | `openssl rand -base64 48` |
 
-`App__ApplyMigrationsOnStartup=true` crea el esquema en el primer arranque. Para tener el docente demo en producción, agregar `App__SeedDemoData=true` en el primer deploy y quitarlo después.
+`App__ApplyMigrationsOnStartup=true` crea el esquema en el primer arranque.
+
+**Cuentas:** la app no tiene registro público y la API no expone `/auth/register`. Por ahora se entra con el docente demo, que se crea con `App__SeedDemoData=true` (ya configurada en Render). La variable no se quita: si el usuario ya existe, no hace nada. El alta de docentes reales está por definir.
 
 Si la web se publica en otro dominio que no sea `profeapp.pages.dev`, hay que cambiar `App__CorsOrigins__0` por ese dominio exacto, sin barra final.
 
@@ -106,9 +108,9 @@ curl https://profeapp-o7hw.onrender.com/health        # con base: "Healthy" si A
 ```
 
 Después, en la web o en el APK:
-1. Crear una cuenta.
+1. Entrar con el docente demo.
 2. Importar un cuadro.
 3. Capturar una nota.
 4. Ver la nube en "respaldado".
-5. Entrar con la misma cuenta en otro dispositivo y ver la clase.
+5. Entrar con el mismo usuario en otro dispositivo y ver la clase.
 6. Exportar el cuadro.

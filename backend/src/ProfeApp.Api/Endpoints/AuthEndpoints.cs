@@ -10,10 +10,8 @@ public static class AuthEndpoints
     {
         var group = app.MapGroup("/api/v1/auth").WithTags("Auth");
 
-        group.MapPost("/register", async (RegisterRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>
-                (await auth.RegisterAsync(request, http.Connection.RemoteIpAddress?.ToString(), ct)).ToHttp())
-            .AllowAnonymous()
-            .WithSummary("Crea la cuenta del docente y devuelve la sesión iniciada.");
+        // Sin registro público: las cuentas no se crean desde la app. El alta de docentes
+        // está por definir; por ahora sólo existe el docente demo (App:SeedDemoData).
 
         group.MapPost("/login", async (LoginRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>
                 (await auth.LoginAsync(request, http.Connection.RemoteIpAddress?.ToString(), ct)).ToHttp())
