@@ -2,7 +2,7 @@ name: deploy-web
 
 # Compila la app Flutter para web y la publica en Cloudflare Pages en cada push a main.
 # Requiere configurar en el repositorio:
-#   Variable  API_BASE_URL            https://profeapp.onrender.com
+#   Variable  API_BASE_URL            https://profeapp-o7hw.onrender.com
 #   Secretos  CLOUDFLARE_API_TOKEN    token con permiso Cloudflare Pages: Edit
 #             CLOUDFLARE_ACCOUNT_ID   id de cuenta de Cloudflare
 on:

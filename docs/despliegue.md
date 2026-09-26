@@ -53,7 +53,7 @@ Automático con [deploy-web.yml](../.github/workflows/deploy-web.yml) en cada pu
 
 | Tipo | Nombre | Valor |
 |---|---|---|
-| Variable | `API_BASE_URL` | `https://profeapp.onrender.com` |
+| Variable | `API_BASE_URL` | `https://profeapp-o7hw.onrender.com` |
 | Secreto | `CLOUDFLARE_API_TOKEN` | token con permiso *Cloudflare Pages: Edit* |
 | Secreto | `CLOUDFLARE_ACCOUNT_ID` | id de la cuenta |
 
@@ -101,8 +101,8 @@ Antes de cada versión nueva, subir `version:` en `mobile/pubspec.yaml`. El núm
 ## Verificación
 
 ```bash
-curl https://profeapp.onrender.com/health/live   # sin base
-curl https://profeapp.onrender.com/health        # con base: "Healthy" si Aiven responde
+curl https://profeapp-o7hw.onrender.com/health/live   # sin base
+curl https://profeapp-o7hw.onrender.com/health        # con base: "Healthy" si Aiven responde
 ```
 
 Después, en la web o en el APK:
