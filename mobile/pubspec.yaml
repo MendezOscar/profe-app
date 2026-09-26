@@ -1,0 +1,37 @@
+name: profeapp
+description: ProfeApp - cuadro de notas offline del docente, listo para subir a SACE.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # usePathUrlStrategy: sin esto las URLs llevan # y los enlaces directos no funcionan
+  flutter_web_plugins:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  # estado / navegacion
+  flutter_riverpod: ^2.6.1
+  go_router: ^14.6.2
+
+  # red
+  dio: ^5.7.0
+
+  # sesion
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.3
+
+  cupertino_icons: ^1.0.8
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

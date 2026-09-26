@@ -1,0 +1,22 @@
+# .NET
+bin/
+obj/
+*.user
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+mobile/ios/Pods/
+# Tooling
+.idea/
+.vs/
+.DS_Store
+*.log
+
+# Despliegue: secretos y credenciales locales
+infra/.env
+# Firma de Android: perder el keystore obliga a desinstalar la app para actualizarla.
+mobile/android/key.properties
+*.jks
+*.keystore
+dist/
