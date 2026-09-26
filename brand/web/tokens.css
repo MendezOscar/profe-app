@@ -1,0 +1,21 @@
+/* ProfeApp — tokens de marca */
+:root{
+  --pa-azul-100:#E8EEFA; --pa-azul-200:#C9D7F3; --pa-azul-300:#9FB8EA; --pa-azul-400:#6D92DC;
+  --pa-azul-500:#2B59C3; --pa-azul-600:#234AA6; --pa-azul-700:#1E3F8C; --pa-azul-800:#172F69; --pa-azul-900:#14213D;
+  --pa-primario:var(--pa-azul-500);
+  --pa-primario-hover:var(--pa-azul-600);
+  --pa-texto:#14213D;
+  --pa-texto-suave:#4A5670;
+  --pa-fondo:#F5F7FB;
+  --pa-superficie:#FFFFFF;
+  --pa-superficie-2:#EAEFF8;
+  --pa-borde:#14213D;
+  --pa-blanco:#FFFFFF;
+  --pa-fuente:'Archivo',system-ui,sans-serif;
+  --pa-radio:0;
+  --pa-regla:2px;
+}
+body{margin:0;background:var(--pa-fondo);color:var(--pa-texto);font-family:var(--pa-fuente)}
+a{color:var(--pa-azul-700)} a:hover{color:var(--pa-azul-800)}
+:focus-visible{outline:2px solid var(--pa-primario);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}

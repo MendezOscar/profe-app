@@ -107,13 +107,8 @@ class _ClaseTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    // Forma y color vienen del tema de marca: recto, sin sombra.
     return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
       child: ListTile(
         onTap: () => context.push('/clases/${clase.id}'),
         title: Text(clase.asignatura),

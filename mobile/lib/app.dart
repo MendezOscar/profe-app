@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/router.dart';
 import 'core/sync/sync_controller.dart';
-import 'core/theme.dart';
+import 'theme/profeapp_theme.dart';
 
 class ProfeApp extends ConsumerWidget {
   const ProfeApp({super.key});
@@ -18,8 +18,8 @@ class ProfeApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'ProfeApp',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
+      // La marca define sólo tema claro.
+      theme: profeTheme(),
       routerConfig: ref.watch(routerProvider),
       locale: const Locale('es', 'HN'),
       supportedLocales: const [Locale('es', 'HN'), Locale('es'), Locale('en')],

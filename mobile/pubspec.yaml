@@ -50,3 +50,19 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Logos del kit de marca (brand/).
+  assets:
+    - assets/brand/
+
+  # Archivo incluida en la app (licencia OFL en assets/fonts/OFL.txt): sin señal no hay
+  # de dónde descargarla.
+  fonts:
+    - family: Archivo
+      fonts:
+        - asset: assets/fonts/Archivo-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Archivo-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Archivo-ExtraBold.ttf
+          weight: 800

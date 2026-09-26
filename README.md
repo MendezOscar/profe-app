@@ -73,6 +73,7 @@ mobile/
   lib/core/sace/                lector del cuadro de SACE (.xlsx a nivel de XML)
   lib/core/local/               base local sqflite: clases, alumnos y notas offline
   lib/features/                 pantallas por área
+brand/                          kit de marca (fuente de verdad de logos, colores e íconos)
 infra/                          docker-compose de desarrollo
 docs/                           formato SACE y referencias
 ```

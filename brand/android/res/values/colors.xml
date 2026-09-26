@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#2B59C3</color>
+    <color name="profe_azul">#2B59C3</color>
+    <color name="profe_azul_oscuro">#1E3F8C</color>
+    <color name="profe_marino">#14213D</color>
+    <color name="profe_fondo">#F5F7FB</color>
+    <color name="profe_blanco">#FFFFFF</color>
+</resources>

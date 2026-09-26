@@ -47,8 +47,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('ProfeApp', style: text.headlineMedium?.copyWith(color: scheme.primary)),
-                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Image.asset('assets/brand/logo-azul.png', height: 44, semanticLabel: 'ProfeApp'),
+                  ),
+                  const SizedBox(height: 12),
                   Text('Tus notas sin internet, listas para subir a SACE',
                       style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
                   const SizedBox(height: 28),
@@ -80,10 +83,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     const SizedBox(height: 16),
                     Container(
                       padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: scheme.errorContainer,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      // Sin esquinas redondeadas: regla de la marca.
+                      color: scheme.errorContainer,
                       child: Row(
                         children: [
                           Icon(Icons.error_outline, color: scheme.onErrorContainer, size: 20),
