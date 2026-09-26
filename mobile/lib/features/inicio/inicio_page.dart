@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../ui/barra_puntos.dart';
@@ -65,6 +66,7 @@ class InicioPage extends ConsumerWidget {
                 onRefresh: () => ref.read(syncControllerProvider.notifier).sincronizar(),
                 child: CustomScrollView(
                   slivers: [
+                    SliverToBoxAdapter(child: _PrimerosPasos(avances: avances)),
                     SliverToBoxAdapter(child: _Resumen(avances: avances)),
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
@@ -82,6 +84,84 @@ class InicioPage extends ConsumerWidget {
                   ],
                 ),
               ),
+      ),
+    );
+  }
+}
+
+/// Guía de primeros pasos: lo básico de la app en orden, cada paso lleva a donde se hace.
+/// Se oculta sola al completarla, o cuando el docente la cierra.
+class _PrimerosPasos extends ConsumerWidget {
+  const _PrimerosPasos({required this.avances});
+
+  final List<AvanceClase> avances;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final oculta = ref.watch(banderaProvider(Bandera.primerosPasosOcultos));
+    final progreso = ref.watch(progresoProvider).valueOrNull;
+    if (oculta || progreso == null) return const SizedBox.shrink();
+
+    final primera = '/inicio/asignaturas/${avances.first.clase.id}';
+    final pasos = [
+      (true, 'Importa tus cuadros de SACE', 'Cada archivo es una asignatura.', null),
+      (progreso.plan, 'Arma el plan de un parcial', 'Reparte los 100 puntos en rubros.', primera),
+      (progreso.actividad, 'Crea tu primera actividad', 'Una tarea, un trabajo o un examen.', primera),
+      (progreso.lista, 'Pasa lista', 'Marca solo a los que faltan.', '/asistencia/${avances.first.clase.id}'),
+      (progreso.cierre, 'Cierra un parcial y exporta', 'Las notas pasan al cuadro de SACE.', primera),
+    ];
+    final hechos = pasos.where((p) => p.$1).length;
+    if (hechos == pasos.length) return const SizedBox.shrink();
+
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      child: Card(
+        color: scheme.surface,
+        shape: RoundedRectangleBorder(side: BorderSide(color: scheme.primary, width: 2)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(child: Text('Primeros pasos', style: text.titleMedium)),
+                  Text('$hechos de ${pasos.length}', style: text.labelLarge),
+                  IconButton(
+                    tooltip: 'Ocultar la guía',
+                    onPressed: () => ref.read(banderaProvider(Bandera.primerosPasosOcultos).notifier).poner(true),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 8, bottom: 4),
+                child: LinearProgressIndicator(
+                  value: hechos / pasos.length,
+                  minHeight: 6,
+                  backgroundColor: scheme.primaryContainer,
+                ),
+              ),
+              for (final (hecho, titulo, detalle, ruta) in pasos)
+                ListTile(
+                  contentPadding: const EdgeInsets.only(right: 8),
+                  leading: Icon(hecho ? Icons.check_box : Icons.check_box_outline_blank,
+                      color: hecho ? scheme.primary : scheme.onSurfaceVariant),
+                  title: Text(titulo,
+                      style: TextStyle(
+                        decoration: hecho ? TextDecoration.lineThrough : null,
+                        color: hecho ? scheme.onSurfaceVariant : null,
+                        fontWeight: hecho ? null : FontWeight.w600,
+                      )),
+                  subtitle: hecho ? null : Text(detalle),
+                  trailing: hecho || ruta == null ? null : const Icon(Icons.chevron_right),
+                  onTap: hecho || ruta == null ? null : () => context.go(ruta),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

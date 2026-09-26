@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../ui/indicador_sync.dart';
@@ -61,6 +63,21 @@ class CuentaPage extends ConsumerWidget {
                         ? 'Todavía no se ha sincronizado en esta sesión'
                         : 'Última vez: ${TimeOfDay.fromDateTime(ultima).format(context)}'),
                     trailing: const IndicadorSync(),
+                  ),
+                  const Divider(height: 2),
+                  ListTile(
+                    leading: const Icon(Icons.slideshow_outlined),
+                    title: const Text('Ver la introducción'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.go('/bienvenida'),
+                  ),
+                  const Divider(height: 2),
+                  SwitchListTile(
+                    secondary: const Icon(Icons.checklist),
+                    title: const Text('Guía de primeros pasos en Inicio'),
+                    value: !ref.watch(banderaProvider(Bandera.primerosPasosOcultos)),
+                    onChanged: (mostrar) =>
+                        ref.read(banderaProvider(Bandera.primerosPasosOcultos).notifier).poner(!mostrar),
                   ),
                   const Divider(height: 2),
                   ListTile(

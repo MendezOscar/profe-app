@@ -322,6 +322,18 @@ class PlanesRepository {
     );
   }
 
+  /// Qué partes de la app ya usó el docente, para la guía de primeros pasos.
+  Future<({bool plan, bool actividad, bool lista, bool cierre})> progreso() async {
+    final db = await _db;
+    Future<bool> hay(String sql) async => (await db.rawQuery(sql)).isNotEmpty;
+    return (
+      plan: await hay('SELECT 1 FROM rubros WHERE eliminado = 0 LIMIT 1'),
+      actividad: await hay('SELECT 1 FROM actividades WHERE eliminado = 0 LIMIT 1'),
+      lista: await hay('SELECT 1 FROM sesiones WHERE eliminado = 0 LIMIT 1'),
+      cierre: await hay('SELECT 1 FROM parciales WHERE cerrado_en IS NOT NULL LIMIT 1'),
+    );
+  }
+
   // ── Cierre ────────────────────────────────────────────────────────────────
 
   /// Pasa la nota y las faltas de cada alumno al cuadro de SACE (las mismas celdas que

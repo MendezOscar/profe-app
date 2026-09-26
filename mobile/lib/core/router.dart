@@ -6,31 +6,49 @@ import '../features/asignatura/asignatura_page.dart';
 import '../features/asignatura/calificar_page.dart';
 import '../features/asistencia/asistencia_page.dart';
 import '../features/auth/login_page.dart';
+import '../features/bienvenida/bienvenida_page.dart';
+import '../features/bienvenida/splash_page.dart';
 import '../features/clases/clase_page.dart';
 import '../features/cuenta/cuenta_page.dart';
 import '../features/inicio/inicio_page.dart';
 import '../features/planes/plantillas_page.dart';
 import '../ui/shell.dart';
 import 'auth/auth_controller.dart';
+import 'preferencias.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final notifier = ValueNotifier<AuthState>(ref.read(authControllerProvider));
-  ref.listen(authControllerProvider, (_, next) => notifier.value = next);
-  ref.onDispose(notifier.dispose);
+  // El router se reevalúa cuando cambia la sesión o se termina la introducción.
+  final refresco = ValueNotifier(0);
+  ref.listen(authControllerProvider, (_, _) => refresco.value++);
+  ref.listen(banderaProvider(Bandera.introVista), (_, _) => refresco.value++);
+  ref.onDispose(refresco.dispose);
 
   return GoRouter(
-    initialLocation: '/login',
-    refreshListenable: notifier,
+    initialLocation: '/splash',
+    refreshListenable: refresco,
     redirect: (context, state) {
-      final auth = notifier.value;
-      if (auth.isRestoring) return null;
-
+      final auth = ref.read(authControllerProvider);
       final path = state.uri.path;
-      if (!auth.isAuthenticated) return path == '/login' ? null : '/login';
-      if (path == '/login' || path == '/' || path.startsWith('/clases')) return '/inicio';
+      // Mientras se recupera la sesión, el splash; se recuerda a dónde iba (enlaces en web).
+      if (auth.isRestoring) {
+        if (path == '/splash') return null;
+        return Uri(path: '/splash', queryParameters: path == '/' ? null : {'desde': state.uri.toString()}).toString();
+      }
+      final desde = state.uri.queryParameters['desde'];
+
+      if (!auth.isAuthenticated) {
+        if (!ref.read(banderaProvider(Bandera.introVista))) return path == '/bienvenida' ? null : '/bienvenida';
+        return path == '/login' || path == '/bienvenida' ? null : '/login';
+      }
+      // La introducción se puede volver a ver desde Cuenta.
+      if (path == '/splash' || path == '/login' || path == '/' || path.startsWith('/clases')) {
+        return desde != null && desde.startsWith('/') && !desde.startsWith('/splash') ? desde : '/inicio';
+      }
       return null;
     },
     routes: [
+      GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
+      GoRoute(path: '/bienvenida', builder: (context, state) => const BienvenidaPage()),
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
       // Rutas anidadas: el detalle se apila sobre su lista y "atrás" vuelve a ella.
       ShellRoute(

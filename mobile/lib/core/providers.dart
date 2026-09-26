@@ -87,6 +87,12 @@ final tableroProvider = FutureProvider<List<AvanceClase>>((ref) async {
   ];
 });
 
+/// Se recalcula junto con el tablero.
+final progresoProvider = FutureProvider((ref) async {
+  await ref.watch(tableroProvider.future);
+  return ref.watch(planesRepositoryProvider).progreso();
+});
+
 /// Tras un cambio en el plan de una clase: refresca lo que lo muestra y agenda el respaldo.
 void planCambiado(WidgetRef ref, String claseId, String parcial) {
   ref.invalidate(planProvider((claseId, parcial)));
