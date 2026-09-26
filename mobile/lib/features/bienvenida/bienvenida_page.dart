@@ -63,8 +63,8 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
 
   Future<void> _terminar() async {
     await ref.read(banderaProvider(Bandera.introVista).notifier).poner(true);
-    // Sin sesión, el router lleva al login; con sesión (vista desde Cuenta), vuelve al inicio.
-    if (mounted && ref.read(sessionProvider) != null) context.go('/inicio');
+    // Con sesión (vista desde Cuenta) vuelve al inicio; sin sesión, al login.
+    if (mounted) context.go(ref.read(sessionProvider) != null ? '/inicio' : '/login');
   }
 
   void _ir(int pagina) =>
