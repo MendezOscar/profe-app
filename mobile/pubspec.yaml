@@ -21,6 +21,8 @@ dependencies:
 
   # red
   dio: ^5.7.0
+  # sincroniza apenas vuelve la señal
+  connectivity_plus: ^7.3.1
 
   # sesion
   flutter_secure_storage: ^9.2.2
@@ -32,7 +34,7 @@ dependencies:
   sqflite_common_ffi_web: ^1.0.2
   path: ^1.9.1
 
-  # cuadro de SACE: el .xlsx se lee y escribe a nivel de XML para no tocar su formato
+  # cuadro de SACE: lectores propios de .xls (BIFF8) y .xlsx; escribirlo lo hace la API
   archive: ^4.3.0
   xml: ^6.6.1
   file_picker: ^11.0.3

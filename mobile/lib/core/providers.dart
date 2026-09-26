@@ -5,6 +5,7 @@ import 'api/api_client.dart';
 import 'auth/auth_controller.dart';
 import 'local/clases_repository.dart';
 import 'local/local_db.dart';
+import 'local/sync_repository.dart';
 import 'models/clase.dart';
 import 'models/session.dart';
 import 'sace/exportador_cuadro.dart';
@@ -30,6 +31,8 @@ final localDbProvider = Provider<Future<Database>>((ref) {
 });
 
 final clasesRepositoryProvider = Provider((ref) => ClasesRepository(ref.watch(localDbProvider)));
+
+final syncRepositoryProvider = Provider((ref) => SyncRepository(ref.watch(localDbProvider)));
 
 final exportadorCuadroProvider = Provider((ref) => ExportadorCuadro(ref.watch(apiClientProvider)));
 

@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProfeApp.Application.Abstractions;
+using ProfeApp.Application.Services;
 using ProfeApp.Infrastructure.Identity;
 using ProfeApp.Infrastructure.Persistence;
 using ProfeApp.Infrastructure.Sace;
@@ -46,6 +47,7 @@ public static class DependencyInjection
         services.AddScoped<TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddSingleton<ICuadroSaceWriter, CuadroSaceWriter>();
+        services.AddScoped<SyncService>();
 
         return services;
     }

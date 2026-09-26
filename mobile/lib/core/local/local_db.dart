@@ -18,9 +18,12 @@ class LocalDb {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 1,
+        version: 2,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) => _create(db),
+        onUpgrade: (db, from, to) async {
+          if (from < 2) await _sync(db);
+        },
       ),
     );
   }
@@ -43,7 +46,11 @@ class LocalDb {
         archivo_nombre TEXT NOT NULL,
         archivo BLOB NOT NULL,
         importada_en TEXT NOT NULL,
-        actualizada_en TEXT NOT NULL
+        actualizada_en TEXT NOT NULL,
+        sucia INTEGER NOT NULL DEFAULT 1,
+        plantilla_sucia INTEGER NOT NULL DEFAULT 1,
+        eliminada INTEGER NOT NULL DEFAULT 0,
+        version INTEGER NOT NULL DEFAULT 0
       )''');
     // Se reemplazan en cada importación: son el mapa de la plantilla vigente.
     batch.execute('''
@@ -73,15 +80,43 @@ class LocalDb {
         activo INTEGER NOT NULL DEFAULT 1,
         UNIQUE (clase_id, clave)
       )''');
-    // Por clave de columna y no por id: sobrevive a que la plantilla se reimporte.
-    batch.execute('''
-      CREATE TABLE valores (
+    _crearValores(batch, 'valores');
+    _crearSyncEstado(batch);
+    await batch.commit(noResult: true);
+  }
+
+  // Por clave de columna y no por id: sobrevive a que la plantilla se reimporte.
+  // valor NULL es un borrado que todavía hay que avisarle al servidor.
+  static void _crearValores(Batch batch, String tabla) => batch.execute('''
+      CREATE TABLE $tabla (
         alumno_id TEXT NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
         columna_clave TEXT NOT NULL,
-        valor INTEGER NOT NULL,
+        valor INTEGER,
         actualizado_en TEXT NOT NULL,
         PRIMARY KEY (alumno_id, columna_clave)
       )''');
+
+  /// Cursor del último pull y otros datos de la sincronización.
+  static void _crearSyncEstado(Batch batch) =>
+      batch.execute('CREATE TABLE sync_estado (clave TEXT PRIMARY KEY, valor TEXT NOT NULL)');
+
+  /// v1 → v2: marcas de sincronización. SQLite no deja volver nullable una columna, así
+  /// que valores se recrea copiando lo que había.
+  static Future<void> _sync(Database db) async {
+    final batch = db.batch();
+    for (final columna in [
+      'sucia INTEGER NOT NULL DEFAULT 1',
+      'plantilla_sucia INTEGER NOT NULL DEFAULT 1',
+      'eliminada INTEGER NOT NULL DEFAULT 0',
+      'version INTEGER NOT NULL DEFAULT 0',
+    ]) {
+      batch.execute('ALTER TABLE clases ADD COLUMN $columna');
+    }
+    _crearValores(batch, 'valores_v2');
+    batch.execute('INSERT INTO valores_v2 SELECT alumno_id, columna_clave, valor, actualizado_en FROM valores');
+    batch.execute('DROP TABLE valores');
+    batch.execute('ALTER TABLE valores_v2 RENAME TO valores');
+    _crearSyncEstado(batch);
     await batch.commit(noResult: true);
   }
 }

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using ProfeApp.Domain.Cuadros;
 using ProfeApp.Domain.Tenants;
 
 namespace ProfeApp.Application.Abstractions;
@@ -11,6 +12,10 @@ namespace ProfeApp.Application.Abstractions;
 public interface IAppDbContext
 {
     DbSet<Tenant> Tenants { get; }
+    DbSet<Clase> Clases { get; }
+    DbSet<ClaseColumna> ClaseColumnas { get; }
+    DbSet<ClaseAlumno> ClaseAlumnos { get; }
+    DbSet<ClaseValor> ClaseValores { get; }
 
     DatabaseFacade Database { get; }
     Task<int> SaveChangesAsync(CancellationToken ct = default);

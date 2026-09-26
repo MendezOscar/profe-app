@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/models/clase.dart';
 import '../../core/providers.dart';
+import '../../core/sync/sync_controller.dart';
 
 /// Captura de una clase, una columna a la vez: en el teléfono es más rápido bajar por la
 /// lista escribiendo con el teclado numérico que moverse por una cuadrícula ancha.
@@ -99,6 +100,7 @@ class _CapturaState extends ConsumerState<_Captura> {
       }
     });
     await ref.read(clasesRepositoryProvider).guardarValor(alumno.id, columna.clave, valor);
+    ref.read(syncControllerProvider.notifier).programar();
   }
 
   /// Pide a la API el cuadro relleno y lo guarda donde el docente elija, listo para
@@ -163,6 +165,7 @@ class _CapturaState extends ConsumerState<_Captura> {
     if (confirmar != true || !mounted) return;
     await ref.read(clasesRepositoryProvider).eliminar(_clase.resumen.id);
     ref.invalidate(clasesProvider);
+    ref.read(syncControllerProvider.notifier).programar();
     if (mounted) context.pop();
   }
 

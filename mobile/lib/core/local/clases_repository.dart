@@ -19,7 +19,7 @@ class ClasesRepository {
   Future<ResultadoImportacion> importar(Uint8List bytes, String nombreArchivo) async {
     final cuadro = CuadroSace.fromBytes(bytes);
     final db = await _db;
-    final now = DateTime.now().toIso8601String();
+    final now = ahoraUtc();
 
     return db.transaction((tx) async {
       final existente = await tx.query('clases', columns: ['id'], where: 'clave = ?', whereArgs: [cuadro.claveClase]);
@@ -38,12 +38,16 @@ class ClasesRepository {
         'archivo_nombre': nombreArchivo,
         'archivo': bytes,
         'actualizada_en': now,
+        // Reimportar una clase borrada la revive.
+        'eliminada': 0,
+        'plantilla_sucia': 1,
       };
       if (nueva) {
         await tx.insert('clases', {'id': claseId, 'importada_en': now, ...datos});
       } else {
         await tx.update('clases', datos, where: 'id = ?', whereArgs: [claseId]);
       }
+      await marcarSucia(tx, claseId);
 
       final clavesAnteriores = (await tx.query('columnas', columns: ['clave'], where: 'clase_id = ?', whereArgs: [claseId]))
           .map((r) => r['clave'] as String)
@@ -114,6 +118,7 @@ class ClasesRepository {
     final rows = await db.rawQuery('''
       SELECT c.*, (SELECT COUNT(*) FROM alumnos a WHERE a.clase_id = c.id AND a.activo = 1) AS total_alumnos
       FROM clases c
+      WHERE c.eliminada = 0
       ORDER BY c.asignatura, c.grado_seccion''');
     return rows.map(_resumen).toList();
   }
@@ -130,7 +135,7 @@ class ClasesRepository {
     final valores = await db.rawQuery('''
       SELECT v.alumno_id, v.columna_clave, v.valor FROM valores v
       JOIN alumnos a ON a.id = v.alumno_id
-      WHERE a.clase_id = ?''', [claseId]);
+      WHERE a.clase_id = ? AND v.valor IS NOT NULL''', [claseId]);
 
     final porAlumno = <String, Map<String, int>>{};
     for (final v in valores) {
@@ -157,18 +162,19 @@ class ClasesRepository {
     );
   }
 
-  /// Null borra el valor: la celda vuelve a quedar vacía en el cuadro.
+  /// Null borra el valor: la celda vuelve a quedar vacía en el cuadro. El borrado se
+  /// guarda como fila con valor NULL para poder avisarle al servidor.
   Future<void> guardarValor(String alumnoId, String columnaClave, int? valor) async {
     final db = await _db;
-    if (valor == null) {
-      await db.delete('valores', where: 'alumno_id = ? AND columna_clave = ?', whereArgs: [alumnoId, columnaClave]);
-      return;
-    }
-    await db.insert(
-      'valores',
-      {'alumno_id': alumnoId, 'columna_clave': columnaClave, 'valor': valor, 'actualizado_en': DateTime.now().toIso8601String()},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    await db.transaction((tx) async {
+      await tx.insert(
+        'valores',
+        {'alumno_id': alumnoId, 'columna_clave': columnaClave, 'valor': valor, 'actualizado_en': ahoraUtc()},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+      final clase = await tx.query('alumnos', columns: ['clase_id'], where: 'id = ?', whereArgs: [alumnoId]);
+      await marcarSucia(tx, clase.first['clase_id'] as String);
+    });
   }
 
   /// Todas las celdas editables de los alumnos vigentes, con lo capturado o vacías: así
@@ -211,9 +217,13 @@ class ClasesRepository {
     );
   }
 
+  /// Queda marcada hasta que el servidor se entere; ahí se borra de verdad.
   Future<void> eliminar(String claseId) async {
     final db = await _db;
-    await db.delete('clases', where: 'id = ?', whereArgs: [claseId]);
+    await db.transaction((tx) async {
+      await tx.update('clases', {'eliminada': 1}, where: 'id = ?', whereArgs: [claseId]);
+      await marcarSucia(tx, claseId);
+    });
   }
 
   ClaseResumen _resumen(Map<String, Object?> r) => ClaseResumen(
@@ -226,3 +236,11 @@ class ClasesRepository {
         actualizadaEn: DateTime.parse(r['actualizada_en'] as String),
       );
 }
+
+/// Pendiente de subir. La versión deja saber, al terminar un push, si hubo cambios
+/// mientras tanto: en ese caso la clase sigue sucia.
+Future<void> marcarSucia(DatabaseExecutor db, String claseId) =>
+    db.rawUpdate('UPDATE clases SET sucia = 1, version = version + 1 WHERE id = ?', [claseId]);
+
+/// Las horas se guardan en UTC: se comparan entre dispositivos para decidir qué captura gana.
+String ahoraUtc() => DateTime.now().toUtc().toIso8601String();

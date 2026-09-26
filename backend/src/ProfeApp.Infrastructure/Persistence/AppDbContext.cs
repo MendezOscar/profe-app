@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using ProfeApp.Application.Abstractions;
+using ProfeApp.Domain.Cuadros;
 using ProfeApp.Domain.Tenants;
 using ProfeApp.Infrastructure.Identity;
 
@@ -16,6 +17,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public bool IgnoreTenantFilter => _tenant?.IgnoreTenantFilter ?? false;
 
     public DbSet<Tenant> Tenants => Set<Tenant>();
+    public DbSet<Clase> Clases => Set<Clase>();
+    public DbSet<ClaseColumna> ClaseColumnas => Set<ClaseColumna>();
+    public DbSet<ClaseAlumno> ClaseAlumnos => Set<ClaseAlumno>();
+    public DbSet<ClaseValor> ClaseValores => Set<ClaseValor>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)

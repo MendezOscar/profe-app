@@ -77,6 +77,17 @@ infra/                          docker-compose de desarrollo
 docs/                           formato SACE y referencias
 ```
 
+## Sincronización
+
+El teléfono es la fuente de verdad. Lo capturado se respalda en la API (`/api/v1/sync`)
+al abrir la app, al volver la señal y unos segundos después de cada cambio. Entre dos
+dispositivos del mismo docente, por celda gana la captura más nueva.
+
+## Despliegue
+
+API en Render, base en Neon, web en Cloudflare Pages y APK firmado: ver
+[docs/despliegue.md](docs/despliegue.md).
+
 ## Pruebas
 
 ```bash
