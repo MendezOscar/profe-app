@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/login_page.dart';
-import '../features/home/home_page.dart';
+import '../features/clases/clase_page.dart';
+import '../features/clases/clases_page.dart';
 import 'auth/auth_controller.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -25,7 +26,11 @@ final routerProvider = Provider<GoRouter>((ref) {
     },
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
-      GoRoute(path: '/clases', builder: (context, state) => const HomePage()),
+      GoRoute(path: '/clases', builder: (context, state) => const ClasesPage()),
+      GoRoute(
+        path: '/clases/:id',
+        builder: (context, state) => ClasePage(claseId: state.pathParameters['id']!),
+      ),
     ],
   );
 });

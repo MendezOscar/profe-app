@@ -33,6 +33,10 @@ flutter run -d chrome
 
 En `Development` la API aplica migraciones y crea el docente demo al arrancar.
 
+La app guarda clases y notas en una base local (sqflite) y funciona sin conexión. En web
+usa `web/sqlite3.wasm` y `web/sqflite_sw.js`; si se actualiza `sqflite_common_ffi_web`, se
+regeneran con `dart run sqflite_common_ffi_web:setup`.
+
 Para agregar una migración:
 
 ```bash
@@ -66,6 +70,8 @@ backend/
   tests/                        integración (Testcontainers, Postgres real)
 mobile/
   lib/core/                     api, auth, modelos, router, tema
+  lib/core/sace/                lector del cuadro de SACE (.xlsx a nivel de XML)
+  lib/core/local/               base local sqflite: clases, alumnos y notas offline
   lib/features/                 pantallas por área
 infra/                          docker-compose de desarrollo
 docs/                           formato SACE y referencias

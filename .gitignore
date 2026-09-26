@@ -20,3 +20,11 @@ mobile/android/key.properties
 *.jks
 *.keystore
 dist/
+
+# Notas locales con credenciales de desarrollo
+*.local.md
+
+# Cuadros reales de SACE: traen nombres e identidades de alumnos, nunca al repo
+/*.xls
+/*.xlsx
+/muestras/
