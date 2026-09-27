@@ -13,6 +13,9 @@ class Enlaces {
   static Uri get soporte => sitio.resolve('soporte');
   static Uri get eliminarCuenta => sitio.resolve('eliminar-cuenta');
 
+  /// Soporte por WhatsApp (+504 9824-2108).
+  static final whatsapp = Uri.parse('https://wa.me/50498242108?text=${Uri.encodeComponent('Hola, necesito ayuda con ProfeApp')}');
+
   static Future<void> abrir(Uri url) => launchUrl(url, mode: LaunchMode.externalApplication);
 
   /// Al cerrar sesión en la web se vuelve a la landing, en la misma pestaña.

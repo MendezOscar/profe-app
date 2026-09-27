@@ -176,3 +176,14 @@ section.alterna .plan { background: var(--fondo); }
 .tabla-precios th, .tabla-precios td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--linea); }
 .tabla-precios th { border-bottom: 2px solid var(--marino); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); }
 @media (max-width: 560px) { .tabla-precios th:nth-child(4), .tabla-precios td:nth-child(4) { display: none; } }
+
+/* ---------- WhatsApp ---------- */
+.btn svg { flex: none; }
+.wa-flotante {
+  position: fixed; right: 20px; bottom: 20px; z-index: 30;
+  display: inline-flex; align-items: center; gap: 8px; min-height: 52px; padding: 0 18px;
+  background: #1FAF57; color: #fff; text-decoration: none; font-weight: 800;
+  box-shadow: 4px 4px 0 var(--marino);
+}
+.wa-flotante:hover { background: #178F46; color: #fff; }
+@media (max-width: 560px) { .wa-flotante span { display: none; } .wa-flotante { padding: 0 15px; } }

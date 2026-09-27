@@ -97,6 +97,7 @@ class CuentaPage extends ConsumerWidget {
               child: Column(
                 children: [
                   for (final (icono, titulo, url) in [
+                    (Icons.chat_outlined, 'WhatsApp de soporte', Enlaces.whatsapp),
                     (Icons.help_outline, 'Ayuda y soporte', Enlaces.soporte),
                     (Icons.privacy_tip_outlined, 'Política de privacidad', Enlaces.privacidad),
                     (Icons.description_outlined, 'Términos de uso', Enlaces.terminos),
