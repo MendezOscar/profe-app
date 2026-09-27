@@ -36,7 +36,8 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, JwtBearer
 
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Policies.DocenteOnly, policy => policy.RequireRole(Roles.Docente))
-    .AddPolicy(Policies.PlatformOnly, policy => policy.RequireRole(Roles.PlatformAdmin));
+    .AddPolicy(Policies.PlatformOnly, policy => policy.RequireRole(Roles.PlatformAdmin))
+    .AddPolicy(Policies.CentroOnly, policy => policy.RequireRole(Roles.AdminCentro));
 
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();
@@ -116,6 +117,7 @@ app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => fa
 app.MapAuthEndpoints();
 app.MapCuadroEndpoints();
 app.MapSyncEndpoints();
+app.MapAdminEndpoints();
 
 // Migraciones automáticas en desarrollo; en producción son opt-in (App:ApplyMigrationsOnStartup).
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("App:ApplyMigrationsOnStartup"))
@@ -129,6 +131,7 @@ using (var scope = app.Services.CreateScope())
     try
     {
         await DataSeeder.EnsureRolesAsync(scope.ServiceProvider);
+        await DataSeeder.EnsurePlatformAdminAsync(scope.ServiceProvider, app.Configuration);
         if (app.Configuration.GetValue<bool>("App:SeedDemoData"))
             await DataSeeder.SeedDemoAsync(scope.ServiceProvider);
     }

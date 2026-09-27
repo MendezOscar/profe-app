@@ -73,7 +73,20 @@ public sealed class AuthService(
             return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "tenant_disabled",
                 "Tu cuenta está suspendida. Contacta a soporte."));
 
+        if (await LicenciaVencidaAsync(user, ct) is { } vencida) return Result<AuthResponse>.Fail(vencida);
+
         return await IssueAsync(user, ip, request.DeviceName, ct);
+    }
+
+    /// <summary>Con licencia de centro, el acceso depende de que esté activa y sin vencer.</summary>
+    private async Task<Error?> LicenciaVencidaAsync(AppUser user, CancellationToken ct)
+    {
+        if (user.InstitucionId is not { } id) return null;
+        var institucion = await db.Instituciones.FirstOrDefaultAsync(i => i.Id == id, ct);
+        return institucion is null || !institucion.Vigente(clock.Now)
+            ? new Error(ErrorKind.Forbidden, "licencia_vencida",
+                "La licencia de tu centro no está vigente. Habla con la administración de tu centro.")
+            : null;
     }
 
     public async Task<Result<AuthResponse>> RefreshAsync(RefreshRequest request, string? ip, CancellationToken ct = default)
@@ -85,6 +98,7 @@ public sealed class AuthService(
         var user = await users.FindByIdAsync(existing.UserId.ToString());
         if (user is null || !user.IsActive)
             return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "user_disabled", "El usuario está deshabilitado."));
+        if (await LicenciaVencidaAsync(user, ct) is { } vencida) return Result<AuthResponse>.Fail(vencida);
 
         var role = await RoleOfAsync(user);
         var (access, accessExpires) = tokens.CreateAccessToken(user, role);

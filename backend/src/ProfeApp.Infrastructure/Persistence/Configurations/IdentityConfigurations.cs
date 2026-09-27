@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using ProfeApp.Domain.Instituciones;
 using ProfeApp.Domain.Tenants;
 using ProfeApp.Infrastructure.Identity;
 
@@ -21,6 +22,8 @@ public class AppUserConfig : IEntityTypeConfiguration<AppUser>
         b.Property(x => x.FullName).HasMaxLength(160).IsRequired();
         b.HasIndex(x => x.TenantId);
         b.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => x.InstitucionId);
+        b.HasOne<Institucion>().WithMany().HasForeignKey(x => x.InstitucionId).OnDelete(DeleteBehavior.Restrict);
     }
 }
 

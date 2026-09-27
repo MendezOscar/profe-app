@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Domain.Cuadros;
+using ProfeApp.Domain.Instituciones;
 using ProfeApp.Domain.Planes;
 using ProfeApp.Domain.Tenants;
 using ProfeApp.Infrastructure.Identity;
@@ -23,6 +24,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<ClaseAlumno> ClaseAlumnos => Set<ClaseAlumno>();
     public DbSet<ClaseValor> ClaseValores => Set<ClaseValor>();
     public DbSet<Registro> Registros => Set<Registro>();
+    public DbSet<Institucion> Instituciones => Set<Institucion>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder builder)

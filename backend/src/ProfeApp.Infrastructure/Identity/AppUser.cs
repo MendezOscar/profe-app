@@ -6,6 +6,9 @@ public class AppUser : IdentityUser<Guid>
 {
     /// <summary>Null sólo para PlatformAdmin.</summary>
     public Guid? TenantId { get; set; }
+
+    /// <summary>Centro al que pertenece (docente o administrador). Null en el plan personal.</summary>
+    public Guid? InstitucionId { get; set; }
     public string FullName { get; set; } = null!;
     public bool IsActive { get; set; } = true;
     public bool MustChangePassword { get; set; }
