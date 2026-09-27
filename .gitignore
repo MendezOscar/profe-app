@@ -28,3 +28,7 @@ dist/
 /*.xls
 /*.xlsx
 /muestras/
+
+# wrangler pages dev (prueba local del sitio)
+node_modules/
+.wrangler/

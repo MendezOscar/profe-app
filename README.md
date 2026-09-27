@@ -88,6 +88,12 @@ El plan de calificación (plantillas, rubros, actividades, notas, asistencia y c
 parciales) viaja como *registros* genéricos (`registros` en la base): el servidor guarda
 el JSON sin interpretarlo y por fila gana el cambio más nuevo.
 
+## Sitio público
+
+`site/` es la landing con las páginas legales (privacidad, términos, cookies, soporte,
+eliminar cuenta). En producción va en la raíz y el panel en `/app/`; al cerrar sesión en la
+web se vuelve a la landing. Para publicar en las tiendas: [docs/tiendas.md](docs/tiendas.md).
+
 ## Despliegue
 
 API en Render, base en Aiven, web en Cloudflare Pages y APK firmado: ver

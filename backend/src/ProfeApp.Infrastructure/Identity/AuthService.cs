@@ -130,6 +130,36 @@ public sealed class AuthService(
         return Result.Success();
     }
 
+    /// <summary>
+    /// Borra la cuenta y todo lo del docente en el servidor: clases, cuadros, planes,
+    /// notas, sesiones y el usuario. Es lo que piden App Store y Google Play. Lo guardado
+    /// en el teléfono se borra al cerrar sesión en la app.
+    /// </summary>
+    public async Task<Result> DeleteAccountAsync(DeleteAccountRequest request, CancellationToken ct = default)
+    {
+        var user = await users.FindByIdAsync(currentUser.RequireUserId().ToString());
+        if (user is null) return Result.Fail(Error.NotFound("El usuario"));
+        if (!await users.CheckPasswordAsync(user, request.Password ?? ""))
+            return Result.Fail(Error.Validation("La contraseña no es correcta."));
+
+        var strategy = db.Database.CreateExecutionStrategy();
+        await strategy.ExecuteAsync(async () =>
+        {
+            await using var tx = await db.Database.BeginTransactionAsync(ct);
+            // El filtro de tenant ya limita estas consultas a lo del docente. Columnas,
+            // alumnos y valores caen en cascada con su clase.
+            await db.Registros.ExecuteDeleteAsync(ct);
+            await db.Clases.ExecuteDeleteAsync(ct);
+            await db.RefreshTokens.Where(t => t.UserId == user.Id).ExecuteDeleteAsync(ct);
+            var result = await users.DeleteAsync(user);
+            if (!result.Succeeded) throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));
+            if (user.TenantId is Guid tenantId)
+                await db.Tenants.Where(t => t.Id == tenantId).ExecuteDeleteAsync(ct);
+            await tx.CommitAsync(ct);
+        });
+        return Result.Success();
+    }
+
     private async Task<AuthResponse> IssueAsync(AppUser user, string? ip, string? deviceName, CancellationToken ct)
     {
         var role = await RoleOfAsync(user);

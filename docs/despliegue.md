@@ -65,9 +65,9 @@ En Cloudflare: *Workers & Pages* → *Create* → *Pages* → *Connect to Git* �
 | Root directory | vacío (raíz del repo) |
 | Environment variables | `API_BASE_URL` = `https://profeapp-o7hw.onrender.com` |
 
-El primer build tarda unos minutos porque baja Flutter. Para no recompilar la web con cambios que sólo tocan el backend: *Settings → Build → Build watch paths* → incluir `mobile/*` y `scripts/*`.
+El primer build tarda unos minutos porque baja Flutter. Para no recompilar la web con cambios que sólo tocan el backend: *Settings → Build → Build watch paths* → incluir `mobile/*`, `scripts/*` y `site/*` (la landing).
 
-No hace falta configurar rutas: si no hay `404.html`, Pages sirve `index.html` en cualquier ruta, y el router de Flutter resuelve el resto.
+El build deja la landing y las páginas legales (`site/`) en la raíz y el panel en `/app/`. El enrutado lo hace [site/_worker.js](../site/_worker.js): las rutas de `/app/` sin extensión devuelven el `index.html` del panel, y los enlaces viejos de la raíz (`/inicio`, `/login`…) redirigen a `/app/…`.
 
 **CORS:** la API sólo acepta al navegador desde `App__CorsOrigins__0`, que en [render.yaml](../render.yaml) es `https://profe-app.pages.dev`. Si el dominio cambia, hay que actualizar esa variable en Render.
 

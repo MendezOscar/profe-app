@@ -22,3 +22,6 @@ public sealed record CurrentUserDto(
 public sealed record AuthResponse(AuthTokens Tokens, CurrentUserDto User);
 
 public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+
+/// <summary>Se pide la contraseña para que un teléfono prestado no pueda borrar la cuenta.</summary>
+public sealed record DeleteAccountRequest(string Password);

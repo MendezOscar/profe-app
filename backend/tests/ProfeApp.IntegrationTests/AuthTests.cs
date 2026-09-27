@@ -49,4 +49,23 @@ public class AuthTests(ApiFixture fixture) : ApiTestBase(fixture)
         first.StatusCode.Should().Be(HttpStatusCode.OK);
         reused.StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task Eliminar_la_cuenta_borra_sus_datos_y_ya_no_se_puede_entrar()
+    {
+        var email = $"borrar-{Guid.NewGuid():N}@prueba.hn";
+        var client = await RegisterAsync(email);
+        (await client.PostAsJsonAsync("/api/v1/sync/push", new
+        {
+            registros = new[] { new { tipo = "plantilla", claseClave = "", clave = "p1", datos = "{}", eliminado = false, actualizadoEn = DateTimeOffset.UtcNow } },
+        })).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var malaClave = await client.PostAsJsonAsync("/api/v1/auth/delete-account", new { password = "otra" });
+        var borrada = await client.PostAsJsonAsync("/api/v1/auth/delete-account", new { password = "Prueba1234!" });
+        var login = await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/login", new { email, password = "Prueba1234!" });
+
+        malaClave.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        borrada.StatusCode.Should().Be(HttpStatusCode.NoContent);
+        login.IsSuccessStatusCode.Should().BeFalse();
+    }
 }

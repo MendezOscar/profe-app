@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -38,7 +38,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       final desde = state.uri.queryParameters['desde'];
 
       if (!auth.isAuthenticated) {
-        if (!ref.read(banderaProvider(Bandera.introVista))) return path == '/bienvenida' ? null : '/bienvenida';
+        // En la web la landing ya presenta la app; la introducción es para los teléfonos.
+        if (!kIsWeb && !ref.read(banderaProvider(Bandera.introVista))) {
+          return path == '/bienvenida' ? null : '/bienvenida';
+        }
         return path == '/login' || path == '/bienvenida' ? null : '/login';
       }
       // La introducción se puede volver a ver desde Cuenta.

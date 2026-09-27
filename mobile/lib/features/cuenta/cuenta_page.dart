@@ -1,14 +1,17 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/enlaces.dart';
 import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../ui/indicador_sync.dart';
 import '../../ui/shell.dart';
 import '../auth/cambiar_clave_dialog.dart';
+import 'eliminar_cuenta_dialog.dart';
 
 class CuentaPage extends ConsumerWidget {
   const CuentaPage({super.key});
@@ -90,10 +93,41 @@ class CuentaPage extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 24),
+            Card(
+              child: Column(
+                children: [
+                  for (final (icono, titulo, url) in [
+                    (Icons.help_outline, 'Ayuda y soporte', Enlaces.soporte),
+                    (Icons.privacy_tip_outlined, 'Política de privacidad', Enlaces.privacidad),
+                    (Icons.description_outlined, 'Términos de uso', Enlaces.terminos),
+                  ]) ...[
+                    ListTile(
+                      leading: Icon(icono),
+                      title: Text(titulo),
+                      trailing: const Icon(Icons.open_in_new, size: 18),
+                      onTap: () => Enlaces.abrir(url),
+                    ),
+                    if (url != Enlaces.terminos) const Divider(height: 2),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
             OutlinedButton.icon(
-              onPressed: () => ref.read(authControllerProvider.notifier).logout(),
+              onPressed: () async {
+                await ref.read(authControllerProvider.notifier).logout();
+                // En la web se vuelve a la landing; en el teléfono, al login.
+                if (kIsWeb) await Enlaces.volverAlSitio();
+              },
               icon: const Icon(Icons.logout),
               label: const Text('Cerrar sesión'),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              style: TextButton.styleFrom(foregroundColor: scheme.error),
+              onPressed: () => mostrarEliminarCuenta(context),
+              icon: const Icon(Icons.delete_forever_outlined),
+              label: const Text('Eliminar mi cuenta'),
             ),
           ],
         ),

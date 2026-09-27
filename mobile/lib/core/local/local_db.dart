@@ -13,6 +13,13 @@ class LocalDb {
     return openAt(factory, path);
   }
 
+  /// Al eliminar la cuenta: no queda nada del docente en este dispositivo.
+  static Future<void> borrar(String userId) async {
+    final factory = kIsWeb ? databaseFactoryFfiWeb : databaseFactory;
+    final name = 'profeapp_$userId.db';
+    await factory.deleteDatabase(kIsWeb ? name : p.join(await factory.getDatabasesPath(), name));
+  }
+
   @visibleForTesting
   static Future<Database> openAt(DatabaseFactory factory, String path) {
     return factory.openDatabase(

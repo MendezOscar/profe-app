@@ -30,6 +30,11 @@ public static class AuthEndpoints
             (await auth.GetCurrentAsync(ct)).ToHttp())
             .RequireAuthorization();
 
+        group.MapPost("/delete-account", async (DeleteAccountRequest request, IAuthService auth, CancellationToken ct) =>
+                (await auth.DeleteAccountAsync(request, ct)).ToHttp())
+            .RequireAuthorization()
+            .WithSummary("Elimina la cuenta del docente y todos sus datos en el servidor.");
+
         group.MapPost("/change-password", async (ChangePasswordRequest request, IAuthService auth, CancellationToken ct) =>
                 (await auth.ChangePasswordAsync(request, ct)).ToHttp())
             .RequireAuthorization();

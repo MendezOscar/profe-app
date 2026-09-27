@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_controller.dart';
+import '../../core/enlaces.dart';
 
 /// Entrada del docente. Las cuentas no se crean desde la app.
 class LoginPage extends ConsumerStatefulWidget {
@@ -102,6 +104,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     child: auth.isLoading
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Text('Entrar'),
+                  ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      if (kIsWeb)
+                        TextButton.icon(
+                          onPressed: Enlaces.volverAlSitio,
+                          icon: const Icon(Icons.arrow_back, size: 18),
+                          label: const Text('Volver al sitio'),
+                        ),
+                      TextButton(onPressed: () => Enlaces.abrir(Enlaces.soporte), child: const Text('Ayuda')),
+                      TextButton(onPressed: () => Enlaces.abrir(Enlaces.privacidad), child: const Text('Privacidad')),
+                      TextButton(onPressed: () => Enlaces.abrir(Enlaces.terminos), child: const Text('Términos')),
+                    ],
                   ),
                 ],
               ),
