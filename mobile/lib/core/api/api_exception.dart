@@ -22,7 +22,8 @@ class ApiException implements Exception {
         error.type == DioExceptionType.connectionTimeout ||
         error.type == DioExceptionType.receiveTimeout ||
         error.type == DioExceptionType.sendTimeout) {
-      return ApiException('Sin conexión con el servidor.', isNetworkError: true);
+      return ApiException('No se pudo conectar con el servidor. Revisa tu internet e intenta de nuevo.',
+          isNetworkError: true);
     }
 
     final response = error.response;

@@ -30,7 +30,10 @@ class AuthController extends Notifier<AuthState> {
   late final TokenStorage _storage = TokenStorage();
   late final Dio _dio = Dio(BaseOptions(
     baseUrl: AppConfig.apiUrl,
-    connectTimeout: const Duration(seconds: 15),
+    // El plan gratuito de Render duerme la API sin uso y tarda cerca de un minuto en
+    // despertar: con menos espera, el primer login del día fallaba como "sin conexión".
+    connectTimeout: const Duration(seconds: 70),
+    receiveTimeout: const Duration(seconds: 70),
     validateStatus: (status) => status != null && status < 400,
   ));
 
@@ -59,6 +62,9 @@ class AuthController extends Notifier<AuthState> {
     }
     state = AuthState(session: stored, isRestoring: false);
   }
+
+  /// Despierta la API mientras el docente escribe; si falla no importa.
+  void despertarServidor() => _dio.get('${AppConfig.apiBaseUrl}/health/live').ignore();
 
   Future<bool> login(String email, String password) => _authenticate('/auth/login', {
         'email': email.trim(),

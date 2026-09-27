@@ -18,6 +18,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
+  bool _tardando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref.read(authControllerProvider.notifier).despertarServidor();
+  }
 
   @override
   void dispose() {
@@ -28,7 +35,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   Future<void> _submit() async {
     if (!_form.currentState!.validate()) return;
+    // Si tarda, es que el servidor está despertando: se avisa para que no parezca trabado.
+    final aviso = Future.delayed(const Duration(seconds: 5), () {
+      if (mounted && ref.read(authControllerProvider).isLoading) setState(() => _tardando = true);
+    });
     await ref.read(authControllerProvider.notifier).login(_email.text, _password.text);
+    aviso.ignore();
+    if (mounted) setState(() => _tardando = false);
   }
 
   @override
@@ -105,6 +118,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
                         : const Text('Entrar'),
                   ),
+                  if (_tardando && auth.isLoading)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: Text(
+                        'Conectando con el servidor… la primera vez del día puede tardar hasta un minuto.',
+                        style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
                   const SizedBox(height: 24),
                   Wrap(
                     alignment: WrapAlignment.center,

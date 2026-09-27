@@ -15,8 +15,9 @@ class ApiClient {
         _onRefresh = onRefresh {
     _dio = Dio(BaseOptions(
       baseUrl: AppConfig.apiUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
+      // Holgado por si la API está despertando (plan gratuito de Render).
+      connectTimeout: const Duration(seconds: 70),
+      receiveTimeout: const Duration(seconds: 70),
       contentType: Headers.jsonContentType,
       // Los errores los traducimos nosotros a ApiException.
       validateStatus: (status) => status != null && status < 400,
