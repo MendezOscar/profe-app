@@ -2,14 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_exception.dart';
+import '../../core/auth/auth_controller.dart';
 import '../../core/providers.dart';
 
 /// Cambio de contraseña. Necesita internet: la contraseña vive en el servidor.
 Future<void> mostrarCambiarClave(BuildContext context) =>
     showDialog<void>(context: context, builder: (_) => const _CambiarClaveDialog());
 
+/// Primera entrada con una contraseña temporal (la dio el centro o soporte): hay que
+/// cambiarla antes de usar la app.
+class CambiarClaveObligatoriaPage extends ConsumerWidget {
+  const CambiarClaveObligatoriaPage({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => const Scaffold(
+        body: Center(child: SingleChildScrollView(child: _CambiarClaveDialog(obligatorio: true))),
+      );
+}
+
 class _CambiarClaveDialog extends ConsumerStatefulWidget {
-  const _CambiarClaveDialog();
+  const _CambiarClaveDialog({this.obligatorio = false});
+
+  final bool obligatorio;
 
   @override
   ConsumerState<_CambiarClaveDialog> createState() => _CambiarClaveDialogState();
@@ -43,7 +57,8 @@ class _CambiarClaveDialogState extends ConsumerState<_CambiarClaveDialog> {
         'currentPassword': _actual.text,
         'newPassword': _nueva.text,
       });
-      if (!mounted) return;
+      await ref.read(authControllerProvider.notifier).claveCambiada();
+      if (!mounted || widget.obligatorio) return; // El router sigue solo.
       Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Contraseña actualizada.')));
     } on ApiException catch (error) {
@@ -56,17 +71,22 @@ class _CambiarClaveDialogState extends ConsumerState<_CambiarClaveDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Cambiar contraseña'),
+      title: Text(widget.obligatorio ? 'Crea tu contraseña' : 'Cambiar contraseña'),
       content: Form(
         key: _form,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (widget.obligatorio)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Text('Entraste con una contraseña temporal. Crea la tuya para seguir.'),
+              ),
             TextFormField(
               controller: _actual,
               obscureText: true,
               autofillHints: const [AutofillHints.password],
-              decoration: const InputDecoration(labelText: 'Contraseña actual'),
+              decoration: InputDecoration(labelText: widget.obligatorio ? 'Contraseña temporal' : 'Contraseña actual'),
               validator: (v) => (v == null || v.isEmpty) ? 'Escribe tu contraseña actual' : null,
             ),
             const SizedBox(height: 12),
@@ -96,7 +116,13 @@ class _CambiarClaveDialogState extends ConsumerState<_CambiarClaveDialog> {
         ),
       ),
       actions: [
-        TextButton(onPressed: _guardando ? null : () => Navigator.pop(context), child: const Text('Cancelar')),
+        if (widget.obligatorio)
+          TextButton(
+            onPressed: _guardando ? null : () => ref.read(authControllerProvider.notifier).logout(),
+            child: const Text('Cerrar sesión'),
+          )
+        else
+          TextButton(onPressed: _guardando ? null : () => Navigator.pop(context), child: const Text('Cancelar')),
         FilledButton(
           onPressed: _guardando ? null : _guardar,
           child: _guardando

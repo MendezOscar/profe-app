@@ -56,7 +56,8 @@ class SyncController extends Notifier<SyncState> {
   }
 
   Future<void> sincronizar() async {
-    if (ref.read(sessionProvider) == null) return;
+    final session = ref.read(sessionProvider);
+    if (session == null || session.role != 'Docente' || session.mustChangePassword) return;
     if (_enCurso) {
       _otraVez = true;
       return;

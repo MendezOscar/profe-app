@@ -114,6 +114,15 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
+  /// Tras cambiar la contraseña: se levanta la obligación de cambiar la temporal.
+  Future<void> claveCambiada() async {
+    final actual = state.session;
+    if (actual == null || !actual.mustChangePassword) return;
+    final session = Session.fromJson({...actual.toJson(), 'mustChangePassword': false});
+    await _storage.write(session);
+    state = state.copyWith(session: session);
+  }
+
   Future<void> logout() async {
     final current = state.session;
     if (current != null) {

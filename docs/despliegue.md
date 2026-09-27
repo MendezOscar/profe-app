@@ -118,3 +118,17 @@ Después, en la web o en el APK:
 4. Ver la nube en "respaldado".
 5. Entrar con el mismo usuario en otro dispositivo y ver la clase.
 6. Exportar el cuadro.
+
+## 6. Cuentas: plataforma, centros y docentes
+
+No hay registro público. Las cuentas se crean desde los paneles, con contraseña temporal que se cambia al entrar:
+
+- **Plataforma** (quien opera ProfeApp): se crea al arrancar la API si existen estas variables en Render (secretas, `sync: false`):
+  - `App__PlatformAdmin__Email`
+  - `App__PlatformAdmin__Password` (mínimo 8, con mayúscula, minúscula y número)
+  - `App__PlatformAdmin__Name` (opcional)
+
+  Entrando con esa cuenta se abre el panel **Plataforma**: crear centros (plan, cupo, vencimiento y su administrador) y cuentas de docentes del plan personal.
+- **Administrador de centro**: su panel **Centro** da de alta docentes dentro del cupo, los desactiva o reactiva y les restablece la contraseña. Ve el avance de cada docente, no sus notas.
+- **Licencia vencida o suspendida**: los docentes del centro no pueden entrar ni renovar sesión.
+

@@ -2,7 +2,7 @@
 //
 // Un worker y no _redirects: una regla `/app/* -> index` también se come los assets
 // (flutter_bootstrap.js volvía como HTML y la app no arrancaba). Igual que en stock-ruta.
-const RUTAS_DEL_PANEL = ['/login', '/inicio', '/asistencia', '/plantillas', '/cuenta', '/bienvenida', '/splash'];
+const RUTAS_DEL_PANEL = ['/login', '/inicio', '/asistencia', '/plantillas', '/cuenta', '/bienvenida', '/splash', '/centro', '/plataforma', '/cambiar-clave'];
 
 export default {
   async fetch(request, env) {

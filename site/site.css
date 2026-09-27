@@ -157,3 +157,22 @@ footer .legalito { grid-column: 1 / -1; border-top: 1px solid #2E3B5C; padding-t
   .maqueta th, .maqueta td { padding: 8px; }
   .acciones .btn { flex: 1 1 100%; justify-content: center; }
 }
+
+/* ---------- precios ---------- */
+.precios { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; align-items: stretch; }
+.plan { position: relative; background: var(--blanco); border: 2px solid var(--marino); padding: 28px 24px; display: flex; flex-direction: column; }
+section.alterna .plan { background: var(--fondo); }
+.plan.destacado { border-color: var(--azul); box-shadow: 8px 8px 0 var(--azul); }
+.plan h3 { margin: 0 0 8px; font-size: 20px; font-weight: 800; }
+.plan .monto { font-size: 44px; font-weight: 800; letter-spacing: -.02em; margin: 0; line-height: 1.1; }
+.plan .monto span { font-size: 16px; font-weight: 600; color: var(--suave); margin-left: 4px; }
+.plan .monto small { font-size: 15px; font-weight: 600; color: var(--suave); }
+.plan .detalle { color: var(--suave); font-size: 15px; margin: 8px 0 16px; }
+.plan .lista-check { margin-bottom: 20px; flex: 1; font-size: 15px; }
+.plan .btn { justify-content: center; }
+.sello { position: absolute; top: -14px; left: 20px; background: var(--azul); color: var(--blanco); font-size: 13px; font-weight: 800; padding: 4px 10px; }
+.sello.claro { background: var(--azul-claro); color: var(--azul-oscuro); }
+.tabla-precios { width: 100%; border-collapse: collapse; margin: 0 0 24px; background: var(--fondo); }
+.tabla-precios th, .tabla-precios td { text-align: left; padding: 14px 16px; border-bottom: 1px solid var(--linea); }
+.tabla-precios th { border-bottom: 2px solid var(--marino); font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); }
+@media (max-width: 560px) { .tabla-precios th:nth-child(4), .tabla-precios td:nth-child(4) { display: none; } }

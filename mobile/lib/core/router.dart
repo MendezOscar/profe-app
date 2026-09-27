@@ -2,10 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/admin/centro_page.dart';
+import '../features/admin/plataforma_page.dart';
 import '../features/asignatura/asignatura_page.dart';
 import '../features/asignatura/calificar_page.dart';
 import '../features/asignatura/calificar_varias_page.dart';
 import '../features/asistencia/asistencia_page.dart';
+import '../features/auth/cambiar_clave_dialog.dart';
 import '../features/auth/login_page.dart';
 import '../features/bienvenida/bienvenida_page.dart';
 import '../features/bienvenida/splash_page.dart';
@@ -44,9 +47,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         }
         return path == '/login' || path == '/bienvenida' ? null : '/login';
       }
+      // Con contraseña temporal, lo primero es crear la propia.
+      if (auth.session!.mustChangePassword) return path == '/cambiar-clave' ? null : '/cambiar-clave';
+
+      // Cada rol tiene su casa: el docente la app, el centro y la plataforma sus paneles.
+      final casa = switch (auth.session!.role) {
+        'AdminCentro' => '/centro',
+        'PlatformAdmin' => '/plataforma',
+        _ => '/inicio',
+      };
+      final esPanel = path.startsWith('/centro') || path.startsWith('/plataforma');
+      if (casa != '/inicio' && !path.startsWith(casa)) return casa;
+      if (casa == '/inicio' && (esPanel || path == '/cambiar-clave')) return casa;
+
       // La introducción se puede volver a ver desde Cuenta.
       if (path == '/splash' || path == '/login' || path == '/' || path.startsWith('/clases')) {
-        return desde != null && desde.startsWith('/') && !desde.startsWith('/splash') ? desde : '/inicio';
+        return desde != null && desde.startsWith('/') && !desde.startsWith('/splash') ? desde : casa;
       }
       return null;
     },
@@ -54,6 +70,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/splash', builder: (context, state) => const SplashPage()),
       GoRoute(path: '/bienvenida', builder: (context, state) => const BienvenidaPage()),
       GoRoute(path: '/login', builder: (context, state) => const LoginPage()),
+      GoRoute(path: '/cambiar-clave', builder: (context, state) => const CambiarClaveObligatoriaPage()),
+      GoRoute(path: '/centro', builder: (context, state) => const CentroPage()),
+      GoRoute(path: '/plataforma', builder: (context, state) => const PlataformaPage()),
       // Rutas anidadas: el detalle se apila sobre su lista y "atrás" vuelve a ella.
       ShellRoute(
         builder: (context, state, child) => ShellAdaptativo(ubicacion: state.uri.path, child: child),

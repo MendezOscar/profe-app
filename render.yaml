@@ -31,3 +31,7 @@ services:
         sync: false
       - key: Jwt__Key
         sync: false
+      - key: App__PlatformAdmin__Email
+        sync: false
+      - key: App__PlatformAdmin__Password
+        sync: false
