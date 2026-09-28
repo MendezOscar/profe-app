@@ -50,7 +50,7 @@ class EntregasActividad {
 }
 
 class Estadisticas {
-  const Estadisticas({
+  Estadisticas({
     required this.alumnos,
     required this.rubros,
     required this.entregas,
@@ -68,18 +68,16 @@ class Estadisticas {
   final double? asistencia;
   final List<({DateTime fecha, int ausentes})> diasConMasFaltas;
 
-  List<RendimientoAlumno> get conNota => [for (final a in alumnos) if (a.nota != null) a];
+  // Se calculan una vez: el tablero y los avisos las leen varias veces por asignatura.
+  late final List<RendimientoAlumno> conNota = [for (final a in alumnos) if (a.nota != null) a];
 
-  double? get promedio => conNota.isEmpty ? null : conNota.fold(0, (s, a) => s + a.nota!) / conNota.length;
+  late final double? promedio = conNota.isEmpty ? null : conNota.fold<int>(0, (s, a) => s + a.nota!) / conNota.length;
   int get aprobados => conNota.where((a) => !a.enRiesgo).length;
   int get reprobados => conNota.where((a) => a.enRiesgo).length;
 
   /// Alumnos bajo la nota mínima o con muchas faltas, los más urgentes primero.
-  List<RendimientoAlumno> get enRiesgo {
-    final lista = [for (final a in alumnos) if (a.enRiesgo || muchasFaltas(a)) a];
-    lista.sort((a, b) => (a.nota ?? 100).compareTo(b.nota ?? 100));
-    return lista;
-  }
+  late final List<RendimientoAlumno> enRiesgo = [for (final a in alumnos) if (a.enRiesgo || muchasFaltas(a)) a]
+    ..sort((a, b) => (a.nota ?? 100).compareTo(b.nota ?? 100));
 
   /// Tres faltas o más y al menos el 15 % de las clases del parcial.
   bool muchasFaltas(RendimientoAlumno a) => a.inasistencias >= 3 && a.inasistencias >= sesiones * 0.15;

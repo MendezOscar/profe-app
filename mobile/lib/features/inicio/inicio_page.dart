@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/planes/estadisticas.dart';
 import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
@@ -180,7 +179,7 @@ class _Resumen extends StatelessWidget {
     final alumnos = avances.fold(0, (s, a) => s + a.clase.alumnos);
     final porCalificar = avances.fold(0, (s, a) => s + (a.resultado?.actividadesIncompletas.length ?? 0));
     final sinPlan = avances.where((a) => a.plan != null && a.plan!.rubros.isEmpty).length;
-    final enRiesgo = avances.fold(0, (s, a) => s + (a.plan == null ? 0 : calcularEstadisticas(a.plan!).enRiesgo.length));
+    final enRiesgo = avances.fold(0, (s, a) => s + (a.estadisticas?.enRiesgo.length ?? 0));
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Wrap(
@@ -293,7 +292,7 @@ class _TarjetaAsignatura extends StatelessWidget {
                 )
               else ...[
                 BarraPuntos(valor: resultado!.asignado, total: resultado.totalPlan, etiqueta: 'Actividades del plan'),
-                if (calcularEstadisticas(plan) case final e when e.promedio != null) ...[
+                if (avance.estadisticas case final e? when e.promedio != null) ...[
                   const SizedBox(height: 8),
                   Text(
                     [

@@ -18,8 +18,7 @@ class EstadisticasTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final e = calcularEstadisticas(plan);
-    final todos = ref.watch(planesClaseProvider(plan.claseId)).valueOrNull;
-    final evol = todos == null ? const <PuntoEvolucion>[] : evolucion(todos);
+    final evol = ref.watch(evolucionProvider(plan.claseId)).valueOrNull ?? const <PuntoEvolucion>[];
 
     if (e.conNota.isEmpty && e.sesiones == 0) {
       return const EstadoVacio(

@@ -145,7 +145,7 @@ List<Aviso> calcularAvisos({
       }
     }
 
-    final riesgo = calcularEstadisticas(plan).enRiesgo;
+    final riesgo = avance.estadisticas?.enRiesgo ?? const [];
     if (riesgo.isNotEmpty) {
       avisos.add(Aviso(
         id: 'riesgo:${clase.id}:${plan.parcial.clave}:${riesgo.map((r) => r.alumno.id).join(',')}',

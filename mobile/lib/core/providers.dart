@@ -9,6 +9,7 @@ import 'local/sync_repository.dart';
 import 'models/clase.dart';
 import 'models/session.dart';
 import 'planes/calculo_parcial.dart';
+import 'planes/estadisticas.dart';
 import 'planes/modelos.dart';
 import 'planes/planes_repository.dart';
 import 'sace/exportador_cuadro.dart';
@@ -65,15 +66,23 @@ final planesClaseProvider = FutureProvider.family<List<PlanParcial>, String>((re
   return ref.watch(planesRepositoryProvider).planes([for (final p in parciales) (claseId, p)]);
 });
 
+/// Evolución de parcial a parcial, calculada una vez por carga de la clase.
+final evolucionProvider = FutureProvider.family<List<PuntoEvolucion>, String>(
+    (ref, claseId) async => evolucion(await ref.watch(planesClaseProvider(claseId).future)));
+
 final plantillasProvider = FutureProvider<List<Plantilla>>((ref) => ref.watch(planesRepositoryProvider).plantillas());
 
 /// Cómo va cada asignatura en su parcial en curso (el primero sin cerrar).
 class AvanceClase {
-  const AvanceClase({required this.clase, this.plan, this.resultado});
+  AvanceClase({required this.clase, this.plan, this.resultado})
+      : estadisticas = plan == null ? null : calcularEstadisticas(plan);
 
   final ClaseResumen clase;
   final PlanParcial? plan;
   final ResultadoParcial? resultado;
+
+  /// Calculadas una vez al armar el tablero; las usan las tarjetas y los avisos.
+  final Estadisticas? estadisticas;
 }
 
 final tableroProvider = FutureProvider<List<AvanceClase>>((ref) async {
