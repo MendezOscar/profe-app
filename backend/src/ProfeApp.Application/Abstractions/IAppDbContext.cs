@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using ProfeApp.Domain.Cuadros;
 using ProfeApp.Domain.Planes;
@@ -20,5 +21,8 @@ public interface IAppDbContext
     DbSet<Registro> Registros { get; }
 
     DatabaseFacade Database { get; }
+
+    /// <summary>Para cargar a pedido lo que no se trae al consultar (el archivo de una clase).</summary>
+    EntityEntry<TEntity> Entry<TEntity>(TEntity entity) where TEntity : class;
     Task<int> SaveChangesAsync(CancellationToken ct = default);
 }

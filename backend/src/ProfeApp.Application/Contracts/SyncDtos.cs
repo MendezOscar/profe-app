@@ -1,8 +1,9 @@
 namespace ProfeApp.Application.Contracts;
 
 /// <summary>
-/// Una clase completa tal como viaja entre el teléfono y el servidor. El archivo sólo va
-/// cuando la plantilla cambió: es lo más pesado y casi nunca cambia.
+/// Una clase tal como viaja entre el teléfono y el servidor. Sólo va lo que cambió: las
+/// columnas y alumnos cuando cambió la plantilla (<c>ConPlantilla</c>), y las celdas nuevas.
+/// El archivo sube sólo con una plantilla nueva y se baja aparte, con <c>/sync/archivo</c>.
 /// </summary>
 public sealed record ClaseSync(
     string Clave,
@@ -19,7 +20,8 @@ public sealed record ClaseSync(
     bool Eliminada,
     IReadOnlyList<ColumnaSync> Columnas,
     IReadOnlyList<AlumnoSync> Alumnos,
-    IReadOnlyList<ValorSync> Valores);
+    IReadOnlyList<ValorSync> Valores,
+    bool ConPlantilla = true);
 
 public sealed record ColumnaSync(string Clave, string Grupo, string Nombre, string Tipo, int Col, int Orden);
 
@@ -37,5 +39,12 @@ public sealed record RegistroSync(string Tipo, string ClaseClave, string Clave, 
 /// <summary>Registros es opcional: las versiones de la app sin planes no lo mandan.</summary>
 public sealed record SyncPushRequest(IReadOnlyList<ClaseSync>? Clases, IReadOnlyList<RegistroSync>? Registros = null);
 
-/// <summary><c>Hasta</c> es el cursor para el próximo pull.</summary>
-public sealed record SyncPullResponse(DateTimeOffset Hasta, IReadOnlyList<ClaseSync> Clases, IReadOnlyList<RegistroSync> Registros);
+/// <summary>
+/// Una página del pull. <c>Hasta</c> es el cursor para el próximo pull; si <c>Mas</c>, se
+/// pide la página siguiente con el mismo <c>desde</c> y este <c>hasta</c>. Las clases van
+/// sólo en la primera página.
+/// </summary>
+public sealed record SyncPullResponse(
+    DateTimeOffset Hasta, IReadOnlyList<ClaseSync> Clases, IReadOnlyList<RegistroSync> Registros, bool Mas = false);
+
+public sealed record ArchivoClase(string Clave, string ArchivoBase64);

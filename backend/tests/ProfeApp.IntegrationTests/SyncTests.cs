@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -30,8 +31,8 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
         valores = valores ?? [],
     };
 
-    private static object Valor(int? valor, DateTimeOffset cuando) =>
-        new { alumnoClave = "0501200900001", columnaClave = "PARCIAL I|NOTA TOTAL", valor, actualizadoEn = cuando };
+    private static object Valor(int? valor, DateTimeOffset cuando, string columna = "PARCIAL I|NOTA TOTAL") =>
+        new { alumnoClave = "0501200900001", columnaClave = columna, valor, actualizadoEn = cuando };
 
     private static async Task PushAsync(HttpClient client, params object[] clases)
     {
@@ -39,8 +40,13 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
         response.StatusCode.Should().Be(HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync());
     }
 
-    private static async Task<JsonElement> PullAsync(HttpClient client, string? desde = null) =>
-        await ReadAsync(await client.GetAsync("/api/v1/sync/pull" + (desde is null ? "" : $"?desde={Uri.EscapeDataString(desde)}")));
+    private static async Task<JsonElement> PullAsync(HttpClient client, string? desde = null, string? hasta = null, int pagina = 0)
+    {
+        var query = new List<string> { $"pagina={pagina}" };
+        if (desde is not null) query.Add($"desde={Uri.EscapeDataString(desde)}");
+        if (hasta is not null) query.Add($"hasta={Uri.EscapeDataString(hasta)}");
+        return await ReadAsync(await client.GetAsync("/api/v1/sync/pull?" + string.Join("&", query)));
+    }
 
     private static JsonElement ClaseDe(JsonElement pull, string clave) =>
         pull.GetProperty("clases").EnumerateArray().Single(c => c.GetProperty("clave").GetString() == clave);
@@ -52,8 +58,12 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
         await PushAsync(telefonoA, Clase("quimica", valores: [Valor(81, Importada.AddHours(1))]));
 
         var clase = ClaseDe(await PullAsync(telefonoA), "quimica");
+        // El archivo no viaja en el pull: se pide aparte, sólo si hace falta.
+        var archivo = await ReadAsync(await telefonoA.GetAsync("/api/v1/sync/archivo?clave=quimica"));
 
-        clase.GetProperty("archivoBase64").GetString().Should().NotBeNullOrEmpty();
+        clase.GetProperty("archivoBase64").ValueKind.Should().Be(JsonValueKind.Null);
+        clase.GetProperty("conPlantilla").GetBoolean().Should().BeTrue();
+        archivo.GetProperty("archivoBase64").GetString().Should().Be(Convert.ToBase64String([0xD0, 0xCF, 0x11, 0xE0]));
         clase.GetProperty("hoja").GetString().Should().Be("12345678~1~1123");
         clase.GetProperty("alumnos")[0].GetProperty("nombre").GetString().Should().Be("ANA");
         clase.GetProperty("valores")[0].GetProperty("valor").GetInt32().Should().Be(81);
@@ -83,10 +93,10 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
-    public async Task El_pull_incremental_trae_solo_lo_cambiado_y_sin_archivo_si_la_plantilla_no_cambio()
+    public async Task El_pull_incremental_trae_solo_las_celdas_cambiadas_y_sin_plantilla_si_no_cambio()
     {
         var client = await RegisterAsync();
-        await PushAsync(client, Clase("historia"), Clase("civica"));
+        await PushAsync(client, Clase("historia"), Clase("civica", valores: [Valor(70, Importada.AddHours(1), "PARCIAL I|INASISTENCIAS")]));
         var cursor = (await PullAsync(client)).GetProperty("hasta").GetString();
 
         await PushAsync(client, Clase("civica", conArchivo: false, valores: [Valor(88, Importada.AddHours(3))]));
@@ -94,8 +104,33 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         incremental.GetProperty("clases").GetArrayLength().Should().Be(1);
         var civica = ClaseDe(incremental, "civica");
-        civica.GetProperty("archivoBase64").ValueKind.Should().Be(JsonValueKind.Null);
+        civica.GetProperty("conPlantilla").GetBoolean().Should().BeFalse();
+        civica.GetProperty("alumnos").GetArrayLength().Should().Be(0);
+        civica.GetProperty("valores").GetArrayLength().Should().Be(1, "la celda de inasistencias no cambió");
         civica.GetProperty("valores")[0].GetProperty("valor").GetInt32().Should().Be(88);
+    }
+
+    [Fact]
+    public async Task El_pull_de_registros_va_por_paginas_sin_perder_ninguno()
+    {
+        var client = await RegisterAsync();
+        var registros = Enumerable.Range(0, 1_500)
+            .Select(i => Registro("calificacion", $"act|{i}", new { valor = i % 10 }, Importada.AddMinutes(i)))
+            .ToArray();
+        await PushRegistrosAsync(client, registros);
+
+        var primera = await PullAsync(client);
+        var hasta = primera.GetProperty("hasta").GetString();
+        var segunda = await PullAsync(client, hasta: hasta, pagina: 1);
+        // El primer pull (sin desde) usa MinValue; la segunda página repite el mismo "hasta".
+
+        primera.GetProperty("mas").GetBoolean().Should().BeTrue();
+        primera.GetProperty("registros").GetArrayLength().Should().Be(1_000);
+        segunda.GetProperty("mas").GetBoolean().Should().BeFalse();
+        segunda.GetProperty("registros").GetArrayLength().Should().Be(500);
+        primera.GetProperty("registros").EnumerateArray().Concat(segunda.GetProperty("registros").EnumerateArray())
+            .Select(r => r.GetProperty("clave").GetString()).Distinct().Count().Should().Be(1_500);
+        segunda.GetProperty("clases").GetArrayLength().Should().Be(0, "las clases van sólo en la primera página");
     }
 
     [Fact]
@@ -196,5 +231,18 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         tipo.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         datos.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task La_limpieza_diaria_corre_sin_errores_y_no_toca_lo_vigente()
+    {
+        var client = await RegisterAsync();
+        await PushAsync(client, Clase("vigente", valores: [Valor(90, Importada.AddHours(1))]));
+
+        using (var scope = Fixture.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<ProfeApp.Infrastructure.Mantenimiento.LimpiezaService>()
+                .LimpiarAsync(CancellationToken.None);
+
+        ClaseDe(await PullAsync(client), "vigente").GetProperty("valores")[0].GetProperty("valor").GetInt32().Should().Be(90);
     }
 }

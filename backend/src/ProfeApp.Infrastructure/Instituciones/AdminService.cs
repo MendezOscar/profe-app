@@ -1,5 +1,4 @@
 using System.Security.Cryptography;
-using System.Text.Json;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ProfeApp.Application.Abstractions;
@@ -45,13 +44,13 @@ public sealed class AdminService(
             .Where(r => tenants.Contains(r.TenantId) && r.Tipo == "actividad" && !r.Eliminado)
             .GroupBy(r => r.TenantId).Select(g => new { g.Key, N = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        var parciales = (await db.Registros.IgnoreQueryFilters()
-                .Where(r => tenants.Contains(r.TenantId) && r.Tipo == "parcial")
-                .Select(r => new { r.TenantId, r.Datos })
+        // Cerrado = datos.cerradoEn no nulo. Se cuenta en la base, sin traer el JSON.
+        var parciales = (await db.Database
+                .SqlQuery<ConteoPorTenant>($@"SELECT tenant_id AS ""TenantId"", count(*)::int AS ""N"" FROM registros
+                    WHERE tipo = 'parcial' AND tenant_id = ANY({tenants.ToArray()}) AND datos->>'cerradoEn' IS NOT NULL
+                    GROUP BY tenant_id")
                 .ToListAsync(ct))
-            .Where(r => EstaCerrado(r.Datos))
-            .GroupBy(r => r.TenantId)
-            .ToDictionary(g => g.Key, g => g.Count());
+            .ToDictionary(x => x.TenantId, x => x.N);
 
         int De(Dictionary<Guid, int> d, Guid? t) => t is { } id && d.TryGetValue(id, out var n) ? n : 0;
 
@@ -226,12 +225,16 @@ public sealed class AdminService(
         return yo?.InstitucionId is { } id ? await db.Instituciones.FirstOrDefaultAsync(i => i.Id == id, ct) : null;
     }
 
-    /// <summary>Docentes del centro: los del rol Docente, no su administrador.</summary>
-    private async Task<List<AppUser>> DocentesDeAsync(Guid institucionId, CancellationToken ct)
-    {
-        var docentes = await users.GetUsersInRoleAsync(Roles.Docente);
-        return docentes.Where(u => u.InstitucionId == institucionId).ToList();
-    }
+    /// <summary>Docentes del centro: los del rol Docente, no su administrador. Filtrado en la base.</summary>
+    private Task<List<AppUser>> DocentesDeAsync(Guid institucionId, CancellationToken ct) =>
+        DocentesQuery().Where(u => u.InstitucionId == institucionId).ToListAsync(ct);
+
+    private IQueryable<AppUser> DocentesQuery() =>
+        from u in db.Users
+        join ur in db.UserRoles on u.Id equals ur.UserId
+        join r in db.Roles on ur.RoleId equals r.Id
+        where r.Name == Roles.Docente
+        select u;
 
     private async Task<AppUser?> DocenteDelCentroAsync(Guid institucionId, Guid docenteId)
     {
@@ -240,25 +243,14 @@ public sealed class AdminService(
         return await users.IsInRoleAsync(docente, Roles.Docente) ? docente : null;
     }
 
-    private async Task<Dictionary<Guid, int>> CuposUsadosAsync(CancellationToken ct) =>
-        (await users.GetUsersInRoleAsync(Roles.Docente))
-            .Where(u => u.InstitucionId is not null && u.IsActive)
+    private Task<Dictionary<Guid, int>> CuposUsadosAsync(CancellationToken ct) =>
+        DocentesQuery()
+            .Where(u => u.InstitucionId != null && u.IsActive)
             .GroupBy(u => u.InstitucionId!.Value)
-            .ToDictionary(g => g.Key, g => g.Count());
+            .Select(g => new { g.Key, N = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.N, ct);
 
-    private static bool EstaCerrado(string? datos)
-    {
-        if (datos is null) return false;
-        try
-        {
-            using var json = JsonDocument.Parse(datos);
-            return json.RootElement.TryGetProperty("cerradoEn", out var c) && c.ValueKind == JsonValueKind.String;
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
-    }
+    private sealed record ConteoPorTenant(Guid TenantId, int N);
 
     /// <summary>Fácil de dictar por teléfono y cumple la política: Profe + 4 dígitos + 2 letras.</summary>
     private static string ClaveTemporal()

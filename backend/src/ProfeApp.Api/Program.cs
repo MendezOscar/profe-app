@@ -1,11 +1,15 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using System.Security.Claims;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using ProfeApp.Api.Auth;
+using ProfeApp.Api.Common;
 using ProfeApp.Api.Endpoints;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Domain.Common;
@@ -91,6 +95,57 @@ builder.Services.AddResponseCompression(options =>
 
 builder.Services.AddHealthChecks().AddDbContextCheck<AppDbContext>();
 
+// Límites para que un cliente con errores (o un abuso) no tumbe la API para todos.
+// Sin IP conocida (pruebas, llamadas internas) no se limita.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, ct) =>
+    {
+        context.HttpContext.Response.ContentType = "application/problem+json";
+        await context.HttpContext.Response.WriteAsJsonAsync(new
+        {
+            status = 429,
+            title = "Demasiadas solicitudes. Espera un momento y vuelve a intentar.",
+            code = "demasiadas_solicitudes",
+        }, ct);
+    };
+
+    // Intentos de login por IP: frena el adivinar contraseñas.
+    options.AddPolicy(Limites.Login, http => http.Connection.RemoteIpAddress is { } ip && !System.Net.IPAddress.IsLoopback(ip)
+        ? RateLimitPartition.GetFixedWindowLimiter(ip.ToString(), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+        })
+        : RateLimitPartition.GetNoLimiter("sin-ip"));
+
+    // Sync por docente: de sobra para un primer pull por páginas, corta un bucle de reintentos.
+    options.AddPolicy(Limites.Usuario, http =>
+    {
+        var usuario = http.User.FindFirstValue("sub") ?? http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return usuario is null || http.Connection.RemoteIpAddress is null || System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress)
+            ? RateLimitPartition.GetNoLimiter("sin-usuario")
+            : RateLimitPartition.GetTokenBucketLimiter(usuario, _ => new TokenBucketRateLimiterOptions
+            {
+                TokenLimit = 240,
+                TokensPerPeriod = 60,
+                ReplenishmentPeriod = TimeSpan.FromSeconds(30),
+                QueueLimit = 20,
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+            });
+    });
+
+    // Exportar abre el libro completo en memoria: en la semana de cierre todos exportan a
+    // la vez. Pocas a la vez y el resto espera su turno, en lugar de quedarse sin memoria.
+    options.AddConcurrencyLimiter(Limites.Exportar, limiter =>
+    {
+        limiter.PermitLimit = builder.Configuration.GetValue("App:ExportacionesSimultaneas", 4);
+        limiter.QueueLimit = 100;
+        limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+});
+
 var app = builder.Build();
 
 app.UseForwardedHeaders();
@@ -108,6 +163,7 @@ if (app.Environment.IsDevelopment())
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapHealthChecks("/health");
 // Sonda de vida que no toca la base: si la base tropieza, la plataforma no debe reiniciar

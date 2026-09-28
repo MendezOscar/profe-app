@@ -23,6 +23,19 @@ public class ClaseConfig : IEntityTypeConfiguration<Clase>
         b.HasMany(x => x.Columnas).WithOne().HasForeignKey(x => x.ClaseId).OnDelete(DeleteBehavior.Cascade);
         b.HasMany(x => x.Alumnos).WithOne().HasForeignKey(x => x.ClaseId).OnDelete(DeleteBehavior.Cascade);
         b.HasMany(x => x.Valores).WithOne().HasForeignKey(x => x.ClaseId).OnDelete(DeleteBehavior.Cascade);
+        // Table splitting: el archivo vive en la misma fila pero es otra entidad, así cargar
+        // la clase (en cada push y pull) no arrastra los bytes.
+        b.HasOne(x => x.Archivo).WithOne().HasForeignKey<ClaseArchivo>(x => x.Id);
+        b.Navigation(x => x.Archivo).IsRequired();
+    }
+}
+
+public class ClaseArchivoConfig : IEntityTypeConfiguration<ClaseArchivo>
+{
+    public void Configure(EntityTypeBuilder<ClaseArchivo> b)
+    {
+        b.ToTable("clases");
+        b.Property(x => x.Contenido).HasColumnName("archivo").IsRequired();
     }
 }
 
@@ -60,5 +73,6 @@ public class ClaseValorConfig : IEntityTypeConfiguration<ClaseValor>
         b.Property(x => x.AlumnoClave).HasMaxLength(200).IsRequired();
         b.Property(x => x.ColumnaClave).HasMaxLength(300).IsRequired();
         b.HasIndex(x => new { x.ClaseId, x.AlumnoClave, x.ColumnaClave }).IsUnique();
+        b.HasIndex(x => new { x.ClaseId, x.ModificadoEn });
     }
 }

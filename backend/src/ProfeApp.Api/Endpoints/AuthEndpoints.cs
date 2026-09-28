@@ -16,6 +16,7 @@ public static class AuthEndpoints
         group.MapPost("/login", async (LoginRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>
                 (await auth.LoginAsync(request, http.Connection.RemoteIpAddress?.ToString(), ct)).ToHttp())
             .AllowAnonymous()
+            .RequireRateLimiting(Limites.Login)
             .WithSummary("Inicia sesión y devuelve el par access/refresh token.");
 
         group.MapPost("/refresh", async (RefreshRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>

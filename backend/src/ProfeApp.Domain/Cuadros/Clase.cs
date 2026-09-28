@@ -20,7 +20,12 @@ public class Clase : TenantEntity
 
     public string Hoja { get; set; } = null!;
     public string ArchivoNombre { get; set; } = null!;
-    public byte[] Archivo { get; set; } = [];
+
+    /// <summary>
+    /// El archivo original, aparte: comparte la tabla pero no se lee al cargar la clase.
+    /// Es lo más pesado y sólo hace falta al exportar o al bajarlo a otro dispositivo.
+    /// </summary>
+    public ClaseArchivo Archivo { get; set; } = new();
 
     /// <summary>Cuándo se importó la plantilla en el teléfono. Gana la más nueva.</summary>
     public DateTimeOffset PlantillaActualizadaEn { get; set; }
@@ -40,6 +45,13 @@ public class Clase : TenantEntity
     public List<ClaseColumna> Columnas { get; set; } = [];
     public List<ClaseAlumno> Alumnos { get; set; } = [];
     public List<ClaseValor> Valores { get; set; } = [];
+}
+
+/// <summary>El cuadro de SACE tal como se importó. Misma fila que su <see cref="Clase"/>.</summary>
+public class ClaseArchivo
+{
+    public Guid Id { get; set; }
+    public byte[] Contenido { get; set; } = [];
 }
 
 public class ClaseColumna : TenantEntity
@@ -75,4 +87,7 @@ public class ClaseValor : TenantEntity
 
     /// <summary>Hora del teléfono en que se capturó: entre dos dispositivos gana la más nueva.</summary>
     public DateTimeOffset ActualizadoEn { get; set; }
+
+    /// <summary>Hora del servidor del último cambio: el pull sólo manda las celdas nuevas.</summary>
+    public DateTimeOffset ModificadoEn { get; set; }
 }

@@ -163,7 +163,9 @@ public sealed class AuthService(
             // El filtro de tenant ya limita estas consultas a lo del docente. Columnas,
             // alumnos y valores caen en cascada con su clase.
             await db.Registros.ExecuteDeleteAsync(ct);
-            await db.Clases.ExecuteDeleteAsync(ct);
+            // SQL directo: EF no admite ExecuteDelete en una tabla compartida (clase + archivo).
+            if (user.TenantId is Guid espacio)
+                await db.Database.ExecuteSqlAsync($"DELETE FROM clases WHERE tenant_id = {espacio}", ct);
             await db.RefreshTokens.Where(t => t.UserId == user.Id).ExecuteDeleteAsync(ct);
             var result = await users.DeleteAsync(user);
             if (!result.Succeeded) throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));

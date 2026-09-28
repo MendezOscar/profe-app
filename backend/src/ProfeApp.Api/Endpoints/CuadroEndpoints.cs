@@ -16,6 +16,7 @@ public static class CuadroEndpoints
         // app lo manda con el mismo cliente que todo lo demás.
         group.MapPost("/exportar", (ExportarCuadroRequest request, ICuadroSaceWriter writer) =>
                 writer.Rellenar(request).ToHttp(c => Results.File(c.Contenido, c.ContentType, c.NombreArchivo)))
+            .RequireRateLimiting(Limites.Exportar)
             .WithSummary("Rellena el cuadro de SACE con lo capturado y lo devuelve listo para subir. No guarda nada.");
     }
 }

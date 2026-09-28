@@ -6,6 +6,7 @@ using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Services;
 using ProfeApp.Infrastructure.Identity;
 using ProfeApp.Infrastructure.Instituciones;
+using ProfeApp.Infrastructure.Mantenimiento;
 using ProfeApp.Infrastructure.Persistence;
 using ProfeApp.Infrastructure.Sace;
 
@@ -51,6 +52,8 @@ public static class DependencyInjection
         services.AddSingleton<ICuadroSaceWriter, CuadroSaceWriter>();
         services.AddScoped<SyncService>();
         services.AddScoped<AdminService>();
+        services.AddSingleton<LimpiezaService>();
+        services.AddHostedService(p => p.GetRequiredService<LimpiezaService>());
         services.AddScoped<ICentroService>(p => p.GetRequiredService<AdminService>());
         services.AddScoped<IPlataformaService>(p => p.GetRequiredService<AdminService>());
 
