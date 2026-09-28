@@ -25,12 +25,13 @@ class LocalDb {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 3,
+        version: 4,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) => _create(db),
         onUpgrade: (db, from, to) async {
           if (from < 2) await _sync(db);
           if (from < 3) await _planes(db);
+          if (from < 4) await _celdasSucias(db);
         },
       ),
     );
@@ -95,13 +96,16 @@ class LocalDb {
   }
 
   // Por clave de columna y no por id: sobrevive a que la plantilla se reimporte.
-  // valor NULL es un borrado que todavía hay que avisarle al servidor.
+  // valor NULL es un borrado que todavía hay que avisarle al servidor. sucia = 1 hasta que
+  // el servidor recibe la celda: el push manda sólo esas, no la clase entera.
+  // (En la v2 se crea sin sucia; la v4 la agrega.)
   static void _crearValores(Batch batch, String tabla) => batch.execute('''
       CREATE TABLE $tabla (
         alumno_id TEXT NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
         columna_clave TEXT NOT NULL,
         valor INTEGER,
         actualizado_en TEXT NOT NULL,
+        sucia INTEGER NOT NULL DEFAULT 1,
         PRIMARY KEY (alumno_id, columna_clave)
       )''');
 
@@ -122,11 +126,21 @@ class LocalDb {
       batch.execute('ALTER TABLE clases ADD COLUMN $columna');
     }
     _crearValores(batch, 'valores_v2');
-    batch.execute('INSERT INTO valores_v2 SELECT alumno_id, columna_clave, valor, actualizado_en FROM valores');
+    batch.execute('INSERT INTO valores_v2 (alumno_id, columna_clave, valor, actualizado_en) '
+        'SELECT alumno_id, columna_clave, valor, actualizado_en FROM valores');
     batch.execute('DROP TABLE valores');
     batch.execute('ALTER TABLE valores_v2 RENAME TO valores');
     _crearSyncEstado(batch);
     await batch.commit(noResult: true);
+  }
+
+  /// v3 → v4: marca de subida por celda. Las celdas que ya existían quedan sucias: se suben
+  /// una vez más y de ahí en adelante sólo las que cambian. Una base que venía de la v1 ya
+  /// la trae (valores se recreó con el esquema nuevo).
+  static Future<void> _celdasSucias(Database db) async {
+    final columnas = await db.rawQuery('PRAGMA table_info(valores)');
+    if (columnas.isEmpty || columnas.any((c) => c['name'] == 'sucia')) return;
+    await db.execute('ALTER TABLE valores ADD COLUMN sucia INTEGER NOT NULL DEFAULT 1');
   }
 
   /// v2 → v3: planes de calificación y asistencia.

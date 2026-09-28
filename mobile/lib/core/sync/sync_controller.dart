@@ -108,7 +108,7 @@ class SyncController extends Notifier<SyncState> {
         }
         rethrow;
       }
-      await repo.marcarSubida(pendiente.id, pendiente.version);
+      await repo.marcarSubida(pendiente.id, pendiente.version, pendiente.celdas);
     }
 
     // El plan va aparte y por tandas: una clase con muchas actividades junta miles de notas.
@@ -123,15 +123,34 @@ class SyncController extends Notifier<SyncState> {
       await repo.marcarRegistrosSubidos(tanda);
     }
 
+    // Por páginas y con el mismo "hasta": un primer pull con miles de notas no llega de
+    // golpe. Las clases vienen en la primera página, sin archivo; el archivo se pide
+    // aparte sólo si este dispositivo lo necesita.
     final cursor = await repo.cursor();
     final desde = cursor == null ? null : DateTime.parse(cursor).subtract(_margen).toUtc().toIso8601String();
-    final pull = await api.get('/sync/pull', query: {'desde': desde}, parse: (d) => d as Map<String, dynamic>);
-    for (final clase in (pull['clases'] as List).cast<Map<String, dynamic>>()) {
-      await repo.aplicar(clase);
+    String? hasta;
+    for (var pagina = 0;; pagina++) {
+      final pull = await api.get('/sync/pull',
+          query: {'desde': desde, 'hasta': hasta, 'pagina': pagina}, parse: (d) => d as Map<String, dynamic>);
+      hasta ??= pull['hasta'] as String;
+      for (final clase in (pull['clases'] as List).cast<Map<String, dynamic>>()) {
+        if (await repo.necesitaArchivo(clase)) {
+          try {
+            final archivo = await api.get('/sync/archivo',
+                query: {'clave': clase['clave']}, parse: (d) => d as Map<String, dynamic>);
+            clase['archivoBase64'] = archivo['archivoBase64'];
+          } on ApiException catch (error) {
+            // Otro dispositivo la borró mientras tanto: llega su lápida en el próximo pull.
+            if (error.code != 'not_found') rethrow;
+          }
+        }
+        await repo.aplicar(clase);
+      }
+      // Después de las clases: los registros se enganchan a clases y alumnos que ya deben existir.
+      await repo.aplicarRegistros(((pull['registros'] as List?) ?? const []).cast<Map<String, dynamic>>());
+      if (pull['mas'] != true) break;
     }
-    // Después de las clases: los registros se enganchan a clases y alumnos que ya deben existir.
-    await repo.aplicarRegistros(((pull['registros'] as List?) ?? const []).cast<Map<String, dynamic>>());
-    await repo.guardarCursor(pull['hasta'] as String);
+    await repo.guardarCursor(hasta);
   }
 }
 

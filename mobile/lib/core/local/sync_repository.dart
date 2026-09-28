@@ -15,32 +15,46 @@ class SyncRepository {
   static const _uuid = Uuid();
   static const _cursor = 'pull_hasta';
 
-  /// Clases con cambios sin subir, en el formato que espera `POST /sync/push`.
-  Future<List<({String id, int version, bool plantilla, Map<String, dynamic> json})>> pendientes() async {
+  /// Clases con cambios sin subir, en el formato que espera `POST /sync/push`. Sólo va lo
+  /// que cambió: la plantilla (columnas, alumnos, archivo) si se reimportó, y las celdas
+  /// sucias. [PendienteClase.celdas] sirve para marcarlas subidas después.
+  Future<List<PendienteClase>> pendientes() async {
     final db = await _db;
     final clases = await db.query('clases', where: 'sucia = 1');
-    return [
-      for (final c in clases)
-        (
-          id: c['id'] as String,
-          version: c['version'] as int,
-          plantilla: c['plantilla_sucia'] == 1,
-          json: await _aJson(db, c),
-        ),
-    ];
+    final pendientes = <PendienteClase>[];
+    for (final c in clases) {
+      final celdas = <({String alumnoId, String columnaClave, String actualizadoEn})>[];
+      pendientes.add((
+        id: c['id'] as String,
+        version: c['version'] as int,
+        plantilla: c['plantilla_sucia'] == 1,
+        json: await _aJson(db, c, celdas),
+        celdas: celdas,
+      ));
+    }
+    return pendientes;
   }
 
-  Future<Map<String, dynamic>> _aJson(Database db, Map<String, Object?> c) async {
+  Future<Map<String, dynamic>> _aJson(
+      Database db, Map<String, Object?> c, List<({String alumnoId, String columnaClave, String actualizadoEn})> celdas) async {
     final id = c['id'] as String;
     final eliminada = c['eliminada'] == 1;
-    final columnas = eliminada ? const <Map<String, Object?>>[] : await db.query('columnas', where: 'clase_id = ?', whereArgs: [id]);
-    final alumnos = eliminada ? const <Map<String, Object?>>[] : await db.query('alumnos', where: 'clase_id = ?', whereArgs: [id]);
+    final conPlantilla = c['plantilla_sucia'] == 1 && !eliminada;
+    final columnas = conPlantilla ? await db.query('columnas', where: 'clase_id = ?', whereArgs: [id]) : const <Map<String, Object?>>[];
+    final alumnos = conPlantilla ? await db.query('alumnos', where: 'clase_id = ?', whereArgs: [id]) : const <Map<String, Object?>>[];
     final valores = eliminada
         ? const <Map<String, Object?>>[]
         : await db.rawQuery('''
-            SELECT a.clave AS alumno_clave, v.columna_clave, v.valor, v.actualizado_en
+            SELECT v.alumno_id, a.clave AS alumno_clave, v.columna_clave, v.valor, v.actualizado_en
             FROM valores v JOIN alumnos a ON a.id = v.alumno_id
-            WHERE a.clase_id = ?''', [id]);
+            WHERE a.clase_id = ? AND v.sucia = 1''', [id]);
+    for (final v in valores) {
+      celdas.add((
+        alumnoId: v['alumno_id'] as String,
+        columnaClave: v['columna_clave'] as String,
+        actualizadoEn: v['actualizado_en'] as String,
+      ));
+    }
 
     return {
       'clave': c['clave'],
@@ -56,6 +70,7 @@ class SyncRepository {
       'archivoBase64': c['plantilla_sucia'] == 1 && !eliminada ? base64Encode(c['archivo'] as Uint8List) : null,
       'plantillaActualizadaEn': _utc(c['actualizada_en']),
       'eliminada': eliminada,
+      'conPlantilla': conPlantilla,
       'columnas': [
         for (final col in columnas)
           {
@@ -93,9 +108,19 @@ class SyncRepository {
 
   /// Tras un push exitoso. Si la clase cambió mientras se subía (otra versión), queda
   /// sucia para el próximo intento. Una clase borrada ya avisada se elimina de verdad.
-  Future<void> marcarSubida(String claseId, int version) async {
+  Future<void> marcarSubida(String claseId, int version,
+      [List<({String alumnoId, String columnaClave, String actualizadoEn})> celdas = const []]) async {
     final db = await _db;
     await db.transaction((tx) async {
+      // Cada celda por su cuenta: si se volvió a editar mientras subía, queda sucia.
+      final batch = tx.batch();
+      for (final c in celdas) {
+        batch.update('valores', {'sucia': 0},
+            where: 'alumno_id = ? AND columna_clave = ? AND actualizado_en = ?',
+            whereArgs: [c.alumnoId, c.columnaClave, c.actualizadoEn]);
+      }
+      await batch.commit(noResult: true);
+
       final actual = await tx.query('clases', columns: ['version', 'eliminada'], where: 'id = ?', whereArgs: [claseId]);
       if (actual.isEmpty || actual.first['version'] != version) return;
       if (actual.first['eliminada'] == 1) {
@@ -122,6 +147,20 @@ class SyncRepository {
     await db.insert('sync_estado', {'clave': _cursor, 'valor': hasta}, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  /// Si para mezclar esta clase hace falta su archivo (el pull no lo trae): clase nueva en
+  /// este dispositivo, o una plantilla más nueva que la de aquí.
+  Future<bool> necesitaArchivo(Map<String, dynamic> remota) async {
+    if (remota['eliminada'] == true || remota['conPlantilla'] != true || remota['archivoBase64'] != null) return false;
+    final db = await _db;
+    final local = (await db.query('clases',
+            columns: ['actualizada_en', 'plantilla_sucia'], where: 'clave = ?', whereArgs: [remota['clave']]))
+        .firstOrNull;
+    if (local == null) return true;
+    return local['plantilla_sucia'] == 0 &&
+        DateTime.parse(remota['plantillaActualizadaEn'] as String)
+            .isAfter(DateTime.parse(local['actualizada_en'] as String));
+  }
+
   /// Mezcla una clase bajada del servidor. Nunca pisa lo pendiente de subir de este
   /// teléfono en la plantilla, y por celda gana la captura más nueva.
   Future<void> aplicar(Map<String, dynamic> remota) async {
@@ -138,11 +177,13 @@ class SyncRepository {
       }
 
       final archivo = remota['archivoBase64'] as String?;
+      final conPlantilla = remota['conPlantilla'] as bool? ?? true;
       final plantillaRemota = DateTime.parse(remota['plantillaActualizadaEn'] as String);
       String claseId;
 
       if (local == null) {
-        if (archivo == null) return; // Sin archivo no se puede exportar: se espera a tenerlo.
+        // Sin archivo no se puede exportar: se espera a tenerlo.
+        if (archivo == null || !conPlantilla) return;
         claseId = _uuid.v4();
         await tx.insert('clases', {
           'id': claseId,
@@ -156,7 +197,7 @@ class SyncRepository {
       } else {
         claseId = local['id'] as String;
         final plantillaLocal = DateTime.parse(local['actualizada_en'] as String);
-        if (archivo != null && local['plantilla_sucia'] == 0 && plantillaRemota.isAfter(plantillaLocal)) {
+        if (archivo != null && conPlantilla && local['plantilla_sucia'] == 0 && plantillaRemota.isAfter(plantillaLocal)) {
           await tx.update('clases', _meta(remota, archivo), where: 'id = ?', whereArgs: [claseId]);
           await _reemplazarPlantilla(tx, claseId, remota);
         }
@@ -177,7 +218,13 @@ class SyncRepository {
         if (actual.isNotEmpty && !cuando.isAfter(DateTime.parse(actual.first['actualizado_en'] as String))) continue;
         await tx.insert(
           'valores',
-          {'alumno_id': alumnoId, 'columna_clave': v['columnaClave'], 'valor': v['valor'], 'actualizado_en': cuando.toIso8601String()},
+          {
+            'alumno_id': alumnoId,
+            'columna_clave': v['columnaClave'],
+            'valor': v['valor'],
+            'actualizado_en': cuando.toIso8601String(),
+            'sucia': 0,
+          },
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
@@ -325,23 +372,27 @@ class SyncRepository {
 
   /// Mezcla los registros bajados. Lo que no tiene dónde ir (clase o alumno que este
   /// teléfono no tiene) se ignora.
+  ///
+  /// Por lotes: las llaves y horas que ya existen se leen con unas pocas consultas IN, y
+  /// todo se escribe en un solo batch. Fila por fila, un primer pull de miles de notas
+  /// dejaba el teléfono ocupado varios minutos.
   Future<void> aplicarRegistros(List<Map<String, dynamic>> registros) async {
     if (registros.isEmpty) return;
     final ordenados = [...registros]
       ..sort((a, b) => _tipos.indexOf(a['tipo'] as String).compareTo(_tipos.indexOf(b['tipo'] as String)));
     final db = await _db;
     await db.transaction((tx) async {
-      final clases = <String, String?>{};
-      Future<String?> claseId(String clave) async {
-        if (clases.containsKey(clave)) return clases[clave];
-        final fila = await tx.query('clases', columns: ['id'], where: 'clave = ?', whereArgs: [clave]);
-        return clases[clave] = fila.firstOrNull?['id'] as String?;
-      }
+      final claseClaves = {for (final r in ordenados) r['claseClave'] as String}..remove('');
+      final clases = <String, String>{
+        for (final c in await _en(tx, 'clases', ['id', 'clave'], 'clave', claseClaves)) c['clave'] as String: c['id'] as String,
+      };
+      final alumnos = <String, String>{
+        for (final a in await _en(tx, 'alumnos', ['id', 'clase_id', 'clave'], 'clase_id', clases.values.toSet()))
+          '${a['clase_id']}|${a['clave']}': a['id'] as String,
+      };
 
-      Future<String?> alumnoId(String claseId, String clave) async => (await tx.query('alumnos',
-              columns: ['id'], where: 'clase_id = ? AND clave = ?', whereArgs: [claseId, clave]))
-          .firstOrNull?['id'] as String?;
-
+      // Llave local de cada registro y su tabla; lo que no se puede ubicar queda fuera.
+      final filas = <({String tabla, Map<String, Object?> llave, String cuando, Map<String, Object?> fila})>[];
       for (final r in ordenados) {
         final tipo = r['tipo'] as String;
         final clave = r['clave'] as String;
@@ -350,32 +401,31 @@ class SyncRepository {
         final datos =
             r['datos'] == null ? const <String, dynamic>{} : jsonDecode(r['datos'] as String) as Map<String, dynamic>;
         final sync = {'actualizado_en': cuando, 'sucia': 0};
+        void agregar(String tabla, Map<String, Object?> llave, Map<String, Object?> fila) =>
+            filas.add((tabla: tabla, llave: llave, cuando: cuando, fila: {...fila, ...sync}));
 
         if (tipo == 'plantilla') {
-          await _mezclar(tx, 'plantillas', {'id': clave}, cuando, {
+          agregar('plantillas', {'id': clave}, {
             'nombre': datos['nombre'] ?? '',
             'rubros_json': jsonEncode(datos['rubros'] ?? const []),
             'eliminado': eliminado,
-            ...sync,
           });
           continue;
         }
-
-        final clase = await claseId(r['claseClave'] as String);
+        final clase = clases[r['claseClave']];
         if (clase == null) continue;
         switch (tipo) {
           case 'rubro':
-            await _mezclar(tx, 'rubros', {'id': clave}, cuando, {
+            agregar('rubros', {'id': clave}, {
               'clase_id': clase,
               'parcial': datos['parcial'],
               'nombre': datos['nombre'],
               'puntos': datos['puntos'],
               'orden': datos['orden'],
               'eliminado': eliminado,
-              ...sync,
             });
           case 'actividad':
-            await _mezclar(tx, 'actividades', {'id': clave}, cuando, {
+            agregar('actividades', {'id': clave}, {
               'clase_id': clase,
               'parcial': datos['parcial'],
               'rubro_id': datos['rubroId'],
@@ -384,46 +434,94 @@ class SyncRepository {
               'puntos': datos['puntos'],
               'descripcion': datos['descripcion'],
               'eliminado': eliminado,
-              ...sync,
             });
           case 'sesion':
-            await _mezclar(tx, 'sesiones', {'id': clave}, cuando, {
+            agregar('sesiones', {'id': clave}, {
               'clase_id': clase,
               'parcial': datos['parcial'],
               'fecha': datos['fecha'],
               'eliminado': eliminado,
-              ...sync,
             });
           case 'parcial':
-            await _mezclar(tx, 'parciales', {'clase_id': clase, 'parcial': clave}, cuando,
-                {'cerrado_en': datos['cerradoEn'], ...sync});
+            agregar('parciales', {'clase_id': clase, 'parcial': clave}, {'cerrado_en': datos['cerradoEn']});
           case 'calificacion' || 'asistencia':
             final corte = clave.indexOf('|');
             if (corte < 0) continue;
-            final padre = clave.substring(0, corte);
-            final alumno = await alumnoId(clase, clave.substring(corte + 1));
+            final alumno = alumnos['$clase|${clave.substring(corte + 1)}'];
             if (alumno == null) continue;
-            final (tabla, columnaPadre, tablaPadre, valor) = tipo == 'calificacion'
-                ? ('calificaciones', 'actividad_id', 'actividades', {'valor': datos['valor']})
-                : ('asistencias', 'sesion_id', 'sesiones', {'estado': datos['estado']});
-            // Sin la actividad o la lista a la que pertenece no se puede guardar (llave foránea).
-            if ((await tx.query(tablaPadre, columns: ['id'], where: 'id = ?', whereArgs: [padre])).isEmpty) continue;
-            await _mezclar(tx, tabla, {columnaPadre: padre, 'alumno_id': alumno}, cuando, {...valor, ...sync});
+            final padre = clave.substring(0, corte);
+            if (tipo == 'calificacion') {
+              agregar('calificaciones', {'actividad_id': padre, 'alumno_id': alumno}, {'valor': datos['valor']});
+            } else {
+              agregar('asistencias', {'sesion_id': padre, 'alumno_id': alumno}, {'estado': datos['estado']});
+            }
         }
       }
+
+      // Horas locales de lo que ya existe, por tabla, con una consulta IN por tanda.
+      final actuales = <String, String>{};
+      String llaveDe(String tabla, Map<String, Object?> llave) => '$tabla|${llave.values.join('|')}';
+      final porTabla = <String, List<Map<String, Object?>>>{};
+      for (final f in filas) {
+        (porTabla[f.tabla] ??= []).add(f.llave);
+      }
+      for (final MapEntry(key: tabla, value: llaves) in porTabla.entries) {
+        final primera = llaves.first.keys.first;
+        final columnas = [...llaves.first.keys, 'actualizado_en'];
+        for (final fila in await _en(tx, tabla, columnas, primera, {for (final l in llaves) l[primera]})) {
+          actuales[llaveDe(tabla, {for (final k in llaves.first.keys) k: fila[k]})] = fila['actualizado_en'] as String;
+        }
+      }
+      // Actividades y listas que existen (o llegan en este lote): una nota sin su actividad
+      // violaría la llave foránea.
+      final padres = <String>{
+        for (final f in filas)
+          if (f.tabla == 'actividades' || f.tabla == 'sesiones') f.llave['id'] as String,
+        ...{
+          for (final r in await _en(tx, 'actividades', ['id'], 'id',
+              {for (final f in filas) if (f.tabla == 'calificaciones') f.llave['actividad_id']}))
+            r['id'] as String,
+        },
+        ...{
+          for (final r in await _en(tx, 'sesiones', ['id'], 'id',
+              {for (final f in filas) if (f.tabla == 'asistencias') f.llave['sesion_id']}))
+            r['id'] as String,
+        },
+      };
+
+      final batch = tx.batch();
+      for (final f in filas) {
+        final padre = f.llave['actividad_id'] ?? f.llave['sesion_id'];
+        if (padre != null && !padres.contains(padre)) continue;
+        final llave = llaveDe(f.tabla, f.llave);
+        final actual = actuales[llave];
+        final where = f.llave.keys.map((k) => '$k = ?').join(' AND ');
+        if (actual == null) {
+          batch.insert(f.tabla, {...f.llave, ...f.fila});
+        } else if (DateTime.parse(f.cuando).isAfter(DateTime.parse(actual))) {
+          // Actualizar en su lugar: reemplazar borraría en cascada lo que cuelga de la fila.
+          batch.update(f.tabla, f.fila, where: where, whereArgs: f.llave.values.toList());
+        } else {
+          continue;
+        }
+        // Un mismo registro repetido en el lote: la segunda vez ya es una actualización.
+        actuales[llave] = f.cuando;
+      }
+      await batch.commit(noResult: true);
     });
   }
 
-  /// Gana el más nuevo. Actualiza en su lugar para no borrar en cascada lo que cuelga de la fila.
-  static Future<void> _mezclar(
-      Transaction tx, String tabla, Map<String, Object?> llave, String cuando, Map<String, Object?> fila) async {
-    final where = llave.keys.map((k) => '$k = ?').join(' AND ');
-    final actual = await tx.query(tabla, columns: ['actualizado_en'], where: where, whereArgs: llave.values.toList());
-    if (actual.isEmpty) {
-      await tx.insert(tabla, {...llave, ...fila});
-    } else if (DateTime.parse(cuando).isAfter(DateTime.parse(actual.first['actualizado_en'] as String))) {
-      await tx.update(tabla, fila, where: where, whereArgs: llave.values.toList());
+  /// Filas de [tabla] cuyo [columna] está en [valores], en tandas (SQLite limita los parámetros).
+  static Future<List<Map<String, Object?>>> _en(
+      DatabaseExecutor db, String tabla, List<String> columnas, String columna, Set<Object?> valores) async {
+    final lista = valores.whereType<Object>().toList();
+    final filas = <Map<String, Object?>>[];
+    for (var i = 0; i < lista.length; i += 500) {
+      final tanda = lista.skip(i).take(500).toList();
+      filas.addAll(await db.query(tabla,
+          columns: columnas, where: '$columna IN (${List.filled(tanda.length, '?').join(', ')})', whereArgs: tanda));
     }
+    return filas;
   }
 }
 
@@ -433,4 +531,13 @@ typedef RegistroPendiente = ({
   Map<String, Object?> llave,
   String actualizadoEn,
   Map<String, dynamic> json,
+});
+
+/// Una clase lista para subir, con las celdas que van, para marcarlas subidas después.
+typedef PendienteClase = ({
+  String id,
+  int version,
+  bool plantilla,
+  Map<String, dynamic> json,
+  List<({String alumnoId, String columnaClave, String actualizadoEn})> celdas,
 });

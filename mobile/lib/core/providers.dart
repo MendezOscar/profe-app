@@ -76,13 +76,13 @@ final tableroProvider = FutureProvider<List<AvanceClase>>((ref) async {
   return [
     for (final clase in clases)
       await () async {
+        // Un solo plan por clase: el del primer parcial abierto (o el último, si están todos cerrados).
         final parciales = await repo.parciales(clase.id);
-        PlanParcial? plan;
-        for (final p in parciales) {
-          plan = await repo.plan(clase.id, p);
-          if (!plan.cerrado) break;
-        }
-        return AvanceClase(clase: clase, plan: plan, resultado: plan == null ? null : calcularParcial(plan));
+        if (parciales.isEmpty) return AvanceClase(clase: clase);
+        final cerrados = await repo.parcialesCerrados(clase.id);
+        final actual = parciales.where((p) => !cerrados.contains(p.clave)).firstOrNull ?? parciales.last;
+        final plan = await repo.plan(clase.id, actual);
+        return AvanceClase(clase: clase, plan: plan, resultado: calcularParcial(plan));
       }(),
   ];
 });

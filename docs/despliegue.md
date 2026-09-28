@@ -132,3 +132,13 @@ No hay registro público. Las cuentas se crean desde los paneles, con contraseñ
 - **Administrador de centro**: su panel **Centro** da de alta docentes dentro del cupo, los desactiva o reactiva y les restablece la contraseña. Ve el avance de cada docente, no sus notas.
 - **Licencia vencida o suspendida**: los docentes del centro no pueden entrar ni renovar sesión.
 
+## 7. Límites y mantenimiento
+
+- **Límites de peticiones** (Program.cs): login 10 por minuto por IP; sync unas 120 por
+  minuto por docente (ráfagas de 240); exportar, 4 a la vez para toda la API
+  (`App__ExportacionesSimultaneas`) y el resto espera turno.
+- **Limpieza diaria** (`LimpiezaService`): sesiones vencidas o rotadas hace más de 7 días, y
+  lápidas (borrados ya propagados) de más de 120 días.
+- **Al crecer**: Render Starter o superior (sin dormirse, más memoria) y Postgres de pago.
+  Con muchos docentes, particionar `registros` por año lectivo.
+

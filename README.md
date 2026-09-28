@@ -88,6 +88,11 @@ El plan de calificación (plantillas, rubros, actividades, notas, asistencia y c
 parciales) viaja como *registros* genéricos (`registros` en la base): el servidor guarda
 el JSON sin interpretarlo y por fila gana el cambio más nuevo.
 
+Pensado para crecer: el push manda sólo las celdas y registros sucios, el pull va por
+páginas de 1,000 registros con un `hasta` fijo, y el archivo de SACE no viaja en el pull
+(se baja aparte con `/sync/archivo` cuando un dispositivo no lo tiene). Una limpieza
+diaria borra sesiones vencidas y lápidas de más de 120 días.
+
 ## Sitio público
 
 `site/` es la landing con las páginas legales (privacidad, términos, cookies, soporte,

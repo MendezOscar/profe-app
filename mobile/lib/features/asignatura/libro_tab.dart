@@ -262,8 +262,18 @@ class _TablaState extends ConsumerState<_Tabla> {
     for (final f in _focos.values) {
       f.dispose();
     }
+    _horizontal.dispose();
     super.dispose();
   }
+
+  final _horizontal = ScrollController();
+
+  static const _anchoNumero = 44.0;
+  static const _anchoAlumno = 260.0;
+  static const _anchoNota = 76.0;
+  static const _anchoFaltas = 68.0;
+  static const _anchoActividad = 104.0;
+  static const _altoFila = 56.0;
 
   @override
   Widget build(BuildContext context) {
@@ -271,58 +281,87 @@ class _TablaState extends ConsumerState<_Tabla> {
     final resultado = widget.resultado;
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
+    final ancho = _anchoNumero + _anchoAlumno + _anchoNota + _anchoFaltas + plan.actividades.length * _anchoActividad + 16;
+    final cabecera = text.labelMedium?.copyWith(fontWeight: FontWeight.w600);
+
+    Widget celda(double w, Widget child, {Alignment align = Alignment.centerRight}) =>
+        SizedBox(width: w, child: Align(alignment: align, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: child)));
+
+    // Virtualizada: sólo se construyen las filas visibles. Con DataTable, una sección de 45
+    // alumnos y 40 actividades eran 1,800 campos a la vez y la web se trababa.
     return Scrollbar(
+      controller: _horizontal,
+      thumbVisibility: true,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.only(bottom: 48),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            headingRowHeight: 64,
-            columnSpacing: 20,
-            headingTextStyle: text.labelMedium?.copyWith(fontWeight: FontWeight.w600),
-            columns: [
-              const DataColumn(label: Text('#')),
-              const DataColumn(label: Text('Alumno')),
-              const DataColumn(label: Text('Nota'), numeric: true),
-              const DataColumn(label: Text('Faltas'), numeric: true),
-              for (final a in plan.actividades)
-                DataColumn(
-                  numeric: true,
-                  tooltip: a.descripcion ?? a.titulo,
-                  label: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 110),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(a.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end),
-                        Text('${formatoPuntos(a.puntos)} pts',
-                            style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
-                      ],
-                    ),
-                  ),
+        controller: _horizontal,
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: ancho,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: 64,
+                child: Row(
+                  children: [
+                    celda(_anchoNumero, Text('#', style: cabecera), align: Alignment.centerLeft),
+                    celda(_anchoAlumno, Text('Alumno', style: cabecera), align: Alignment.centerLeft),
+                    celda(_anchoNota, Text('Nota', style: cabecera)),
+                    celda(_anchoFaltas, Text('Faltas', style: cabecera)),
+                    for (final a in plan.actividades)
+                      celda(
+                        _anchoActividad,
+                        Tooltip(
+                          message: a.descripcion ?? a.titulo,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(a.titulo, style: cabecera, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.end),
+                              Text('${formatoPuntos(a.puntos)} pts',
+                                  style: text.labelSmall?.copyWith(color: scheme.onSurfaceVariant)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-            ],
-            rows: [
-              for (final (i, alumno) in plan.alumnos.indexed)
-                DataRow(cells: [
-                  DataCell(Text('${i + 1}')),
-                  DataCell(ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 260),
-                    child: Text(alumno.nombre, overflow: TextOverflow.ellipsis),
-                  )),
-                  DataCell(_Nota(resultado.porAlumno[alumno.id]!)),
-                  DataCell(Text('${resultado.porAlumno[alumno.id]!.inasistencias}')),
-                  for (final a in plan.actividades)
-                    DataCell(_CeldaNota(
-                      key: ValueKey('${a.id}|${alumno.id}'),
-                      plan: plan,
-                      actividad: a,
-                      alumno: alumno,
-                      foco: _foco(a.id, alumno.id),
-                      siguiente: i + 1 < plan.alumnos.length ? _foco(a.id, plan.alumnos[i + 1].id) : null,
-                    )),
-                ]),
+              ),
+              const Divider(height: 2),
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.only(bottom: 48),
+                  itemExtent: _altoFila,
+                  itemCount: plan.alumnos.length,
+                  itemBuilder: (context, i) {
+                    final alumno = plan.alumnos[i];
+                    final nota = resultado.porAlumno[alumno.id]!;
+                    return DecoratedBox(
+                      decoration: BoxDecoration(border: Border(bottom: BorderSide(color: scheme.outlineVariant))),
+                      child: Row(
+                        children: [
+                          celda(_anchoNumero, Text('${i + 1}'), align: Alignment.centerLeft),
+                          celda(_anchoAlumno, Text(alumno.nombre, overflow: TextOverflow.ellipsis), align: Alignment.centerLeft),
+                          celda(_anchoNota, _Nota(nota)),
+                          celda(_anchoFaltas, Text('${nota.inasistencias}')),
+                          for (final a in plan.actividades)
+                            celda(
+                              _anchoActividad,
+                              _CeldaNota(
+                                key: ValueKey('${a.id}|${alumno.id}'),
+                                plan: plan,
+                                actividad: a,
+                                alumno: alumno,
+                                foco: _foco(a.id, alumno.id),
+                                siguiente: i + 1 < plan.alumnos.length ? _foco(a.id, plan.alumnos[i + 1].id) : null,
+                              ),
+                            ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
             ],
           ),
         ),

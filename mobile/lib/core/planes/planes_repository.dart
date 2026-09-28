@@ -322,6 +322,14 @@ class PlanesRepository {
     );
   }
 
+  /// Claves de los parciales cerrados de una clase, en una sola consulta.
+  Future<Set<String>> parcialesCerrados(String claseId) async {
+    final db = await _db;
+    final filas = await db.query('parciales',
+        columns: ['parcial'], where: 'clase_id = ? AND cerrado_en IS NOT NULL', whereArgs: [claseId]);
+    return {for (final f in filas) f['parcial'] as String};
+  }
+
   /// Qué partes de la app ya usó el docente, para la guía de primeros pasos.
   Future<({bool plan, bool actividad, bool lista, bool cierre})> progreso() async {
     final db = await _db;

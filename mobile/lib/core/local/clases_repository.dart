@@ -169,7 +169,7 @@ class ClasesRepository {
     await db.transaction((tx) async {
       await tx.insert(
         'valores',
-        {'alumno_id': alumnoId, 'columna_clave': columnaClave, 'valor': valor, 'actualizado_en': ahoraUtc()},
+        {'alumno_id': alumnoId, 'columna_clave': columnaClave, 'valor': valor, 'actualizado_en': ahoraUtc(), 'sucia': 1},
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
       final clase = await tx.query('alumnos', columns: ['clase_id'], where: 'id = ?', whereArgs: [alumnoId]);

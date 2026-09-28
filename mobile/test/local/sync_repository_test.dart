@@ -65,6 +65,41 @@ void main() {
     expect(segundo.json['archivoBase64'], isNull);
   });
 
+  test('Tras el primer push sólo viajan las celdas que cambiaron, sin la plantilla', () async {
+    final importada = await clasesA.importar(cuadroMedia(), 'QUIMICA.xls');
+    final primero = (await syncA.pendientes()).single;
+    expect(primero.json['conPlantilla'], isTrue);
+    expect(primero.celdas, isNotEmpty, reason: 'lo que traía el cuadro');
+    await syncA.marcarSubida(primero.id, primero.version, primero.celdas);
+
+    final alumno = (await clasesA.detalle(importada.claseId)).alumnos.first;
+    await clasesA.guardarValor(alumno.id, 'PARCIAL I|NOTA TOTAL', 60);
+    final segundo = (await syncA.pendientes()).single;
+
+    expect(segundo.json['conPlantilla'], isFalse);
+    expect(segundo.json['alumnos'], isEmpty);
+    expect(segundo.json['valores'], hasLength(1));
+    expect((segundo.json['valores'] as List).single['valor'], 60);
+  });
+
+  test('Una clase que llega sin plantilla actualiza las celdas sin tocar alumnos ni columnas', () async {
+    final importada = await clasesA.importar(cuadroMedia(), 'QUIMICA.xls');
+    final completa = (await syncA.pendientes()).single;
+    await syncB.aplicar({...completa.json, 'archivoBase64': completa.json['archivoBase64']});
+    final alumno = (await clasesA.detalle(importada.claseId)).alumnos.first;
+    await syncA.marcarSubida(completa.id, completa.version, completa.celdas);
+    await clasesA.guardarValor(alumno.id, 'PARCIAL II|NOTA TOTAL', 99);
+
+    final parcial = (await syncA.pendientes()).single.json;
+    expect(await syncB.necesitaArchivo(parcial), isFalse);
+    await syncB.aplicar(parcial);
+
+    final claseB = (await clasesB.listar()).single;
+    final detalleB = await clasesB.detalle(claseB.id);
+    expect(detalleB.alumnos, hasLength(3));
+    expect(detalleB.valores[detalleB.alumnos.first.id]?['PARCIAL II|NOTA TOTAL'], 99);
+  });
+
   test('Si hubo cambios durante el push, la clase sigue pendiente', () async {
     final importada = await clasesA.importar(cuadroMedia(), 'QUIMICA.xls');
     final enviado = (await syncA.pendientes()).single;
