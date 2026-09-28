@@ -21,13 +21,13 @@ class PlantillasPage extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Plantillas de plan')),
+      appBar: AppBar(title: const Text('Rúbricas de evaluación')),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'nueva-plantilla',
         shape: const RoundedRectangleBorder(),
         onPressed: () => editarPlantilla(context, ref),
         icon: const Icon(Icons.add),
-        label: const Text('Nueva plantilla'),
+        label: const Text('Nueva rúbrica'),
       ),
       body: plantillas.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -41,13 +41,13 @@ class PlantillasPage extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
               children: [
                 Text(
-                  'Una plantilla reparte los 100 puntos de un parcial en rubros. Úsala al importar cuadros '
+                  'Una rúbrica de evaluación reparte los 100 puntos de un parcial en rubros. Úsala al importar cuadros '
                   'o desde el plan de cada asignatura.',
                   style: text.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
                 const SizedBox(height: 16),
                 if (propias.isNotEmpty) ...[
-                  Text('MIS PLANTILLAS', style: text.labelSmall),
+                  Text('MIS RÚBRICAS', style: text.labelSmall),
                   const SizedBox(height: 8),
                   for (final p in propias) _TarjetaPlantilla(plantilla: p),
                   const SizedBox(height: 16),
@@ -167,7 +167,7 @@ class _EditorPlantillaState extends ConsumerState<_EditorPlantilla> {
   Widget build(BuildContext context) {
     return AlertDialog(
       shape: const RoundedRectangleBorder(),
-      title: Text(widget.plantilla == null || widget.plantilla!.prearmada ? 'Nueva plantilla' : 'Editar plantilla'),
+      title: Text(widget.plantilla == null || widget.plantilla!.prearmada ? 'Nueva rúbrica' : 'Editar rúbrica'),
       content: SizedBox(
         width: 460,
         child: Form(

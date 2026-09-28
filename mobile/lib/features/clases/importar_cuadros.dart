@@ -126,7 +126,7 @@ class _ElegirPlantilla extends StatelessWidget {
           shrinkWrap: true,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
-            Text('¿Aplicar un plan de calificación?', style: text.titleLarge),
+            Text('¿Aplicar una rúbrica de evaluación?', style: text.titleLarge),
             const SizedBox(height: 4),
             Text(
               mensaje,

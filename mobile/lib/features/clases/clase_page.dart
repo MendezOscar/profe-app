@@ -2,13 +2,13 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/models/clase.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../ui/barra_teclado.dart';
+import 'eliminar_clase.dart';
 
 /// El cuadro de SACE tal cual: captura directa de sus columnas, una a la vez, y exportar.
 /// Lo normal es que NOTA TOTAL e INASISTENCIAS lleguen al cerrar el parcial; aquí se
@@ -156,24 +156,7 @@ class _CapturaState extends ConsumerState<_Captura> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
   }
 
-  Future<void> _eliminar() async {
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Eliminar la clase?'),
-        content: const Text('Se borran del teléfono los alumnos y todo lo capturado en esta clase.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Eliminar')),
-        ],
-      ),
-    );
-    if (confirmar != true || !mounted) return;
-    await ref.read(clasesRepositoryProvider).eliminar(_clase.resumen.id);
-    ref.invalidate(clasesProvider);
-    ref.read(syncControllerProvider.notifier).programar();
-    if (mounted) context.go('/inicio');
-  }
+  Future<void> _eliminar() => eliminarClase(context, ref, _clase.resumen);
 
   int _capturados(String clave) => _clase.alumnos.where((a) => _valores[a.id]?[clave] != null).length;
 

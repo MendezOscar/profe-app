@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
+import '../clases/eliminar_clase.dart';
 import 'actividades_tab.dart';
 import 'libro_tab.dart';
 import 'plan_tab.dart';
@@ -66,6 +67,12 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
                   onPressed: () => context.go('/inicio/asignaturas/${widget.claseId}/cuadro'),
                   icon: const Icon(Icons.table_view_outlined),
                 ),
+                // onSelected y no onTap del ítem: el cierre del menú se llevaría el diálogo.
+                if (resumen != null)
+                  PopupMenuButton<String>(
+                    onSelected: (_) => eliminarClase(context, ref, resumen),
+                    itemBuilder: (context) => const [PopupMenuItem(value: 'eliminar', child: Text('Eliminar asignatura'))],
+                  ),
               ],
               bottom: actual == null
                   ? null

@@ -28,7 +28,7 @@ class _Destino {
 const _destinos = [
   _Destino('/inicio', Icons.dashboard_outlined, Icons.dashboard, 'Inicio'),
   _Destino('/asistencia', Icons.fact_check_outlined, Icons.fact_check, 'Asistencia'),
-  _Destino('/plantillas', Icons.view_list_outlined, Icons.view_list, 'Plantillas'),
+  _Destino('/plantillas', Icons.view_list_outlined, Icons.view_list, 'Rúbricas'),
   _Destino('/cuenta', Icons.person_outline, Icons.person, 'Cuenta'),
 ];
 

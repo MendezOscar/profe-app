@@ -175,7 +175,7 @@ class _SinPlan extends ConsumerWidget {
           FilledButton.icon(
             onPressed: usarPlantilla,
             icon: const Icon(Icons.view_list),
-            label: const Text('Usar una plantilla'),
+            label: const Text('Usar una rúbrica'),
           ),
           for (final p in otros) ...[
             const SizedBox(height: 8),

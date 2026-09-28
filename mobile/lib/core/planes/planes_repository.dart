@@ -386,6 +386,19 @@ class PlanesRepository {
     return mapa;
   }
 
+  /// Lo que se pierde al eliminar una clase, para decírselo al docente antes.
+  Future<({int actividades, int notas, int listas})> contenido(String claseId) async {
+    final db = await _db;
+    final fila = (await db.rawQuery('''
+      SELECT
+        (SELECT COUNT(*) FROM actividades WHERE clase_id = ?1 AND eliminado = 0) AS actividades,
+        (SELECT COUNT(*) FROM calificaciones c JOIN actividades a ON a.id = c.actividad_id
+          WHERE a.clase_id = ?1 AND a.eliminado = 0 AND c.valor IS NOT NULL) AS notas,
+        (SELECT COUNT(*) FROM sesiones WHERE clase_id = ?1 AND eliminado = 0) AS listas''', [claseId]))
+        .first;
+    return (actividades: fila['actividades'] as int, notas: fila['notas'] as int, listas: fila['listas'] as int);
+  }
+
   /// Qué partes de la app ya usó el docente, para la guía de primeros pasos.
   Future<({bool plan, bool actividad, bool lista, bool cierre})> progreso() async {
     final db = await _db;
