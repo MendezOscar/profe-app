@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/planes/estadisticas.dart';
 import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
@@ -9,6 +10,7 @@ import '../../ui/barra_puntos.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/indicador_sync.dart';
 import '../../ui/shell.dart';
+import '../avisos/avisos_page.dart';
 import '../clases/importar_cuadros.dart';
 
 /// Tablero del periodo: una tarjeta por asignatura (un cuadro de SACE importado) con
@@ -27,6 +29,7 @@ class InicioPage extends ConsumerWidget {
       appBar: AppBar(
         title: Text('Hola, $nombre'),
         actions: [
+          if (hayClases) const BotonAvisos(),
           if (compacto) const IndicadorSync(),
           if (hayClases && !compacto)
             Padding(
@@ -73,7 +76,7 @@ class InicioPage extends ConsumerWidget {
                       sliver: SliverGrid.builder(
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 440,
-                          mainAxisExtent: 216,
+                          mainAxisExtent: 236,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
@@ -177,6 +180,7 @@ class _Resumen extends StatelessWidget {
     final alumnos = avances.fold(0, (s, a) => s + a.clase.alumnos);
     final porCalificar = avances.fold(0, (s, a) => s + (a.resultado?.actividadesIncompletas.length ?? 0));
     final sinPlan = avances.where((a) => a.plan != null && a.plan!.rubros.isEmpty).length;
+    final enRiesgo = avances.fold(0, (s, a) => s + (a.plan == null ? 0 : calcularEstadisticas(a.plan!).enRiesgo.length));
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Wrap(
@@ -187,6 +191,7 @@ class _Resumen extends StatelessWidget {
           _Dato(icono: Icons.groups_outlined, texto: '$alumnos alumnos'),
           if (porCalificar > 0) _Dato(icono: Icons.edit_note, texto: '$porCalificar por calificar', destacado: true),
           if (sinPlan > 0) _Dato(icono: Icons.warning_amber, texto: '$sinPlan sin plan', destacado: true),
+          if (enRiesgo > 0) _Dato(icono: Icons.trending_down, texto: '$enRiesgo alumnos en riesgo', destacado: true),
         ],
       ),
     );
@@ -286,8 +291,20 @@ class _TarjetaAsignatura extends StatelessWidget {
                     Expanded(child: Text('Sin plan de calificación', style: text.bodyMedium)),
                   ],
                 )
-              else
+              else ...[
                 BarraPuntos(valor: resultado!.asignado, total: resultado.totalPlan, etiqueta: 'Actividades del plan'),
+                if (calcularEstadisticas(plan) case final e when e.promedio != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    [
+                      'Promedio ${e.promedio!.toStringAsFixed(1)}${plan.cerrado ? '' : ' %'}',
+                      if (e.enRiesgo.isNotEmpty) '${e.enRiesgo.length} en riesgo',
+                    ].join(' · '),
+                    style: text.bodySmall?.copyWith(
+                        color: e.enRiesgo.isNotEmpty ? scheme.error : scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ],
               const SizedBox(height: 12),
               Row(
                 children: [

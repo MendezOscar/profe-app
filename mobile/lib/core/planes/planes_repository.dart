@@ -266,19 +266,20 @@ class PlanesRepository {
 
   Future<PlanParcial> plan(String claseId, Parcial parcial) async => (await planes([(claseId, parcial)])).single;
 
-  /// Un plan por clase (a lo sumo un parcial por clase), con las mismas consultas para
-  /// una clase que para veinte: el tablero no hace una ronda por asignatura.
+  /// Varios planes (de una o de muchas clases) con las mismas consultas para uno que para
+  /// veinte: el tablero no hace una ronda por asignatura.
   Future<List<PlanParcial>> planes(List<(String, Parcial)> pedidos) async {
     if (pedidos.isEmpty) return const [];
     final db = await _db;
-    final parcialDe = {for (final (claseId, parcial) in pedidos) claseId: parcial.clave};
-    final ids = parcialDe.keys.toList();
+    String llave(Object? claseId, Object? parcial) => '$claseId|$parcial';
+    final pedidas = {for (final (claseId, parcial) in pedidos) llave(claseId, parcial.clave)};
+    final ids = {for (final (claseId, _) in pedidos) claseId}.toList();
     final enClases = 'clase_id IN (${_marcas(ids)})';
-    bool delPedido(Map<String, Object?> f) => parcialDe[f['clase_id']] == f['parcial'];
-    Map<String, List<Map<String, Object?>>> porClase(Iterable<Map<String, Object?>> filas) {
+    bool delPedido(Map<String, Object?> f) => pedidas.contains(llave(f['clase_id'], f['parcial']));
+    Map<String, List<Map<String, Object?>>> porClase(Iterable<Map<String, Object?>> filas, {bool conParcial = true}) {
       final mapa = <String, List<Map<String, Object?>>>{};
       for (final f in filas) {
-        (mapa[f['clase_id'] as String] ??= []).add(f);
+        (mapa[conParcial ? llave(f['clase_id'], f['parcial']) : f['clase_id'] as String] ??= []).add(f);
       }
       return mapa;
     }
@@ -293,7 +294,7 @@ class PlanesRepository {
         columns: ['id', 'clase_id', 'nombre', 'identidad'],
         where: '$enClases AND activo = 1',
         whereArgs: ids,
-        orderBy: 'orden'));
+        orderBy: 'orden'), conParcial: false);
     final notas = (await db.rawQuery('''
       SELECT a.clase_id, a.parcial, c.actividad_id, c.alumno_id, c.valor FROM calificaciones c
       JOIN actividades a ON a.id = c.actividad_id
@@ -309,7 +310,7 @@ class PlanesRepository {
         .where(delPedido);
     final estados = {
       for (final e in (await db.query('parciales', where: enClases, whereArgs: ids)).where(delPedido))
-        e['clase_id'] as String: e['cerrado_en'] as String?,
+        llave(e['clase_id'], e['parcial']): e['cerrado_en'] as String?,
     };
 
     // Los ids de actividad y sesión son únicos: no hace falta separarlos por clase.
@@ -326,8 +327,9 @@ class PlanesRepository {
     return [
       for (final (claseId, parcial) in pedidos)
         () {
+          final k = llave(claseId, parcial.clave);
           final deActividades = [
-            for (final a in actividades[claseId] ?? const <Map<String, Object?>>[])
+            for (final a in actividades[k] ?? const <Map<String, Object?>>[])
               Actividad(
                 id: a['id'] as String,
                 rubroId: a['rubro_id'] as String,
@@ -338,15 +340,15 @@ class PlanesRepository {
               ),
           ];
           final deSesiones = [
-            for (final x in sesiones[claseId] ?? const <Map<String, Object?>>[])
+            for (final x in sesiones[k] ?? const <Map<String, Object?>>[])
               Sesion(id: x['id'] as String, fecha: DateTime.parse(x['fecha'] as String)),
           ];
-          final cerrado = estados[claseId];
+          final cerrado = estados[k];
           return PlanParcial(
             claseId: claseId,
             parcial: parcial,
             rubros: [
-              for (final r in rubros[claseId] ?? const <Map<String, Object?>>[])
+              for (final r in rubros[k] ?? const <Map<String, Object?>>[])
                 Rubro(
                   id: r['id'] as String,
                   nombre: r['nombre'] as String,
@@ -370,6 +372,21 @@ class PlanesRepository {
 
   /// Claves de los parciales cerrados de una clase, en una sola consulta.
   Future<Set<String>> parcialesCerrados(String claseId) async => (await cerradosDe([claseId]))[claseId] ?? const {};
+
+  /// El último parcial cerrado de cada clase, para recordar exportar el cuadro.
+  Future<Map<String, ({String parcial, DateTime cerradoEn})>> ultimosCierres(List<String> claseIds) async {
+    if (claseIds.isEmpty) return const {};
+    final db = await _db;
+    final filas = await db.query('parciales',
+        columns: ['clase_id', 'parcial', 'cerrado_en'],
+        where: 'clase_id IN (${_marcas(claseIds)}) AND cerrado_en IS NOT NULL',
+        whereArgs: claseIds,
+        orderBy: 'cerrado_en');
+    return {
+      for (final f in filas)
+        f['clase_id'] as String: (parcial: f['parcial'] as String, cerradoEn: DateTime.parse(f['cerrado_en'] as String)),
+    };
+  }
 
   /// Parciales cerrados de varias clases, en una sola consulta.
   Future<Map<String, Set<String>>> cerradosDe(List<String> claseIds) async {

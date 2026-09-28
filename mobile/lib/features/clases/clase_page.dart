@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_exception.dart';
+import '../../core/avisos/avisos.dart';
 import '../../core/models/clase.dart';
+import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../ui/barra_teclado.dart';
@@ -169,6 +171,8 @@ class _CapturaState extends ConsumerState<_Captura> {
         allowedExtensions: [extension],
         bytes: bytes,
       );
+      await ref.read(preferenciasProvider).setString(claveExportado(_clase.resumen.id), DateTime.now().toUtc().toIso8601String());
+      ref.invalidate(todosLosAvisosProvider);
       _avisar('Cuadro listo. Súbelo en SACE: Notas → Cargar Archivos Notas.');
     } on ApiException catch (error) {
       _avisar(error.isNetworkError

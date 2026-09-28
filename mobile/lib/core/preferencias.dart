@@ -10,7 +10,10 @@ enum Bandera {
   introVista('profeapp.intro_vista'),
 
   /// Ocultó la tarjeta de primeros pasos del inicio.
-  primerosPasosOcultos('profeapp.primeros_pasos_ocultos');
+  primerosPasosOcultos('profeapp.primeros_pasos_ocultos'),
+
+  /// Quiere el recordatorio de pendientes a las 5 p. m. (sólo en el teléfono).
+  recordatorio('profeapp.recordatorio');
 
   const Bandera(this.clave);
   final String clave;

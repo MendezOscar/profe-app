@@ -7,18 +7,22 @@ import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
 import '../clases/eliminar_clase.dart';
 import 'actividades_tab.dart';
+import 'estadisticas_tab.dart';
 import 'libro_tab.dart';
 import 'plan_tab.dart';
 
 /// Una asignatura (un cuadro de SACE) trabajada por parcial: el plan de puntos, las
 /// actividades y el libro de notas. El cuadro original queda a un toque para exportar.
 class AsignaturaPage extends ConsumerStatefulWidget {
-  const AsignaturaPage({super.key, required this.claseId, this.parcial});
+  const AsignaturaPage({super.key, required this.claseId, this.parcial, this.pestana});
 
   final String claseId;
 
   /// Clave del parcial a abrir; si no viene, el primero sin cerrar.
   final String? parcial;
+
+  /// Pestaña a abrir (0 Plan … 3 Estadísticas), por ejemplo desde un aviso.
+  final int? pestana;
 
   @override
   ConsumerState<AsignaturaPage> createState() => _AsignaturaPageState();
@@ -41,7 +45,8 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
       data: (lista) {
         final actual = _elegido(lista);
         return DefaultTabController(
-          length: 3,
+          length: 4,
+          initialIndex: (widget.pestana ?? 0).clamp(0, 3),
           child: Scaffold(
             appBar: AppBar(
               leading: BackButton(onPressed: () => context.go('/inicio')),
@@ -86,7 +91,9 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
                             onCambio: (p) => setState(() => _parcial = p.clave),
                           ),
                           const TabBar(
-                            tabs: [Tab(text: 'Plan'), Tab(text: 'Actividades'), Tab(text: 'Notas')],
+                            isScrollable: true,
+                            tabAlignment: TabAlignment.start,
+                            tabs: [Tab(text: 'Plan'), Tab(text: 'Actividades'), Tab(text: 'Notas'), Tab(text: 'Estadísticas')],
                           ),
                         ],
                       ),
@@ -164,6 +171,7 @@ class _Contenido extends ConsumerWidget {
           PlanTab(plan: plan, parciales: parciales),
           ActividadesTab(plan: plan),
           LibroTab(plan: plan),
+          EstadisticasTab(plan: plan),
         ],
       ),
     );

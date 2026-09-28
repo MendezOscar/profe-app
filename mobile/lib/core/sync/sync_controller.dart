@@ -4,7 +4,11 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_exception.dart';
+import '../preferencias.dart';
 import '../providers.dart';
+
+/// Última sincronización correcta, para avisar si pasa mucho sin respaldo.
+const claveUltimaSync = 'profeapp.ultima_sync';
 
 enum EstadoSync { pendiente, sincronizando, alDia, sinConexion, error }
 
@@ -70,12 +74,14 @@ class SyncController extends Notifier<SyncState> {
         await _ciclo();
       } while (_otraVez);
       state = SyncState(EstadoSync.alDia, ultima: DateTime.now());
+      await ref.read(preferenciasProvider).setString(claveUltimaSync, DateTime.now().toUtc().toIso8601String());
       // Lo bajado puede tocar cualquier pantalla: listas, planes, notas, plantillas.
       ref
         ..invalidate(clasesProvider)
         ..invalidate(claseProvider)
         ..invalidate(parcialesProvider)
         ..invalidate(planProvider)
+        ..invalidate(planesClaseProvider)
         ..invalidate(plantillasProvider)
         ..invalidate(tableroProvider);
     } on ApiException catch (error) {

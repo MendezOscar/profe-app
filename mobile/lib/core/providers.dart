@@ -59,6 +59,12 @@ final planProvider = FutureProvider.family<PlanParcial, (String, String)>((ref, 
   return ref.watch(planesRepositoryProvider).plan(claseId, parcial);
 });
 
+/// Todos los parciales de una clase, para ver cómo cambió de uno a otro.
+final planesClaseProvider = FutureProvider.family<List<PlanParcial>, String>((ref, claseId) async {
+  final parciales = await ref.watch(parcialesProvider(claseId).future);
+  return ref.watch(planesRepositoryProvider).planes([for (final p in parciales) (claseId, p)]);
+});
+
 final plantillasProvider = FutureProvider<List<Plantilla>>((ref) => ref.watch(planesRepositoryProvider).plantillas());
 
 /// Cómo va cada asignatura en su parcial en curso (el primero sin cerrar).
@@ -102,5 +108,6 @@ final progresoProvider = FutureProvider((ref) async {
 void planCambiado(WidgetRef ref, String claseId, String parcial) {
   ref.invalidate(planProvider((claseId, parcial)));
   ref.invalidate(tableroProvider);
+  ref.invalidate(planesClaseProvider(claseId));
   ref.read(syncControllerProvider.notifier).programar();
 }

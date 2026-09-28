@@ -15,6 +15,7 @@ import '../features/bienvenida/splash_page.dart';
 import '../features/clases/clase_page.dart';
 import '../features/cuenta/cuenta_page.dart';
 import '../features/inicio/inicio_page.dart';
+import '../features/avisos/avisos_page.dart';
 import '../features/planes/plantillas_page.dart';
 import '../ui/shell.dart';
 import 'auth/auth_controller.dart';
@@ -81,11 +82,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/inicio',
             builder: (context, state) => const InicioPage(),
             routes: [
+              GoRoute(path: 'avisos', builder: (context, state) => const AvisosPage()),
               GoRoute(
                 path: 'asignaturas/:id',
                 builder: (context, state) => AsignaturaPage(
                   claseId: state.pathParameters['id']!,
                   parcial: state.uri.queryParameters['parcial'],
+                  pestana: int.tryParse(state.uri.queryParameters['pestana'] ?? ''),
                 ),
                 routes: [
                   GoRoute(
