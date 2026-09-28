@@ -129,9 +129,10 @@ class SyncController extends Notifier<SyncState> {
     final cursor = await repo.cursor();
     final desde = cursor == null ? null : DateTime.parse(cursor).subtract(_margen).toUtc().toIso8601String();
     String? hasta;
-    for (var pagina = 0;; pagina++) {
+    String? despues;
+    for (;;) {
       final pull = await api.get('/sync/pull',
-          query: {'desde': desde, 'hasta': hasta, 'pagina': pagina}, parse: (d) => d as Map<String, dynamic>);
+          query: {'desde': desde, 'hasta': hasta, 'despues': despues}, parse: (d) => d as Map<String, dynamic>);
       hasta ??= pull['hasta'] as String;
       for (final clase in (pull['clases'] as List).cast<Map<String, dynamic>>()) {
         if (await repo.necesitaArchivo(clase)) {
@@ -149,6 +150,8 @@ class SyncController extends Notifier<SyncState> {
       // Después de las clases: los registros se enganchan a clases y alumnos que ya deben existir.
       await repo.aplicarRegistros(((pull['registros'] as List?) ?? const []).cast<Map<String, dynamic>>());
       if (pull['mas'] != true) break;
+      // El servidor sigue desde el último registro entregado, sin saltar filas.
+      despues = pull['siguiente'] as String;
     }
     await repo.guardarCursor(hasta);
   }

@@ -25,13 +25,14 @@ class LocalDb {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 4,
+        version: 5,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) => _create(db),
         onUpgrade: (db, from, to) async {
           if (from < 2) await _sync(db);
           if (from < 3) await _planes(db);
           if (from < 4) await _celdasSucias(db);
+          if (from < 5) await _indices(db);
         },
       ),
     );
@@ -92,6 +93,7 @@ class LocalDb {
     _crearValores(batch, 'valores');
     _crearSyncEstado(batch);
     _crearPlanes(batch);
+    _crearIndices(batch);
     await batch.commit(noResult: true);
   }
 
@@ -141,6 +143,21 @@ class LocalDb {
     final columnas = await db.rawQuery('PRAGMA table_info(valores)');
     if (columnas.isEmpty || columnas.any((c) => c['name'] == 'sucia')) return;
     await db.execute('ALTER TABLE valores ADD COLUMN sucia INTEGER NOT NULL DEFAULT 1');
+  }
+
+  /// v4 → v5: índices por clase para las tablas que se leen por clase.
+  static Future<void> _indices(Database db) async {
+    final tablas = await db.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('alumnos', 'columnas', 'rubros')");
+    if (tablas.length < 3) return;
+    final batch = db.batch();
+    _crearIndices(batch);
+    await batch.commit(noResult: true);
+  }
+
+  static void _crearIndices(Batch batch) {
+    batch.execute('CREATE INDEX IF NOT EXISTS ix_alumnos_clase ON alumnos (clase_id, orden)');
+    batch.execute('CREATE INDEX IF NOT EXISTS ix_columnas_clase ON columnas (clase_id, orden)');
+    batch.execute('CREATE INDEX IF NOT EXISTS ix_rubros_clase ON rubros (clase_id, parcial)');
   }
 
   /// v2 → v3: planes de calificación y asistencia.

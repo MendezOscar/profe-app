@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
@@ -15,8 +16,12 @@ public sealed class AuthService(
     TokenService tokens,
     ITenantContext tenant,
     ICurrentUser currentUser,
+    IMemoryCache cache,
     IClock clock) : IAuthService
 {
+    /// <summary>La licencia casi no cambia y se consulta en cada renovación de sesión.</summary>
+    internal static string ClaveLicencia(Guid institucionId) => $"licencia:{institucionId}";
+
     public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, string? ip, CancellationToken ct = default)
     {
         var email = request.Email.Trim().ToLowerInvariant();
@@ -82,7 +87,11 @@ public sealed class AuthService(
     private async Task<Error?> LicenciaVencidaAsync(AppUser user, CancellationToken ct)
     {
         if (user.InstitucionId is not { } id) return null;
-        var institucion = await db.Instituciones.FirstOrDefaultAsync(i => i.Id == id, ct);
+        var institucion = await cache.GetOrCreateAsync(ClaveLicencia(id), e =>
+        {
+            e.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
+            return db.Instituciones.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct);
+        });
         return institucion is null || !institucion.Vigente(clock.Now)
             ? new Error(ErrorKind.Forbidden, "licencia_vencida",
                 "La licencia de tu centro no está vigente. Habla con la administración de tu centro.")

@@ -21,25 +21,35 @@ class PlanesRepository {
 
   /// Los parciales que trae la plantilla de la clase, en su orden. Un grupo cuenta como
   /// parcial si tiene subcolumnas y una de ellas es de nota (RECUPERACIÓN va sola).
-  Future<List<Parcial>> parciales(String claseId) async {
+  Future<List<Parcial>> parciales(String claseId) async => (await parcialesDe([claseId]))[claseId] ?? const [];
+
+  /// Los parciales de varias clases en una sola consulta (el tablero).
+  Future<Map<String, List<Parcial>>> parcialesDe(List<String> claseIds) async {
+    if (claseIds.isEmpty) return const {};
     final db = await _db;
-    final columnas = await db.query('columnas', where: 'clase_id = ?', whereArgs: [claseId], orderBy: 'orden');
-    final grupos = <String, List<Map<String, Object?>>>{};
+    final columnas = await db.query('columnas',
+        where: 'clase_id IN (${_marcas(claseIds)})', whereArgs: claseIds, orderBy: 'clase_id, orden');
+    final grupos = <String, Map<String, List<Map<String, Object?>>>>{};
     for (final c in columnas) {
       if (c['grupo'] == c['nombre']) continue;
-      (grupos[c['grupo'] as String] ??= []).add(c);
+      ((grupos[c['clase_id'] as String] ??= {})[c['grupo'] as String] ??= []).add(c);
     }
-    return [
-      for (final MapEntry(key: grupo, value: cols) in grupos.entries)
-        if (_primera(cols, TipoColumna.nota) case final nota?)
-          Parcial(
-            clave: normalizar(grupo),
-            titulo: grupo,
-            notaClave: nota,
-            inasistenciasClave: _primera(cols, TipoColumna.inasistencias),
-          ),
-    ];
+    return {
+      for (final MapEntry(key: claseId, value: deLaClase) in grupos.entries)
+        claseId: [
+          for (final MapEntry(key: grupo, value: cols) in deLaClase.entries)
+            if (_primera(cols, TipoColumna.nota) case final nota?)
+              Parcial(
+                clave: normalizar(grupo),
+                titulo: grupo,
+                notaClave: nota,
+                inasistenciasClave: _primera(cols, TipoColumna.inasistencias),
+              ),
+        ],
+    };
   }
+
+  static String _marcas(List<Object?> valores) => List.filled(valores.length, '?').join(', ');
 
   static String? _primera(List<Map<String, Object?>> cols, TipoColumna tipo) =>
       cols.where((c) => c['tipo'] == tipo.name).map((c) => c['clave'] as String).firstOrNull;
@@ -254,27 +264,55 @@ class PlanesRepository {
 
   // ── Lectura ───────────────────────────────────────────────────────────────
 
-  Future<PlanParcial> plan(String claseId, Parcial parcial) async {
-    final db = await _db;
-    final args = [claseId, parcial.clave];
-    final rubros = await db.query('rubros',
-        where: 'clase_id = ? AND parcial = ? AND eliminado = 0', whereArgs: args, orderBy: 'orden');
-    final actividades = await db.query('actividades',
-        where: 'clase_id = ? AND parcial = ? AND eliminado = 0', whereArgs: args, orderBy: 'fecha, titulo');
-    final alumnos = await db.query('alumnos',
-        columns: ['id', 'nombre', 'identidad'], where: 'clase_id = ? AND activo = 1', whereArgs: [claseId], orderBy: 'orden');
-    final notas = await db.rawQuery('''
-      SELECT c.actividad_id, c.alumno_id, c.valor FROM calificaciones c
-      JOIN actividades a ON a.id = c.actividad_id
-      WHERE a.clase_id = ? AND a.parcial = ? AND a.eliminado = 0 AND c.valor IS NOT NULL''', args);
-    final sesiones = await db.query('sesiones',
-        where: 'clase_id = ? AND parcial = ? AND eliminado = 0', whereArgs: args, orderBy: 'fecha DESC');
-    final asistencias = await db.rawQuery('''
-      SELECT x.sesion_id, x.alumno_id, x.estado FROM asistencias x
-      JOIN sesiones s ON s.id = x.sesion_id
-      WHERE s.clase_id = ? AND s.parcial = ? AND s.eliminado = 0 AND x.estado IS NOT NULL''', args);
-    final estado = await db.query('parciales', where: 'clase_id = ? AND parcial = ?', whereArgs: args);
+  Future<PlanParcial> plan(String claseId, Parcial parcial) async => (await planes([(claseId, parcial)])).single;
 
+  /// Un plan por clase (a lo sumo un parcial por clase), con las mismas consultas para
+  /// una clase que para veinte: el tablero no hace una ronda por asignatura.
+  Future<List<PlanParcial>> planes(List<(String, Parcial)> pedidos) async {
+    if (pedidos.isEmpty) return const [];
+    final db = await _db;
+    final parcialDe = {for (final (claseId, parcial) in pedidos) claseId: parcial.clave};
+    final ids = parcialDe.keys.toList();
+    final enClases = 'clase_id IN (${_marcas(ids)})';
+    bool delPedido(Map<String, Object?> f) => parcialDe[f['clase_id']] == f['parcial'];
+    Map<String, List<Map<String, Object?>>> porClase(Iterable<Map<String, Object?>> filas) {
+      final mapa = <String, List<Map<String, Object?>>>{};
+      for (final f in filas) {
+        (mapa[f['clase_id'] as String] ??= []).add(f);
+      }
+      return mapa;
+    }
+
+    final rubros = porClase((await db.query('rubros',
+            where: '$enClases AND eliminado = 0', whereArgs: ids, orderBy: 'orden'))
+        .where(delPedido));
+    final actividades = porClase((await db.query('actividades',
+            where: '$enClases AND eliminado = 0', whereArgs: ids, orderBy: 'fecha, titulo'))
+        .where(delPedido));
+    final alumnos = porClase(await db.query('alumnos',
+        columns: ['id', 'clase_id', 'nombre', 'identidad'],
+        where: '$enClases AND activo = 1',
+        whereArgs: ids,
+        orderBy: 'orden'));
+    final notas = (await db.rawQuery('''
+      SELECT a.clase_id, a.parcial, c.actividad_id, c.alumno_id, c.valor FROM calificaciones c
+      JOIN actividades a ON a.id = c.actividad_id
+      WHERE a.$enClases AND a.eliminado = 0 AND c.valor IS NOT NULL''', ids))
+        .where(delPedido);
+    final sesiones = porClase((await db.query('sesiones',
+            where: '$enClases AND eliminado = 0', whereArgs: ids, orderBy: 'fecha DESC'))
+        .where(delPedido));
+    final asistencias = (await db.rawQuery('''
+      SELECT s.clase_id, s.parcial, x.sesion_id, x.alumno_id, x.estado FROM asistencias x
+      JOIN sesiones s ON s.id = x.sesion_id
+      WHERE s.$enClases AND s.eliminado = 0 AND x.estado IS NOT NULL''', ids))
+        .where(delPedido);
+    final estados = {
+      for (final e in (await db.query('parciales', where: enClases, whereArgs: ids)).where(delPedido))
+        e['clase_id'] as String: e['cerrado_en'] as String?,
+    };
+
+    // Los ids de actividad y sesión son únicos: no hace falta separarlos por clase.
     final calificaciones = <String, Map<String, double>>{};
     for (final n in notas) {
       (calificaciones[n['actividad_id'] as String] ??= {})[n['alumno_id'] as String] = (n['valor'] as num).toDouble();
@@ -284,50 +322,68 @@ class PlanesRepository {
       (porSesion[x['sesion_id'] as String] ??= {})[x['alumno_id'] as String] =
           EstadoAsistencia.desde(x['estado'] as String?);
     }
-    final cerrado = estado.firstOrNull?['cerrado_en'] as String?;
 
-    return PlanParcial(
-      claseId: claseId,
-      parcial: parcial,
-      rubros: [
-        for (final r in rubros)
-          Rubro(
-            id: r['id'] as String,
-            nombre: r['nombre'] as String,
-            puntos: (r['puntos'] as num).toDouble(),
-            orden: r['orden'] as int,
-          ),
-      ],
-      actividades: [
-        for (final a in actividades)
-          Actividad(
-            id: a['id'] as String,
-            rubroId: a['rubro_id'] as String,
-            titulo: a['titulo'] as String,
-            fecha: DateTime.parse(a['fecha'] as String),
-            puntos: (a['puntos'] as num).toDouble(),
-            descripcion: a['descripcion'] as String?,
-          ),
-      ],
-      alumnos: [
-        for (final a in alumnos)
-          AlumnoPlan(id: a['id'] as String, nombre: a['nombre'] as String, identidad: a['identidad'] as String),
-      ],
-      calificaciones: calificaciones,
-      sesiones: [
-        for (final s in sesiones) Sesion(id: s['id'] as String, fecha: DateTime.parse(s['fecha'] as String)),
-      ],
-      asistencias: porSesion,
-      cerradoEn: cerrado == null ? null : DateTime.parse(cerrado),
-    );
+    return [
+      for (final (claseId, parcial) in pedidos)
+        () {
+          final deActividades = [
+            for (final a in actividades[claseId] ?? const <Map<String, Object?>>[])
+              Actividad(
+                id: a['id'] as String,
+                rubroId: a['rubro_id'] as String,
+                titulo: a['titulo'] as String,
+                fecha: DateTime.parse(a['fecha'] as String),
+                puntos: (a['puntos'] as num).toDouble(),
+                descripcion: a['descripcion'] as String?,
+              ),
+          ];
+          final deSesiones = [
+            for (final x in sesiones[claseId] ?? const <Map<String, Object?>>[])
+              Sesion(id: x['id'] as String, fecha: DateTime.parse(x['fecha'] as String)),
+          ];
+          final cerrado = estados[claseId];
+          return PlanParcial(
+            claseId: claseId,
+            parcial: parcial,
+            rubros: [
+              for (final r in rubros[claseId] ?? const <Map<String, Object?>>[])
+                Rubro(
+                  id: r['id'] as String,
+                  nombre: r['nombre'] as String,
+                  puntos: (r['puntos'] as num).toDouble(),
+                  orden: r['orden'] as int,
+                ),
+            ],
+            actividades: deActividades,
+            alumnos: [
+              for (final a in alumnos[claseId] ?? const <Map<String, Object?>>[])
+                AlumnoPlan(id: a['id'] as String, nombre: a['nombre'] as String, identidad: a['identidad'] as String),
+            ],
+            calificaciones: {for (final a in deActividades) if (calificaciones[a.id] case final c?) a.id: c},
+            asistencias: {for (final x in deSesiones) if (porSesion[x.id] case final e?) x.id: e},
+            sesiones: deSesiones,
+            cerradoEn: cerrado == null ? null : DateTime.parse(cerrado),
+          );
+        }(),
+    ];
   }
 
   /// Claves de los parciales cerrados de una clase, en una sola consulta.
-  Future<Set<String>> parcialesCerrados(String claseId) async {
+  Future<Set<String>> parcialesCerrados(String claseId) async => (await cerradosDe([claseId]))[claseId] ?? const {};
+
+  /// Parciales cerrados de varias clases, en una sola consulta.
+  Future<Map<String, Set<String>>> cerradosDe(List<String> claseIds) async {
+    if (claseIds.isEmpty) return const {};
     final db = await _db;
     final filas = await db.query('parciales',
-        columns: ['parcial'], where: 'clase_id = ? AND cerrado_en IS NOT NULL', whereArgs: [claseId]);
-    return {for (final f in filas) f['parcial'] as String};
+        columns: ['clase_id', 'parcial'],
+        where: 'clase_id IN (${_marcas(claseIds)}) AND cerrado_en IS NOT NULL',
+        whereArgs: claseIds);
+    final mapa = <String, Set<String>>{};
+    for (final f in filas) {
+      (mapa[f['clase_id'] as String] ??= {}).add(f['parcial'] as String);
+    }
+    return mapa;
   }
 
   /// Qué partes de la app ya usó el docente, para la guía de primeros pasos.
@@ -348,13 +404,13 @@ class PlanesRepository {
   /// se capturan a mano), listas para exportar. El parcial queda cerrado hasta reabrirlo.
   Future<void> cerrar(PlanParcial plan) async {
     final resultado = calcularParcial(plan);
-    for (final alumno in plan.alumnos) {
-      final nota = resultado.porAlumno[alumno.id]!;
-      if (plan.parcial.notaClave case final clave?) await _clases.guardarValor(alumno.id, clave, nota.nota);
-      if (plan.parcial.inasistenciasClave case final clave?) {
-        await _clases.guardarValor(alumno.id, clave, nota.inasistencias);
-      }
-    }
+    await _clases.guardarValores(plan.claseId, [
+      for (final alumno in plan.alumnos) ...[
+        if (plan.parcial.notaClave case final clave?) (alumno.id, clave, resultado.porAlumno[alumno.id]!.nota),
+        if (plan.parcial.inasistenciasClave case final clave?)
+          (alumno.id, clave, resultado.porAlumno[alumno.id]!.inasistencias),
+      ],
+    ]);
     await _estadoParcial(plan.claseId, plan.parcial.clave, ahoraUtc());
   }
 

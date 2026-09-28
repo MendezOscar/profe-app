@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
@@ -21,6 +22,7 @@ public sealed class AdminService(
     AppDbContext db,
     UserManager<AppUser> users,
     ICurrentUser currentUser,
+    IMemoryCache cache,
     IClock clock) : ICentroService, IPlataformaService
 {
     private static readonly string[] Planes = ["pequeno", "mediano", "grande", "red"];
@@ -70,7 +72,7 @@ public sealed class AdminService(
         if (!institucion.Vigente(clock.Now))
             return Result<CuentaCreada>.Fail(Error.Forbidden("La licencia del centro no está vigente."));
 
-        var activos = (await DocentesDeAsync(institucion.Id, ct)).Count(d => d.IsActive);
+        var activos = await DocentesQuery().CountAsync(u => u.InstitucionId == institucion.Id && u.IsActive, ct);
         if (activos >= institucion.MaxDocentes)
             return Result<CuentaCreada>.Fail(Error.Conflict(
                 $"La licencia cubre {institucion.MaxDocentes} docentes y ya están todos. Desactiva uno o amplía el plan.", "cupo_lleno"));
@@ -87,7 +89,7 @@ public sealed class AdminService(
 
         if (activo && !docente.IsActive)
         {
-            var activos = (await DocentesDeAsync(institucion.Id, ct)).Count(d => d.IsActive);
+            var activos = await DocentesQuery().CountAsync(u => u.InstitucionId == institucion.Id && u.IsActive, ct);
             if (activos >= institucion.MaxDocentes)
                 return Result.Fail(Error.Conflict($"La licencia cubre {institucion.MaxDocentes} docentes.", "cupo_lleno"));
         }
@@ -165,6 +167,7 @@ public sealed class AdminService(
         institucion.VenceEn = request.VenceEn?.ToUniversalTime();
         institucion.Activa = request.Activa;
         await db.SaveChangesAsync(ct);
+        cache.Remove(AuthService.ClaveLicencia(id));
         return ADto(institucion, (await CuposUsadosAsync(ct)).GetValueOrDefault(id));
     }
 

@@ -164,6 +164,24 @@ class ClasesRepository {
 
   /// Null borra el valor: la celda vuelve a quedar vacía en el cuadro. El borrado se
   /// guarda como fila con valor NULL para poder avisarle al servidor.
+  /// Varias celdas de una misma clase en una sola transacción (el cierre de un parcial).
+  Future<void> guardarValores(String claseId, List<(String alumnoId, String columnaClave, int? valor)> celdas) async {
+    final db = await _db;
+    final ahora = ahoraUtc();
+    await db.transaction((tx) async {
+      final batch = tx.batch();
+      for (final (alumnoId, columnaClave, valor) in celdas) {
+        batch.insert(
+          'valores',
+          {'alumno_id': alumnoId, 'columna_clave': columnaClave, 'valor': valor, 'actualizado_en': ahora, 'sucia': 1},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      await batch.commit(noResult: true);
+      await marcarSucia(tx, claseId);
+    });
+  }
+
   Future<void> guardarValor(String alumnoId, String columnaClave, int? valor) async {
     final db = await _db;
     await db.transaction((tx) async {

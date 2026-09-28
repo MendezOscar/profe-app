@@ -48,6 +48,7 @@ public static class DependencyInjection
         services.AddDataProtection();
 
         services.AddScoped<TokenService>();
+        services.AddMemoryCache();
         services.AddScoped<IAuthService, AuthService>();
         services.AddSingleton<ICuadroSaceWriter, CuadroSaceWriter>();
         services.AddScoped<SyncService>();

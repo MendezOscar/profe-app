@@ -42,9 +42,11 @@ public sealed record SyncPushRequest(IReadOnlyList<ClaseSync>? Clases, IReadOnly
 /// <summary>
 /// Una página del pull. <c>Hasta</c> es el cursor para el próximo pull; si <c>Mas</c>, se
 /// pide la página siguiente con el mismo <c>desde</c> y este <c>hasta</c>. Las clases van
-/// sólo en la primera página.
+/// sólo en la primera página. <c>Siguiente</c> marca el último registro entregado: se manda
+/// como <c>despues</c> para seguir sin que la base tenga que saltar filas.
 /// </summary>
 public sealed record SyncPullResponse(
-    DateTimeOffset Hasta, IReadOnlyList<ClaseSync> Clases, IReadOnlyList<RegistroSync> Registros, bool Mas = false);
+    DateTimeOffset Hasta, IReadOnlyList<ClaseSync> Clases, IReadOnlyList<RegistroSync> Registros, bool Mas = false,
+    string? Siguiente = null);
 
 public sealed record ArchivoClase(string Clave, string ArchivoBase64);

@@ -14,6 +14,6 @@ public class RegistroConfig : IEntityTypeConfiguration<Registro>
         b.Property(x => x.Clave).HasMaxLength(200).IsRequired();
         b.Property(x => x.Datos).HasColumnType("jsonb");
         b.HasIndex(x => new { x.TenantId, x.Tipo, x.ClaseClave, x.Clave }).IsUnique();
-        b.HasIndex(x => new { x.TenantId, x.ModificadoEn });
+        b.HasIndex(x => new { x.TenantId, x.ModificadoEn, x.Id });
     }
 }

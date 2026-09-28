@@ -40,9 +40,10 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
         response.StatusCode.Should().Be(HttpStatusCode.NoContent, await response.Content.ReadAsStringAsync());
     }
 
-    private static async Task<JsonElement> PullAsync(HttpClient client, string? desde = null, string? hasta = null, int pagina = 0)
+    private static async Task<JsonElement> PullAsync(HttpClient client, string? desde = null, string? hasta = null, int pagina = 0, string? despues = null)
     {
         var query = new List<string> { $"pagina={pagina}" };
+        if (despues is not null) query.Add($"despues={Uri.EscapeDataString(despues)}");
         if (desde is not null) query.Add($"desde={Uri.EscapeDataString(desde)}");
         if (hasta is not null) query.Add($"hasta={Uri.EscapeDataString(hasta)}");
         return await ReadAsync(await client.GetAsync("/api/v1/sync/pull?" + string.Join("&", query)));
@@ -131,6 +132,31 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
         primera.GetProperty("registros").EnumerateArray().Concat(segunda.GetProperty("registros").EnumerateArray())
             .Select(r => r.GetProperty("clave").GetString()).Distinct().Count().Should().Be(1_500);
         segunda.GetProperty("clases").GetArrayLength().Should().Be(0, "las clases van sólo en la primera página");
+    }
+
+    [Fact]
+    public async Task El_pull_sigue_por_cursor_aunque_muchos_registros_tengan_la_misma_hora()
+    {
+        var client = await RegisterAsync();
+        // Un solo push: todos quedan con el mismo modificado_en y el desempate es el id.
+        await PushRegistrosAsync(client, Enumerable.Range(0, 2_000)
+            .Select(i => Registro("calificacion", $"act|{i}", new { valor = 1 }, Importada)).ToArray());
+        await PushRegistrosAsync(client, Enumerable.Range(2_000, 500)
+            .Select(i => Registro("calificacion", $"act|{i}", new { valor = 1 }, Importada)).ToArray());
+
+        var claves = new List<string?>();
+        var pull = await PullAsync(client);
+        var hasta = pull.GetProperty("hasta").GetString();
+        claves.AddRange(pull.GetProperty("registros").EnumerateArray().Select(r => r.GetProperty("clave").GetString()));
+        while (pull.GetProperty("mas").GetBoolean())
+        {
+            pull = await PullAsync(client, hasta: hasta, despues: pull.GetProperty("siguiente").GetString());
+            pull.GetProperty("clases").GetArrayLength().Should().Be(0);
+            claves.AddRange(pull.GetProperty("registros").EnumerateArray().Select(r => r.GetProperty("clave").GetString()));
+        }
+
+        claves.Should().HaveCount(2_500).And.OnlyHaveUniqueItems();
+        pull.GetProperty("siguiente").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     [Fact]

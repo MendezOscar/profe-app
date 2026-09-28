@@ -17,8 +17,8 @@ public static class SyncEndpoints
                 (await sync.PushAsync(request, ct)).ToHttp())
             .WithSummary("Sube clases cambiadas en el teléfono. Idempotente: gana la captura más nueva por celda.");
 
-        group.MapGet("/pull", async (DateTimeOffset? desde, DateTimeOffset? hasta, int? pagina, SyncService sync, CancellationToken ct) =>
-                (await sync.PullAsync(desde, hasta, pagina ?? 0, ct)).ToHttp())
+        group.MapGet("/pull", async (DateTimeOffset? desde, DateTimeOffset? hasta, int? pagina, string? despues, SyncService sync, CancellationToken ct) =>
+                (await sync.PullAsync(desde, hasta, pagina ?? 0, despues, ct)).ToHttp())
             .WithSummary("Lo cambiado desde el cursor, por páginas. Sin archivos: esos van por /archivo.");
 
         group.MapGet("/archivo", async (string clave, SyncService sync, CancellationToken ct) =>

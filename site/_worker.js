@@ -2,6 +2,19 @@
 //
 // Un worker y no _redirects: una regla `/app/* -> index` también se come los assets
 // (flutter_bootstrap.js volvía como HTML y la app no arrancaba). Igual que en stock-ruta.
+// Fuentes e imágenes casi no cambian: el navegador las guarda una semana sin volver a
+// preguntar. El resto (index, main.dart.js, wasm, canvaskit) no lleva hash en el nombre
+// y debe revalidarse, o un despliegue nuevo quedaría mezclado con archivos viejos.
+const CACHE_LARGA = /\.(ttf|otf|woff2?|png|jpe?g|svg|ico|webp)$/i;
+
+async function servir(request, env) {
+  const respuesta = await env.ASSETS.fetch(request);
+  if (!respuesta.ok || !CACHE_LARGA.test(new URL(request.url).pathname)) return respuesta;
+  const headers = new Headers(respuesta.headers);
+  headers.set('cache-control', 'public, max-age=604800, stale-while-revalidate=86400');
+  return new Response(respuesta.body, { status: respuesta.status, headers });
+}
+
 const RUTAS_DEL_PANEL = ['/login', '/inicio', '/asistencia', '/plantillas', '/cuenta', '/bienvenida', '/splash', '/centro', '/plataforma', '/cambiar-clave'];
 
 export default {
@@ -20,7 +33,7 @@ export default {
       // Con extensión es un archivo del bundle; sin ella, una ruta que resuelve go_router.
       // No se puede preguntar por el 404: cuando falta el archivo, Pages responde la
       // landing con 200 y recargar el panel mostraría la página de inicio.
-      if (/\.[a-z0-9]+$/i.test(url.pathname)) return env.ASSETS.fetch(request);
+      if (/\.[a-z0-9]+$/i.test(url.pathname)) return servir(request, env);
 
       const index = await env.ASSETS.fetch(new URL('/app/index.html', url.origin));
       return new Response(index.body, {
@@ -29,6 +42,6 @@ export default {
       });
     }
 
-    return env.ASSETS.fetch(request);
+    return servir(request, env);
   },
 };

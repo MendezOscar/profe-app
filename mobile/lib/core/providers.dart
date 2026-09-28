@@ -73,17 +73,22 @@ class AvanceClase {
 final tableroProvider = FutureProvider<List<AvanceClase>>((ref) async {
   final clases = await ref.watch(clasesProvider.future);
   final repo = ref.watch(planesRepositoryProvider);
+  final ids = [for (final c in clases) c.id];
+  final parciales = await repo.parcialesDe(ids);
+  final cerrados = await repo.cerradosDe(ids);
+  // Un solo plan por clase: el del primer parcial abierto (o el último, si están todos cerrados).
+  final pedidos = [
+    for (final id in ids)
+      if (parciales[id] case final ps? when ps.isNotEmpty)
+        (id, ps.where((p) => !(cerrados[id]?.contains(p.clave) ?? false)).firstOrNull ?? ps.last),
+  ];
+  final planes = {for (final plan in await repo.planes(pedidos)) plan.claseId: plan};
   return [
     for (final clase in clases)
-      await () async {
-        // Un solo plan por clase: el del primer parcial abierto (o el último, si están todos cerrados).
-        final parciales = await repo.parciales(clase.id);
-        if (parciales.isEmpty) return AvanceClase(clase: clase);
-        final cerrados = await repo.parcialesCerrados(clase.id);
-        final actual = parciales.where((p) => !cerrados.contains(p.clave)).firstOrNull ?? parciales.last;
-        final plan = await repo.plan(clase.id, actual);
-        return AvanceClase(clase: clase, plan: plan, resultado: calcularParcial(plan));
-      }(),
+      if (planes[clase.id] case final plan?)
+        AvanceClase(clase: clase, plan: plan, resultado: calcularParcial(plan))
+      else
+        AvanceClase(clase: clase),
   ];
 });
 

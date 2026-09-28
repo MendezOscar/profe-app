@@ -52,16 +52,22 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
     /// los registros, de a <see cref="RegistrosPorPagina"/>.
     /// </summary>
     public async Task<Result<SyncPullResponse>> PullAsync(
-        DateTimeOffset? desde, DateTimeOffset? hasta = null, int pagina = 0, CancellationToken ct = default)
+        DateTimeOffset? desde, DateTimeOffset? hasta = null, int pagina = 0, string? despues = null, CancellationToken ct = default)
     {
         if (pagina < 0) return Result<SyncPullResponse>.Fail(Error.Validation("Página inválida."));
+        (DateTimeOffset En, Guid Id)? cursor = null;
+        if (despues is not null)
+        {
+            if (LeerCursor(despues) is not { } leido) return Result<SyncPullResponse>.Fail(Error.Validation("Cursor inválido."));
+            cursor = leido;
+        }
         // El cursor se toma antes de consultar: lo que se guarde mientras tanto entra en el próximo pull.
         var fin = (hasta ?? clock.Now).ToUniversalTime();
         var inicio = (desde ?? DateTimeOffset.MinValue).ToUniversalTime();
         var todo = desde is null;
 
         var clases = new List<ClaseSync>();
-        if (pagina == 0)
+        if (pagina == 0 && cursor is null)
         {
             var cambiadas = await db.Clases.AsNoTracking()
                 .Where(c => c.ModificadoEn > inicio && c.ModificadoEn <= fin)
@@ -83,17 +89,33 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
             clases = cambiadas.Select(c => ADto(c, conPlantilla.Contains(c.Id), columnas[c.Id], alumnos[c.Id], valores[c.Id])).ToList();
         }
 
-        var registros = await db.Registros.AsNoTracking()
+        // Con cursor, la base sigue desde el último entregado por el índice; sin él (clientes
+        // viejos que mandan "pagina"), salta filas.
+        var consulta = cursor is { } c
+            ? db.Registros.FromSql($"SELECT * FROM registros WHERE (modificado_en, id) > ({c.En}, {c.Id})")
+            : db.Registros;
+        consulta = consulta.AsNoTracking()
             .Where(r => r.ModificadoEn > inicio && r.ModificadoEn <= fin)
-            .OrderBy(r => r.ModificadoEn).ThenBy(r => r.Id)
-            .Skip(pagina * RegistrosPorPagina)
+            .OrderBy(r => r.ModificadoEn).ThenBy(r => r.Id);
+        if (cursor is null) consulta = consulta.Skip(pagina * RegistrosPorPagina);
+        var filas = await consulta
             .Take(RegistrosPorPagina + 1)
-            .Select(r => new RegistroSync(r.Tipo, r.ClaseClave, r.Clave, r.Datos, r.Eliminado, r.ActualizadoEn))
+            .Select(r => new { r.Id, r.ModificadoEn, Dto = new RegistroSync(r.Tipo, r.ClaseClave, r.Clave, r.Datos, r.Eliminado, r.ActualizadoEn) })
             .ToListAsync(ct);
-        var mas = registros.Count > RegistrosPorPagina;
-        if (mas) registros.RemoveAt(registros.Count - 1);
+        var mas = filas.Count > RegistrosPorPagina;
+        if (mas) filas.RemoveAt(filas.Count - 1);
+        var siguiente = mas ? $"{filas[^1].ModificadoEn.UtcTicks}_{filas[^1].Id:N}" : null;
 
-        return new SyncPullResponse(fin, clases, registros, mas);
+        return new SyncPullResponse(fin, clases, filas.Select(x => x.Dto).ToList(), mas, siguiente);
+    }
+
+    private static (DateTimeOffset, Guid)? LeerCursor(string texto)
+    {
+        var partes = texto.Split('_');
+        return partes.Length == 2 && long.TryParse(partes[0], out var ticks) && ticks >= 0 && ticks <= DateTimeOffset.MaxValue.UtcTicks
+            && Guid.TryParse(partes[1], out var id)
+            ? (new DateTimeOffset(ticks, TimeSpan.Zero), id)
+            : null;
     }
 
     /// <summary>El cuadro original de una clase, para el dispositivo que todavía no lo tiene.</summary>
@@ -269,8 +291,10 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
         // Candidatos por clase y clave; el cruce exacto (tipo, clase, clave) se hace en memoria.
         var claseClaves = entrantes.Select(r => r.ClaseClave).Distinct().ToList();
         var claves = entrantes.Select(r => r.Clave).Distinct().ToList();
+        // El tipo va en el filtro para que se use el índice (tenant, tipo, clase, clave) completo.
+        var tipos = entrantes.Select(r => r.Tipo).Distinct().ToList();
         var existentes = (await db.Registros
-                .Where(r => claseClaves.Contains(r.ClaseClave) && claves.Contains(r.Clave))
+                .Where(r => tipos.Contains(r.Tipo) && claseClaves.Contains(r.ClaseClave) && claves.Contains(r.Clave))
                 .ToListAsync(ct))
             .ToDictionary(r => (r.Tipo, r.ClaseClave, r.Clave));
 
