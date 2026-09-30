@@ -75,6 +75,31 @@ public class AuthTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task Cambiar_la_clave_cierra_las_otras_sesiones_y_conserva_la_de_este_dispositivo()
+    {
+        var email = $"clave-{Guid.NewGuid():N}@prueba.hn";
+        await RegisterAsync(email);
+        async Task<(string Access, string Refresh)> Entrar()
+        {
+            var r = await ReadAsync(await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/login", new { email, password = "Prueba1234!" }));
+            return (r.GetProperty("tokens").GetProperty("accessToken").GetString()!, r.GetProperty("tokens").GetProperty("refreshToken").GetString()!);
+        }
+        var otro = await Entrar();
+        var este = await Entrar();
+        var client = Fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", este.Access);
+
+        (await client.PostAsJsonAsync("/api/v1/auth/change-password",
+                new { currentPassword = "Prueba1234!", newPassword = "Nueva5678!", refreshToken = este.Refresh }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        (await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = otro.Refresh }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = este.Refresh }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task El_refresh_token_rota_y_el_usado_ya_no_sirve()
     {
         var login = await ReadAsync(await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/login",

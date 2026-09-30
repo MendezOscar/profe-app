@@ -21,7 +21,8 @@ public sealed record CurrentUserDto(
 
 public sealed record AuthResponse(AuthTokens Tokens, CurrentUserDto User);
 
-public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword);
+/// <summary><c>RefreshToken</c>: el de este dispositivo, que sigue con sesión; los demás se cierran.</summary>
+public sealed record ChangePasswordRequest(string CurrentPassword, string NewPassword, string? RefreshToken = null);
 
 /// <summary>Se pide la contraseña para que un teléfono prestado no pueda borrar la cuenta.</summary>
 public sealed record DeleteAccountRequest(string Password);

@@ -186,6 +186,12 @@ public sealed class AuthService(
 
         user.MustChangePassword = false;
         await users.UpdateAsync(user);
+
+        // Quien conocía la clave anterior pierde la sesión en sus dispositivos; éste la conserva.
+        var actual = request.RefreshToken is { Length: > 0 and <= 512 } propio ? (await tokens.FindAsync(propio, ct))?.Id : null;
+        await db.RefreshTokens
+            .Where(t => t.UserId == user.Id && t.RevokedAt == null && t.Id != actual)
+            .ExecuteUpdateAsync(x => x.SetProperty(t => t.RevokedAt, clock.Now), ct);
         return Result.Success();
     }
 

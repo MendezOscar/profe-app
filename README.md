@@ -50,6 +50,9 @@ dotnet ef migrations add <Nombre> -p src/ProfeApp.Infrastructure -s src/ProfeApp
 |---|---|---|
 | Docente | `docente@demo.hn` | `Demo1234!` |
 
+Sólo existe así en desarrollo local (se crea al arrancar la API en Development). En producción
+la cuenta demo tiene otra contraseña, que no va en el repositorio.
+
 Para apuntar la app al backend desplegado:
 
 ```bash

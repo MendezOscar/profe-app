@@ -56,6 +56,8 @@ class _CambiarClaveDialogState extends ConsumerState<_CambiarClaveDialog> {
       await ref.read(apiClientProvider).post<void>('/auth/change-password', body: {
         'currentPassword': _actual.text,
         'newPassword': _nueva.text,
+        // Este dispositivo sigue con sesión; en los demás se cierra.
+        'refreshToken': ref.read(sessionProvider)?.refreshToken,
       });
       await ref.read(authControllerProvider.notifier).claveCambiada();
       if (!mounted || widget.obligatorio) return; // El router sigue solo.
