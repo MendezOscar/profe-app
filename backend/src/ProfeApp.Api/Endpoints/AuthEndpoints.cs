@@ -21,7 +21,8 @@ public static class AuthEndpoints
 
         group.MapPost("/refresh", async (RefreshRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>
                 (await auth.RefreshAsync(request, http.Connection.RemoteIpAddress?.ToString(), ct)).ToHttp())
-            .AllowAnonymous();
+            .AllowAnonymous()
+            .RequireRateLimiting(Limites.Renovar);
 
         group.MapPost("/logout", async (RefreshRequest request, IAuthService auth, CancellationToken ct) =>
                 (await auth.LogoutAsync(request.RefreshToken, ct)).ToHttp())
@@ -34,10 +35,12 @@ public static class AuthEndpoints
         group.MapPost("/delete-account", async (DeleteAccountRequest request, IAuthService auth, CancellationToken ct) =>
                 (await auth.DeleteAccountAsync(request, ct)).ToHttp())
             .RequireAuthorization()
+            .RequireRateLimiting(Limites.Sensible)
             .WithSummary("Elimina la cuenta del docente y todos sus datos en el servidor.");
 
         group.MapPost("/change-password", async (ChangePasswordRequest request, IAuthService auth, CancellationToken ct) =>
                 (await auth.ChangePasswordAsync(request, ct)).ToHttp())
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting(Limites.Sensible);
     }
 }

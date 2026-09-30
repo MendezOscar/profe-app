@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
@@ -24,9 +25,10 @@ public sealed class AuthService(
 
     public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, string? ip, CancellationToken ct = default)
     {
-        var email = request.Email.Trim().ToLowerInvariant();
-        if (string.IsNullOrWhiteSpace(request.FullName))
-            return Result<AuthResponse>.Fail(Error.Validation("El nombre es obligatorio."));
+        var email = (request.Email ?? "").Trim().ToLowerInvariant();
+        if (!CorreoValido(email)) return Result<AuthResponse>.Fail(Error.Validation("El correo no es válido."));
+        if (string.IsNullOrWhiteSpace(request.FullName) || request.FullName.Length > 120)
+            return Result<AuthResponse>.Fail(Error.Validation("El nombre es obligatorio (hasta 120 caracteres)."));
         if (await users.FindByEmailAsync(email) is not null)
             return Result<AuthResponse>.Fail(Error.Conflict("Ya existe una cuenta con ese correo.", "email_taken"));
 
@@ -66,9 +68,13 @@ public sealed class AuthService(
 
     public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, string? ip, CancellationToken ct = default)
     {
+        var invalidas = Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "invalid_credentials", "Credenciales inválidas."));
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrEmpty(request.Password)
+            || request.Email.Length > 254 || request.Password.Length > 128)
+            return invalidas;
         var user = await users.FindByEmailAsync(request.Email.Trim());
-        if (user is null || !user.IsActive || !await users.CheckPasswordAsync(user, request.Password))
-            return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "invalid_credentials", "Credenciales inválidas."));
+        if (user is null || !user.IsActive) return invalidas;
+        if (await ClaveIncorrectaAsync(user, request.Password) is { } error) return Result<AuthResponse>.Fail(error);
 
         // Aún no hay JWT: fijamos el tenant a mano para poder leer su espacio.
         tenant.SetTenant(user.TenantId, ignoreFilter: true);
@@ -81,6 +87,27 @@ public sealed class AuthService(
         if (await LicenciaVencidaAsync(user, ct) is { } vencida) return Result<AuthResponse>.Fail(vencida);
 
         return await IssueAsync(user, ip, request.DeviceName, ct);
+    }
+
+    private static readonly Error Bloqueada = new(ErrorKind.Forbidden, "locked_out",
+        "Demasiados intentos con la contraseña equivocada. Espera 15 minutos y vuelve a intentar.");
+
+    /// <summary>
+    /// Revisa la contraseña con bloqueo por intentos: tras 10 fallos seguidos la cuenta se
+    /// bloquea 15 minutos, aunque los intentos vengan de IPs distintas.
+    /// </summary>
+    private async Task<Error?> ClaveIncorrectaAsync(AppUser user, string clave)
+    {
+        if (await users.IsLockedOutAsync(user)) return Bloqueada;
+        if (!await users.CheckPasswordAsync(user, clave))
+        {
+            await users.AccessFailedAsync(user);
+            return await users.IsLockedOutAsync(user)
+                ? Bloqueada
+                : new Error(ErrorKind.Forbidden, "invalid_credentials", "Credenciales inválidas.");
+        }
+        await users.ResetAccessFailedCountAsync(user);
+        return null;
     }
 
     /// <summary>Con licencia de centro, el acceso depende de que esté activa y sin vencer.</summary>
@@ -100,6 +127,8 @@ public sealed class AuthService(
 
     public async Task<Result<AuthResponse>> RefreshAsync(RefreshRequest request, string? ip, CancellationToken ct = default)
     {
+        if (string.IsNullOrEmpty(request.RefreshToken) || request.RefreshToken.Length > 512)
+            return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "invalid_refresh_token", "Sesión expirada, vuelve a iniciar sesión."));
         var existing = await tokens.FindAsync(request.RefreshToken, ct);
         if (existing is null || !existing.IsActive(clock.Now))
             return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "invalid_refresh_token", "Sesión expirada, vuelve a iniciar sesión."));
@@ -123,6 +152,7 @@ public sealed class AuthService(
 
     public async Task<Result> LogoutAsync(string refreshToken, CancellationToken ct = default)
     {
+        if (string.IsNullOrEmpty(refreshToken) || refreshToken.Length > 512) return Result.Success();
         var existing = await tokens.FindAsync(refreshToken, ct);
         if (existing is not null && existing.RevokedAt is null)
         {
@@ -144,7 +174,13 @@ public sealed class AuthService(
         var user = await users.FindByIdAsync(currentUser.RequireUserId().ToString());
         if (user is null) return Result.Fail(Error.NotFound("El usuario"));
 
-        var result = await users.ChangePasswordAsync(user, request.CurrentPassword, request.NewPassword);
+        if (await users.IsLockedOutAsync(user)) return Result.Fail(Bloqueada);
+        if (string.IsNullOrEmpty(request.NewPassword) || request.NewPassword.Length > 128)
+            return Result.Fail(Error.Validation("La contraseña nueva debe tener entre 8 y 128 caracteres."));
+        var result = await users.ChangePasswordAsync(user, request.CurrentPassword ?? "", request.NewPassword);
+        // Una clave actual incorrecta cuenta como intento fallido, igual que en el login.
+        if (!result.Succeeded && !await users.CheckPasswordAsync(user, request.CurrentPassword ?? ""))
+            await users.AccessFailedAsync(user);
         if (!result.Succeeded)
             return Result.Fail(Error.Validation(string.Join(" ", result.Errors.Select(e => e.Description))));
 
@@ -162,8 +198,8 @@ public sealed class AuthService(
     {
         var user = await users.FindByIdAsync(currentUser.RequireUserId().ToString());
         if (user is null) return Result.Fail(Error.NotFound("El usuario"));
-        if (!await users.CheckPasswordAsync(user, request.Password ?? ""))
-            return Result.Fail(Error.Validation("La contraseña no es correcta."));
+        if (await ClaveIncorrectaAsync(user, request.Password ?? "") is { } error)
+            return Result.Fail(error.Code == "locked_out" ? error : Error.Validation("La contraseña no es correcta."));
 
         var strategy = db.Database.CreateExecutionStrategy();
         await strategy.ExecuteAsync(async () =>
@@ -202,4 +238,8 @@ public sealed class AuthService(
 
     private static CurrentUserDto Profile(AppUser user, string role) =>
         new(user.Id, user.Email!, user.FullName, role, user.TenantId, user.MustChangePassword);
+
+    /// <summary>Formato de correo razonable y dentro del largo que admite la base.</summary>
+    internal static bool CorreoValido(string email) =>
+        email.Length is > 3 and <= 254 && MailAddress.TryCreate(email, out var direccion) && direccion.Address == email;
 }

@@ -37,6 +37,44 @@ public class AuthTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task Diez_claves_equivocadas_bloquean_la_cuenta_aunque_despues_acierte()
+    {
+        var email = $"bloqueo-{Guid.NewGuid():N}@prueba.hn";
+        await RegisterAsync(email);
+        var anonimo = Fixture.CreateClient();
+
+        for (var i = 0; i < 10; i++)
+            (await anonimo.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "otra-clave" }))
+                .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var correcta = await anonimo.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "Prueba1234!" });
+
+        correcta.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await correcta.Content.ReadAsStringAsync()).Should().Contain("locked_out");
+    }
+
+    [Fact]
+    public async Task Entradas_vacias_o_enormes_se_rechazan_sin_error_del_servidor()
+    {
+        var anonimo = Fixture.CreateClient();
+
+        (await anonimo.PostAsJsonAsync("/api/v1/auth/login", new { email = (string?)null, password = (string?)null }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await anonimo.PostAsJsonAsync("/api/v1/auth/login", new { email = new string('a', 5000), password = "x" }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await anonimo.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = (string?)null }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task La_API_manda_cabeceras_de_seguridad()
+    {
+        var response = await Fixture.CreateClient().GetAsync("/health/live");
+
+        response.Headers.GetValues("X-Content-Type-Options").Should().Contain("nosniff");
+        response.Headers.GetValues("X-Frame-Options").Should().Contain("DENY");
+    }
+
+    [Fact]
     public async Task El_refresh_token_rota_y_el_usado_ya_no_sirve()
     {
         var login = await ReadAsync(await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/login",

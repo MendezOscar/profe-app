@@ -71,7 +71,9 @@ var corsOrigins = builder.Configuration.GetSection("App:CorsOrigins").Get<string
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
 {
     if (corsOrigins.Length > 0)
-        policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+        // Sin AllowCredentials: el token va en el encabezado Authorization, no hay cookies.
+        policy.WithOrigins(corsOrigins).WithHeaders("Authorization", "Content-Type", "X-Client-Request-Id").WithMethods("GET", "POST", "PUT", "DELETE")
+            .SetPreflightMaxAge(TimeSpan.FromHours(1));
     else if (builder.Environment.IsDevelopment())
         // Flutter web en desarrollo usa un puerto distinto en cada arranque.
         policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
@@ -136,6 +138,29 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
+    // Cambiar la contraseña o borrar la cuenta: pocas veces por docente. Con un token robado
+    // no se puede probar contraseñas en serie (además está el bloqueo de la cuenta).
+    options.AddPolicy(Limites.Sensible, http =>
+    {
+        var usuario = http.User.FindFirstValue("sub") ?? http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return usuario is null || http.Connection.RemoteIpAddress is null || System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress)
+            ? RateLimitPartition.GetNoLimiter("sin-usuario")
+            : RateLimitPartition.GetFixedWindowLimiter(usuario, _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(5),
+            });
+    });
+
+    // Renovar sesión por IP: generoso (un colegio entero detrás de una misma IP), corta bucles.
+    options.AddPolicy(Limites.Renovar, http => http.Connection.RemoteIpAddress is { } ip && !System.Net.IPAddress.IsLoopback(ip)
+        ? RateLimitPartition.GetFixedWindowLimiter(ip.ToString(), _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+        })
+        : RateLimitPartition.GetNoLimiter("sin-ip"));
+
     // Exportar abre el libro completo en memoria: en la semana de cierre todos exportan a
     // la vez. Pocas a la vez y el resto espera su turno, en lugar de quedarse sin memoria.
     options.AddConcurrencyLimiter(Limites.Exportar, limiter =>
@@ -149,6 +174,18 @@ builder.Services.AddRateLimiter(options =>
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+if (!app.Environment.IsDevelopment()) app.UseHsts();
+// La API sólo devuelve JSON y archivos: el navegador no debe interpretarlos como página.
+app.Use((context, next) =>
+{
+    var h = context.Response.Headers;
+    h.XContentTypeOptions = "nosniff";
+    h.XFrameOptions = "DENY";
+    h["Referrer-Policy"] = "no-referrer";
+    // Swagger (sólo en desarrollo) necesita scripts y estilos propios.
+    if (!app.Environment.IsDevelopment()) h.ContentSecurityPolicy = "default-src 'none'; frame-ancestors 'none'";
+    return next(context);
+});
 app.UseResponseCompression();
 app.UseSerilogRequestLogging();
 app.UseExceptionHandler();

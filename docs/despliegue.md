@@ -142,3 +142,14 @@ No hay registro público. Las cuentas se crean desde los paneles, con contraseñ
 - **Al crecer**: Render Starter o superior (sin dormirse, más memoria) y Postgres de pago.
   Con muchos docentes, particionar `registros` por año lectivo.
 
+
+## 8. Seguridad del sitio y la API
+
+- **CSP**: `site/_worker.js` manda la política del sitio y la del panel (`/app/`). Si cambia
+  la URL de la API, actualizar la constante `API` del worker además de `env/prod.json`, o el
+  panel no podrá conectarse. El panel no admite scripts en línea: todo va en archivos
+  (por eso `web/arranque.js`).
+- **CORS**: sólo los orígenes de `App__CorsOrigins__N` (hoy `https://profe-app.pages.dev`),
+  sin cookies: el token va en el encabezado `Authorization`.
+- **Bloqueo de cuenta**: 10 contraseñas equivocadas seguidas bloquean la cuenta 15 minutos
+  (login, cambiar contraseña y eliminar cuenta), además del límite por IP del login.

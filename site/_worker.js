@@ -7,12 +7,37 @@
 // y debe revalidarse, o un despliegue nuevo quedaría mezclado con archivos viejos.
 const CACHE_LARGA = /\.(ttf|otf|woff2?|png|jpe?g|svg|ico|webp)$/i;
 
-async function servir(request, env) {
-  const respuesta = await env.ASSETS.fetch(request);
-  if (!respuesta.ok || !CACHE_LARGA.test(new URL(request.url).pathname)) return respuesta;
+// Política de seguridad (CSP). El sitio no tiene scripts; el panel Flutter necesita
+// WebAssembly (base local y CanvasKit, que Flutter baja de gstatic) y hablar con la API.
+const API = 'https://profeapp-o7hw.onrender.com';
+const COMUNES = "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
+const CSP_SITIO = `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; ${COMUNES}`;
+const CSP_PANEL = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  `connect-src 'self' ${API} https://www.gstatic.com https://fonts.gstatic.com`,
+  "worker-src 'self' blob:",
+  COMUNES,
+].join('; ');
+
+function conSeguridad(respuesta, pathname) {
   const headers = new Headers(respuesta.headers);
-  headers.set('cache-control', 'public, max-age=604800, stale-while-revalidate=86400');
-  return new Response(respuesta.body, { status: respuesta.status, headers });
+  headers.set('content-security-policy', pathname.startsWith('/app/') ? CSP_PANEL : CSP_SITIO);
+  headers.set('x-content-type-options', 'nosniff');
+  headers.set('referrer-policy', 'strict-origin-when-cross-origin');
+  headers.set('strict-transport-security', 'max-age=31536000');
+  headers.set('permissions-policy', 'camera=(), microphone=(), geolocation=()');
+  if (respuesta.ok && CACHE_LARGA.test(pathname)) {
+    headers.set('cache-control', 'public, max-age=604800, stale-while-revalidate=86400');
+  }
+  return new Response(respuesta.body, { status: respuesta.status, statusText: respuesta.statusText, headers });
+}
+
+async function servir(request, env) {
+  return conSeguridad(await env.ASSETS.fetch(request), new URL(request.url).pathname);
 }
 
 const RUTAS_DEL_PANEL = ['/login', '/inicio', '/asistencia', '/plantillas', '/cuenta', '/bienvenida', '/splash', '/centro', '/plataforma', '/cambiar-clave'];
@@ -36,10 +61,11 @@ export default {
       if (/\.[a-z0-9]+$/i.test(url.pathname)) return servir(request, env);
 
       const index = await env.ASSETS.fetch(new URL('/app/index.html', url.origin));
-      return new Response(index.body, {
+      const html = new Response(index.body, {
         status: 200,
         headers: { ...Object.fromEntries(index.headers), 'content-type': 'text/html; charset=utf-8' },
       });
+      return conSeguridad(html, url.pathname);
     }
 
     return servir(request, env);

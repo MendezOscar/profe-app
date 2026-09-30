@@ -130,7 +130,8 @@ public sealed class AdminService(
 
     public async Task<Result<InstitucionCreada>> CrearInstitucionAsync(CrearInstitucionRequest request, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Nombre)) return Result<InstitucionCreada>.Fail(Error.Validation("El nombre del centro es obligatorio."));
+        if (string.IsNullOrWhiteSpace(request.Nombre) || request.Nombre.Length > 200)
+            return Result<InstitucionCreada>.Fail(Error.Validation("El nombre del centro es obligatorio (hasta 200 caracteres)."));
         if (!Planes.Contains(request.Plan)) return Result<InstitucionCreada>.Fail(Error.Validation("Plan desconocido."));
         if (request.MaxDocentes is < 1 or > 5_000) return Result<InstitucionCreada>.Fail(Error.Validation("El cupo debe estar entre 1 y 5000."));
 
@@ -184,8 +185,9 @@ public sealed class AdminService(
         string email, string nombre, string rol, Guid? institucionId, bool conEspacio, CancellationToken ct)
     {
         email = (email ?? "").Trim().ToLowerInvariant();
-        if (!email.Contains('@')) return Result<CuentaCreada>.Fail(Error.Validation("El correo no es válido."));
-        if (string.IsNullOrWhiteSpace(nombre)) return Result<CuentaCreada>.Fail(Error.Validation("El nombre es obligatorio."));
+        if (!AuthService.CorreoValido(email)) return Result<CuentaCreada>.Fail(Error.Validation("El correo no es válido."));
+        if (string.IsNullOrWhiteSpace(nombre) || nombre.Length > 120)
+            return Result<CuentaCreada>.Fail(Error.Validation("El nombre es obligatorio (hasta 120 caracteres)."));
         if (await users.FindByEmailAsync(email) is not null)
             return Result<CuentaCreada>.Fail(Error.Conflict("Ya existe una cuenta con ese correo.", "email_taken"));
 

@@ -6,4 +6,6 @@ public static class Limites
     public const string Login = "login";
     public const string Usuario = "usuario";
     public const string Exportar = "exportar";
+    public const string Sensible = "sensible";
+    public const string Renovar = "renovar";
 }
