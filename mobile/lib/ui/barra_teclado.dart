@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/tokens.dart';
 
 /// Barra sobre el teclado mientras se captura: el teclado numérico del iPhone no trae
 /// tecla de "Siguiente" ni de cerrar. "Siguiente" sigue el orden de lectura de la pantalla.
@@ -13,7 +14,7 @@ class BarraTeclado extends StatelessWidget {
       color: scheme.surface,
       child: Container(
         decoration: BoxDecoration(border: Border(top: BorderSide(color: scheme.outlineVariant))),
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: Espacio.s),
         height: 48,
         child: Row(
           children: [

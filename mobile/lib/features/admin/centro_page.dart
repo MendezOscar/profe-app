@@ -6,6 +6,9 @@ import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
 import 'admin_comun.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 final centroProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
     (ref) => ref.watch(apiClientProvider).get('/centro', parse: (d) => d as Map<String, dynamic>));
@@ -41,13 +44,8 @@ class CentroPage extends ConsumerWidget {
             )
           : null,
       body: centro.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => EstadoVacio(
-          icono: Icons.cloud_off_outlined,
-          titulo: 'No se pudo cargar el centro',
-          mensaje: e is ApiException && e.isNetworkError ? 'El panel necesita internet.' : '$e',
-          accion: FilledButton(onPressed: () => ref.invalidate(centroProvider), child: const Text('Reintentar')),
-        ),
+        loading: () => const EsqueletoLista(filas: 6, conTarjeta: true),
+        error: (e, _) => EstadoError(error: e, reintentar: () => ref.invalidate(centroProvider)),
         data: (datos) {
           final institucion = datos['institucion'] as Map<String, dynamic>;
           final docentes = (datos['docentes'] as List).cast<Map<String, dynamic>>();
@@ -56,10 +54,10 @@ class CentroPage extends ConsumerWidget {
             child: ContenidoCentrado(
               maxAncho: 1100,
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+                padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.bajoBotonFlotante),
                 children: [
                   _Licencia(institucion: institucion),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: Espacio.xl),
                   if (docentes.isEmpty)
                     const EstadoVacio(
                       icono: Icons.groups_outlined,
@@ -69,7 +67,7 @@ class CentroPage extends ConsumerWidget {
                     )
                   else ...[
                     Text('DOCENTES', style: Theme.of(context).textTheme.labelSmall),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Espacio.s),
                     for (final d in docentes) _Docente(docente: d),
                   ],
                 ],
@@ -104,7 +102,7 @@ class _Licencia extends StatelessWidget {
     final lleno = usados >= cupo;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Espacio.l),
         child: Wrap(
           spacing: 32,
           runSpacing: 16,
@@ -177,11 +175,11 @@ class _Docente extends ConsumerWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: Espacio.s),
       child: Card(
         color: activo ? null : scheme.surface,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
+          padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.xs, Espacio.m),
           child: Row(
             children: [
               Expanded(
@@ -192,9 +190,9 @@ class _Docente extends ConsumerWidget {
                       children: [
                         Flexible(child: Text('${docente['nombre']}', style: text.titleMedium)),
                         if (!activo) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: Espacio.s),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            padding: const EdgeInsets.symmetric(horizontal: Espacio.s, vertical: Espacio.xxs),
                             color: scheme.errorContainer,
                             child: Text('Inactivo', style: text.labelSmall?.copyWith(color: scheme.onErrorContainer)),
                           ),
@@ -203,7 +201,7 @@ class _Docente extends ConsumerWidget {
                     ),
                     Text('${docente['email']} · último acceso: ${fechaCorta(docente['ultimoAcceso'] as String?)}',
                         style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: Espacio.s),
                     Wrap(
                       spacing: 16,
                       children: [

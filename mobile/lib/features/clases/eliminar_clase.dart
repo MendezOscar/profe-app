@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/clase.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
+import '../../theme/tokens.dart';
 
 /// Elimina una clase (un cuadro subido) después de explicar qué se pierde y pedir que el
 /// docente lo confirme de forma explícita. No se puede deshacer: se borra en todos sus
@@ -53,18 +54,18 @@ class _ConfirmarState extends State<_Confirmar> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (seccion.isNotEmpty) Text(seccion, style: TextStyle(color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 12),
+            const SizedBox(height: Espacio.m),
             const Text('Se borra para siempre:'),
-            const SizedBox(height: 8),
+            const SizedBox(height: Espacio.s),
             _Punto('${clase.alumnos} alumnos y el cuadro de SACE que subiste'),
             _Punto('${c.actividades} actividades del plan y ${c.notas} notas puestas'),
             _Punto('${c.listas} listas de asistencia'),
             _Punto('Las notas totales e inasistencias capturadas en el cuadro'),
-            const SizedBox(height: 12),
+            const SizedBox(height: Espacio.m),
             const Text('Se elimina en todos tus dispositivos y en el respaldo en línea. '
                 'Si ya exportaste el cuadro, ese archivo no se toca. '
                 'Para volver a tenerla tendrías que importar el cuadro otra vez y calificar desde cero.'),
-            const SizedBox(height: 8),
+            const SizedBox(height: Espacio.s),
             CheckboxListTile(
               value: _entiendo,
               onChanged: (v) => setState(() => _entiendo = v ?? false),
@@ -94,7 +95,7 @@ class _Punto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.only(bottom: Espacio.xs),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [const Text('•  '), Expanded(child: Text(texto))],

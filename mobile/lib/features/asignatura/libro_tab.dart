@@ -10,6 +10,7 @@ import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
 import 'parcial_cerrado.dart';
 import 'plan_tab.dart';
+import '../../theme/tokens.dart';
 
 /// Nota mínima para aprobar en SACE. Ver docs/formato-sace.md.
 const notaAprobacion = 70;
@@ -28,6 +29,13 @@ class LibroTab extends ConsumerWidget {
         icono: Icons.groups_outlined,
         titulo: 'Sin alumnos',
         mensaje: 'El cuadro de SACE no trae alumnos activos.',
+      );
+    }
+    if (plan.actividades.isEmpty) {
+      return const EstadoVacio(
+        icono: Icons.table_chart_outlined,
+        titulo: 'Todavía no hay notas',
+        mensaje: 'Crea actividades en la pestaña Actividades: cada una es una columna de este libro.',
       );
     }
     final resultado = calcularParcial(plan);
@@ -63,7 +71,7 @@ class _Encabezado extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(Espacio.l),
       child: Wrap(
         spacing: 24,
         runSpacing: 12,
@@ -154,7 +162,7 @@ class _ListaAlumnos extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     return ListView.separated(
-      padding: const EdgeInsets.only(bottom: 48),
+      padding: const EdgeInsets.only(bottom: Espacio.xxxl),
       itemCount: plan.alumnos.length,
       separatorBuilder: (_, _) => const Divider(height: 1, thickness: 1),
       itemBuilder: (context, i) {
@@ -198,7 +206,7 @@ class _Desglose extends StatelessWidget {
         constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.75),
         child: ListView(
           shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.l),
           children: [
             Row(
               children: [
@@ -208,10 +216,10 @@ class _Desglose extends StatelessWidget {
             ),
             Text('${formatoPuntos(nota.obtenidos)} pts obtenidos · ${nota.inasistencias} faltas',
                 style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
-            const SizedBox(height: 12),
+            const SizedBox(height: Espacio.m),
             for (final rubro in plan.rubros) ...[
               Padding(
-                padding: const EdgeInsets.only(top: 12, bottom: 4),
+                padding: const EdgeInsets.only(top: Espacio.m, bottom: Espacio.xs),
                 child: Text(rubro.nombre.toUpperCase(), style: text.labelSmall),
               ),
               for (final a in plan.actividades.where((a) => a.rubroId == rubro.id))
@@ -285,7 +293,7 @@ class _TablaState extends ConsumerState<_Tabla> {
     final cabecera = text.labelMedium?.copyWith(fontWeight: FontWeight.w600);
 
     Widget celda(double w, Widget child, {Alignment align = Alignment.centerRight}) =>
-        SizedBox(width: w, child: Align(alignment: align, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: child)));
+        SizedBox(width: w, child: Align(alignment: align, child: Padding(padding: const EdgeInsets.symmetric(horizontal: Espacio.s), child: child)));
 
     // Virtualizada: sólo se construyen las filas visibles. Con DataTable, una sección de 45
     // alumnos y 40 actividades eran 1,800 campos a la vez y la web se trababa.
@@ -330,7 +338,7 @@ class _TablaState extends ConsumerState<_Tabla> {
               const Divider(height: 2),
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.only(bottom: 48),
+                  padding: const EdgeInsets.only(bottom: Espacio.xxxl),
                   itemExtent: _altoFila,
                   itemCount: plan.alumnos.length,
                   itemBuilder: (context, i) {
@@ -447,7 +455,9 @@ class _CeldaNotaState extends ConsumerState<_CeldaNota> {
       width: 64,
       child: Tooltip(
         message: _error ? 'Entre 0 y ${formatoPuntos(widget.actividad.puntos)}' : '',
-        child: TextField(
+        child: Semantics(
+          label: '${widget.alumno.nombre}, ${widget.actividad.titulo}',
+          child: TextField(
           controller: _texto,
           focusNode: widget.foco,
           enabled: !widget.plan.cerrado,
@@ -461,7 +471,7 @@ class _CeldaNotaState extends ConsumerState<_CeldaNota> {
           decoration: InputDecoration(
             isDense: true,
             hintText: '—',
-            contentPadding: const EdgeInsets.symmetric(vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(vertical: Espacio.s),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.zero,
               borderSide: BorderSide(color: _error ? scheme.error : scheme.outlineVariant, width: _error ? 2 : 1),
@@ -473,6 +483,7 @@ class _CeldaNotaState extends ConsumerState<_CeldaNota> {
           ),
           onChanged: _guardar,
           onSubmitted: (_) => widget.siguiente == null ? widget.foco.unfocus() : widget.siguiente!.requestFocus(),
+        ),
         ),
       ),
     );
@@ -499,24 +510,24 @@ Future<void> cerrarParcial(BuildContext context, WidgetRef ref, PlanParcial plan
                 'La nota de cada alumno${plan.parcial.inasistenciasClave != null ? ' y sus faltas' : ''} '
                 'pasan al cuadro de SACE, listas para exportar. Puedes reabrir el parcial si necesitas corregir.',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Espacio.l),
               if (advertencias.isEmpty)
                 const Row(children: [
                   Icon(Icons.check_circle_outline),
-                  SizedBox(width: 8),
+                  SizedBox(width: Espacio.s),
                   Expanded(child: Text('Todo en orden.')),
                 ])
               else ...[
                 Text('ANTES DE CERRAR, REVISA', style: text.labelSmall),
-                const SizedBox(height: 8),
+                const SizedBox(height: Espacio.s),
                 for (final a in advertencias)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.only(bottom: Espacio.s),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Icon(Icons.warning_amber, size: 20, color: Theme.of(context).colorScheme.error),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: Espacio.s),
                         Expanded(child: Text(a)),
                       ],
                     ),

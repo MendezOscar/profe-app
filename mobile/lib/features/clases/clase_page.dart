@@ -11,6 +11,9 @@ import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../ui/barra_teclado.dart';
 import 'eliminar_clase.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 /// El cuadro de SACE tal cual: captura directa de sus columnas, una a la vez, y exportar.
 /// Lo normal es que NOTA TOTAL e INASISTENCIAS lleguen al cerrar el parcial; aquí se
@@ -28,8 +31,8 @@ class ClasePage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final clase = ref.watch(claseProvider(claseId));
     return clase.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, _) => Scaffold(appBar: AppBar(), body: Center(child: Text('$error'))),
+      loading: () => const EsqueletoPagina(),
+      error: (error, _) => PaginaError(error: error, reintentar: () => ref.invalidate(claseProvider(claseId))),
       data: (detalle) => _Captura(detalle: detalle),
     );
   }
@@ -250,11 +253,11 @@ class _CapturaState extends ConsumerState<_Captura> {
                   height: 56,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: Espacio.m, vertical: 6),
                     children: [
                       for (final (i, columna) in _clase.columnas.indexed)
                         Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.only(right: Espacio.s),
                           child: ChoiceChip(
                             selected: i == _columna,
                             label: Text('${columna.titulo}  ${_capturados(columna.clave)}/${_clase.alumnos.length}'),
@@ -272,7 +275,7 @@ class _CapturaState extends ConsumerState<_Captura> {
                   child: ListView.builder(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     key: ValueKey(_columna),
-                    padding: const EdgeInsets.only(bottom: 48),
+                    padding: const EdgeInsets.only(bottom: Espacio.xxxl),
                     itemCount: _clase.alumnos.length,
                     itemBuilder: (context, i) {
                       final alumno = _clase.alumnos[i];
@@ -284,7 +287,9 @@ class _CapturaState extends ConsumerState<_Captura> {
                         subtitle: Text(alumno.identidad, style: text.bodySmall),
                         trailing: SizedBox(
                           width: 76,
-                          child: TextField(
+                          child: Semantics(
+          label: '${alumno.nombre}, ${_clase.columnas[_columna].titulo}',
+          child: TextField(
                             controller: _controllers[i],
                             focusNode: _focus[i],
                             keyboardType: TextInputType.number,
@@ -299,6 +304,7 @@ class _CapturaState extends ConsumerState<_Captura> {
                             onChanged: (value) => _guardar(alumno, value),
                             onSubmitted: (_) => ultimo ? _focus[i].unfocus() : _focus[i + 1].requestFocus(),
                           ),
+        ),
                         ),
                       );
                     },
@@ -350,7 +356,7 @@ class _Tabla extends StatelessWidget {
     Widget encabezado(String texto, double w, {TextStyle? estilo, Alignment alineado = Alignment.center}) => Container(
           width: w,
           alignment: alineado,
-          padding: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.symmetric(horizontal: Espacio.s),
           decoration: BoxDecoration(border: Border(left: borde)),
           child: Text(texto, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: estilo),
         );
@@ -364,7 +370,7 @@ class _Tabla extends StatelessWidget {
             children: [
               Container(
                 color: scheme.surfaceContainerHigh,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: Espacio.l),
                 child: Column(
                   children: [
                     SizedBox(
@@ -400,13 +406,13 @@ class _Tabla extends StatelessWidget {
               Expanded(
                 child: ListView.builder(
                   keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                  padding: const EdgeInsets.only(bottom: 48),
+                  padding: const EdgeInsets.only(bottom: Espacio.xxxl),
                   itemExtent: _fila,
                   itemCount: total,
                   itemBuilder: (context, i) {
                     final alumno = clase.alumnos[i];
                     return Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: Espacio.l),
                       decoration: BoxDecoration(
                         color: i.isOdd ? scheme.surfaceContainerLowest : null,
                         border: Border(bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5))),
@@ -431,10 +437,11 @@ class _Tabla extends StatelessWidget {
                           for (final (j, c) in columnas.indexed)
                             Container(
                               width: _celda,
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: Espacio.m, vertical: 6),
                               decoration: BoxDecoration(border: Border(left: borde)),
                               child: _Celda(
                                 key: ValueKey('${alumno.id}|${c.clave}'),
+                                etiqueta: '${alumno.nombre}, ${c.titulo}',
                                 valor: valores[alumno.id]?[c.clave],
                                 foco: foco(i, j),
                                 siguiente: i + 1 < total ? foco(i + 1, j) : null,
@@ -456,7 +463,17 @@ class _Tabla extends StatelessWidget {
 }
 
 class _Celda extends StatefulWidget {
-  const _Celda({super.key, required this.valor, required this.foco, required this.siguiente, required this.guardar});
+  const _Celda({
+    super.key,
+    required this.etiqueta,
+    required this.valor,
+    required this.foco,
+    required this.siguiente,
+    required this.guardar,
+  });
+
+  /// Lo que lee el lector de pantalla: alumno y columna.
+  final String etiqueta;
 
   final int? valor;
   final FocusNode foco;
@@ -487,7 +504,9 @@ class _CeldaState extends State<_Celda> {
   @override
   Widget build(BuildContext context) => Tooltip(
         message: _error ?? '',
-        child: TextField(
+        child: Semantics(
+          label: widget.etiqueta,
+          child: TextField(
           controller: _texto,
           focusNode: widget.foco,
           keyboardType: TextInputType.number,
@@ -507,6 +526,7 @@ class _CeldaState extends State<_Celda> {
             if (mounted && error != _error) setState(() => _error = error);
           },
           onSubmitted: (_) => widget.siguiente == null ? widget.foco.unfocus() : widget.siguiente!.requestFocus(),
+        ),
         ),
       );
 }

@@ -7,6 +7,9 @@ import '../../core/avisos/recordatorio.dart';
 import '../../core/preferencias.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 /// Campana del inicio con el número de avisos pendientes.
 class BotonAvisos extends ConsumerWidget {
@@ -43,17 +46,17 @@ class AvisosPage extends ConsumerWidget {
         title: const Text('Avisos'),
       ),
       body: avisos.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('$error')),
+        loading: () => const EsqueletoLista(filas: 5, conTarjeta: true),
+        error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(todosLosAvisosProvider)),
         data: (lista) => ContenidoCentrado(
           maxAncho: 720,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+            padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.l, Espacio.xxl),
             children: [
               if (Recordatorio.disponible) const _Recordatorio(),
               if (lista.isEmpty)
                 const Padding(
-                  padding: EdgeInsets.only(top: 48),
+                  padding: EdgeInsets.only(top: Espacio.xxxl),
                   child: EstadoVacio(
                     icono: Icons.task_alt,
                     titulo: 'Estás al día',
@@ -79,9 +82,9 @@ class _TarjetaAviso extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final scheme = Theme.of(context).colorScheme;
     return Card(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: const EdgeInsets.only(bottom: Espacio.s),
       child: ListTile(
-        contentPadding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
+        contentPadding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.xs, Espacio.s),
         leading: Icon(aviso.tipo.icono, color: aviso.urgente ? scheme.error : scheme.primary),
         title: Text(aviso.titulo, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(aviso.detalle),
@@ -103,7 +106,7 @@ class _Recordatorio extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final activo = ref.watch(banderaProvider(Bandera.recordatorio));
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: Espacio.l),
       child: SwitchListTile(
         value: activo,
         title: const Text('Recordatorio a las 5:00 p. m.'),

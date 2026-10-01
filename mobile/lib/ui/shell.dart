@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/profeapp_theme.dart';
+import 'estado_error.dart';
 import 'indicador_sync.dart';
 
 /// Anchos de Material 3: compacto (teléfono), medio (tablet) y expandido (escritorio).
@@ -55,7 +56,7 @@ class ShellAdaptativo extends StatelessWidget {
 
     if (ancho == Ancho.compacto) {
       return Scaffold(
-        body: child,
+        body: Column(children: [Expanded(child: child), const AvisoSinConexion()]),
         bottomNavigationBar: _esRaiz
             ? NavigationBar(
                 selectedIndex: _indice,
@@ -83,7 +84,7 @@ class ShellAdaptativo extends StatelessWidget {
             onDestinationSelected: ir,
             labelType: extendido ? NavigationRailLabelType.none : NavigationRailLabelType.all,
             leading: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: const EdgeInsets.symmetric(vertical: Espacio.l),
               child: extendido
                   ? Image.asset('assets/brand/logo-azul.png', height: 32, semanticLabel: 'ProfeApp')
                   : Image.asset('assets/brand/simbolo-1024.png', height: 40, semanticLabel: 'ProfeApp'),
@@ -92,7 +93,7 @@ class ShellAdaptativo extends StatelessWidget {
               child: Align(
                 alignment: Alignment.bottomCenter,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.only(bottom: Espacio.l),
                   child: IndicadorSync(conTexto: extendido),
                 ),
               ),
@@ -104,7 +105,7 @@ class ShellAdaptativo extends StatelessWidget {
             ],
           ),
           const VerticalDivider(width: 2),
-          Expanded(child: child),
+          Expanded(child: Column(children: [Expanded(child: child), const AvisoSinConexion()])),
         ],
       ),
     );

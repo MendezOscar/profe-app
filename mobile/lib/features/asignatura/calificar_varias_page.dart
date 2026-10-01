@@ -10,6 +10,9 @@ import '../../core/sync/sync_controller.dart';
 import '../../ui/barra_teclado.dart';
 import '../../ui/shell.dart';
 import 'plan_tab.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 /// Varias actividades calificadas de una pasada: cuando el docente revisa el cuaderno y
 /// aprovecha para poner las notas atrasadas. Dos modos: una nota por actividad, o una
@@ -25,8 +28,8 @@ class CalificarVariasPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plan = ref.watch(planProvider((claseId, parcial)));
     return plan.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, _) => Scaffold(appBar: AppBar(), body: Center(child: Text('$error'))),
+      loading: () => const EsqueletoPagina(),
+      error: (error, _) => PaginaError(error: error, reintentar: () => ref.invalidate(planProvider((claseId, parcial)))),
       data: (plan) {
         final actividades = [
           for (final a in plan.actividades)
@@ -233,7 +236,7 @@ class _CapturaState extends ConsumerState<_Captura> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.l, 0),
               child: Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -242,7 +245,7 @@ class _CapturaState extends ConsumerState<_Captura> {
                     Chip(
                       avatar: CircleAvatar(
                         backgroundColor: scheme.primary,
-                        child: Text('${i + 1}', style: TextStyle(color: scheme.onPrimary, fontSize: 12)),
+                        child: Text('${i + 1}', style: Theme.of(context).textTheme.labelMedium?.copyWith(color: scheme.onPrimary)),
                       ),
                       label: Text('${a.titulo} · ${formatoPuntos(a.puntos)} pts'),
                     ),
@@ -250,7 +253,7 @@ class _CapturaState extends ConsumerState<_Captura> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.l, Espacio.xs),
               child: SegmentedButton<bool>(
                 style: SegmentedButton.styleFrom(shape: const RoundedRectangleBorder()),
                 segments: const [
@@ -262,7 +265,7 @@ class _CapturaState extends ConsumerState<_Captura> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.xs, Espacio.l, Espacio.s),
               child: Text(
                 _combinada
                     ? 'Escribe la nota sobre ${formatoPuntos(_total)}; se reparte según lo que vale cada actividad. '
@@ -274,7 +277,7 @@ class _CapturaState extends ConsumerState<_Captura> {
             ),
             if (_plan.cerrado)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.s),
                 child: Text('El parcial está cerrado. Reábrelo desde el plan para corregir notas.',
                     style: text.bodySmall?.copyWith(color: scheme.error)),
               ),
@@ -282,7 +285,7 @@ class _CapturaState extends ConsumerState<_Captura> {
             Expanded(
               child: ListView.separated(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.only(bottom: 48),
+                padding: const EdgeInsets.only(bottom: Espacio.xxxl),
                 itemCount: _plan.alumnos.length,
                 separatorBuilder: (_, _) => const Divider(height: 1, thickness: 1),
                 itemBuilder: (context, i) => _fila(context, i),
@@ -304,7 +307,9 @@ class _CapturaState extends ConsumerState<_Captura> {
       final ultimo = ultimoAlumno && (actividad == null || indice == _actividades.length - 1);
       final caja = SizedBox(
         width: actividad == null ? 120 : 84,
-        child: TextField(
+        child: Semantics(
+          label: '${alumno.nombre}, ${actividad?.titulo ?? 'nota combinada'}',
+          child: TextField(
           controller: _campo(alumno.id, actividad?.id),
           focusNode: _foco(alumno.id, actividad?.id),
           enabled: !_plan.cerrado,
@@ -317,10 +322,11 @@ class _CapturaState extends ConsumerState<_Captura> {
             hintText: '—',
             suffixText: '/${formatoPuntos(maximo)}',
             errorText: _errores.contains(_clave(alumno.id, actividad?.id)) ? '0–${formatoPuntos(maximo)}' : null,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: Espacio.s, vertical: 10),
           ),
           onChanged: (v) => _escribir(alumno, actividad, v),
           onSubmitted: (_) => _siguiente(i, indice),
+        ),
         ),
       );
       if (actividad == null) return caja;
@@ -335,10 +341,10 @@ class _CapturaState extends ConsumerState<_Captura> {
             child: CircleAvatar(
               radius: 11,
               backgroundColor: scheme.primary,
-              child: Text('${indice + 1}', style: TextStyle(color: scheme.onPrimary, fontSize: 12)),
+              child: Text('${indice + 1}', style: Theme.of(context).textTheme.labelMedium?.copyWith(color: scheme.onPrimary)),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: Espacio.s),
           caja,
         ],
       );
@@ -359,7 +365,7 @@ class _CapturaState extends ConsumerState<_Captura> {
 
     // En pantallas anchas todo en una línea; en el teléfono los campos bajan debajo del nombre.
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: Espacio.l, vertical: 10),
       child: LayoutBuilder(
         builder: (context, c) {
           final enLinea = _combinada || c.maxWidth >= 280 + campos.length * 124;
@@ -367,8 +373,8 @@ class _CapturaState extends ConsumerState<_Captura> {
             return Row(
               children: [
                 Expanded(child: nombre),
-                const SizedBox(width: 8),
-                ...[for (final w in campos) Padding(padding: const EdgeInsets.only(left: 8), child: w)],
+                const SizedBox(width: Espacio.s),
+                ...[for (final w in campos) Padding(padding: const EdgeInsets.only(left: Espacio.s), child: w)],
               ],
             );
           }
@@ -376,9 +382,9 @@ class _CapturaState extends ConsumerState<_Captura> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               nombre,
-              const SizedBox(height: 8),
+              const SizedBox(height: Espacio.s),
               Padding(
-                padding: const EdgeInsets.only(left: 28),
+                padding: const EdgeInsets.only(left: Espacio.xxl),
                 child: Wrap(spacing: 16, runSpacing: 8, children: campos),
               ),
             ],

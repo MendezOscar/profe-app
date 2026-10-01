@@ -10,6 +10,9 @@ import 'actividades_tab.dart';
 import 'estadisticas_tab.dart';
 import 'libro_tab.dart';
 import 'plan_tab.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 /// Una asignatura (un cuadro de SACE) trabajada por parcial: el plan de puntos, las
 /// actividades y el libro de notas. El cuadro original queda a un toque para exportar.
@@ -40,8 +43,8 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
     final scheme = Theme.of(context).colorScheme;
 
     return parciales.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, _) => Scaffold(appBar: AppBar(), body: Center(child: Text('$error'))),
+      loading: () => const EsqueletoPagina(),
+      error: (error, _) => PaginaError(error: error, reintentar: () => ref.invalidate(parcialesProvider(widget.claseId))),
       data: (lista) {
         final actual = _elegido(lista);
         return DefaultTabController(
@@ -136,11 +139,11 @@ class _SelectorParcial extends StatelessWidget {
       height: 64,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: Espacio.l, vertical: Espacio.m),
         children: [
           for (final p in parciales)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: Espacio.s),
               child: ChoiceChip(
                 label: Text(p.titulo),
                 selected: p.clave == actual.clave,
@@ -164,8 +167,8 @@ class _Contenido extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plan = ref.watch(planProvider((claseId, parcial.clave)));
     return plan.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, _) => Center(child: Text('$error')),
+      loading: () => const EsqueletoLista(),
+      error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(planProvider((claseId, parcial.clave)))),
       data: (plan) => TabBarView(
         children: [
           PlanTab(plan: plan, parciales: parciales),

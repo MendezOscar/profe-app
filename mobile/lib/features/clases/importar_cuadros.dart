@@ -7,6 +7,7 @@ import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../core/sace/hoja.dart';
 import '../../core/sync/sync_controller.dart';
+import '../../theme/tokens.dart';
 
 /// Importa uno o varios cuadros de SACE: cada archivo es una asignatura del periodo.
 /// Reimportar un cuadro ya importado lo actualiza sin perder lo capturado. Al final
@@ -124,18 +125,18 @@ class _ElegirPlantilla extends StatelessWidget {
         constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
         child: ListView(
           shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.l),
           children: [
             Text('¿Aplicar una rúbrica de evaluación?', style: text.titleLarge),
-            const SizedBox(height: 4),
+            const SizedBox(height: Espacio.xs),
             Text(
               mensaje,
               style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Espacio.l),
             for (final p in plantillas)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: Espacio.s),
                 child: Card(
                   child: ListTile(
                     onTap: () => Navigator.pop(context, p),
@@ -145,7 +146,7 @@ class _ElegirPlantilla extends StatelessWidget {
                   ),
                 ),
               ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Espacio.s),
             OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Ahora no, lo armo después')),
           ],
         ),

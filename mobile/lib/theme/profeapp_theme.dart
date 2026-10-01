@@ -3,6 +3,10 @@
 // google_fonts, que la descarga al abrir la app y sin señal caería a otra fuente.
 import 'package:flutter/material.dart';
 
+import 'tokens.dart';
+
+export 'tokens.dart';
+
 class ProfeColors {
   static const azul = Color(0xFF2B59C3);
   static const azulHover = Color(0xFF234AA6);
@@ -13,6 +17,17 @@ class ProfeColors {
   static const fondo = Color(0xFFF5F7FB);
   static const superficie2 = Color(0xFFEAEFF8);
   static const blanco = Color(0xFFFFFFFF);
+
+  // Fuera del kit de marca: grises azulados para bordes suaves y superficies, en lugar de
+  // los violetas que Material 3 pone por defecto. Contrastes en tokens.dart.
+  static const bordeSuave = Color(0xFFC9D2E3);
+  static const superficie3 = Color(0xFFE1E8F4);
+  static const superficie4 = Color(0xFFD8E0EF);
+  static const rojo = Color(0xFFB3261E);
+  static const rojoSuave = Color(0xFFFBE9E7);
+  static const verde = Color(0xFF1E7B4A);
+  static const verdeSuave = Color(0xFFE3F4EA);
+  static const amarillo = Color(0xFFFFE08A);
 }
 
 ThemeData profeTheme() {
@@ -25,8 +40,17 @@ ThemeData profeTheme() {
     onSecondary: ProfeColors.blanco,
     surface: ProfeColors.blanco,
     onSurface: ProfeColors.marino,
+    onSurfaceVariant: ProfeColors.textoSuave,
     outline: ProfeColors.marino,
-    error: Color(0xFFB3261E),
+    outlineVariant: ProfeColors.bordeSuave,
+    surfaceContainerLowest: ProfeColors.blanco,
+    surfaceContainerLow: ProfeColors.fondo,
+    surfaceContainer: ProfeColors.superficie2,
+    surfaceContainerHigh: ProfeColors.superficie3,
+    surfaceContainerHighest: ProfeColors.superficie4,
+    error: ProfeColors.rojo,
+    errorContainer: ProfeColors.rojoSuave,
+    onErrorContainer: ProfeColors.rojo,
   );
   const square = RoundedRectangleBorder(borderRadius: BorderRadius.zero);
   final text = ThemeData.light().textTheme.apply(
@@ -42,7 +66,23 @@ ThemeData profeTheme() {
       titleLarge: text.titleLarge?.copyWith(fontWeight: FontWeight.w800),
       titleMedium: text.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       labelSmall: text.labelSmall?.copyWith(fontWeight: FontWeight.w600, letterSpacing: 1.1),
+      // Interlineado amplio para leer listas largas de nombres en el teléfono.
+      bodyLarge: text.bodyLarge?.copyWith(height: 1.45),
+      bodyMedium: text.bodyMedium?.copyWith(height: 1.4),
+      bodySmall: text.bodySmall?.copyWith(height: 1.35, color: ProfeColors.textoSuave),
     ),
+    extensions: const [
+      ColoresEstado(
+        exito: ProfeColors.verde,
+        enExito: ProfeColors.blanco,
+        exitoSuave: ProfeColors.verdeSuave,
+        advertencia: ProfeColors.amarillo,
+        enAdvertencia: ProfeColors.marino,
+        riesgo: ProfeColors.rojo,
+        riesgoSuave: ProfeColors.rojoSuave,
+        esqueleto: ProfeColors.superficie3,
+      ),
+    ],
     appBarTheme: const AppBarTheme(
       backgroundColor: ProfeColors.fondo, foregroundColor: ProfeColors.marino,
       elevation: 0, scrolledUnderElevation: 0, centerTitle: false,

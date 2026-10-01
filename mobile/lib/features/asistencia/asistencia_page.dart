@@ -7,6 +7,9 @@ import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 /// Elegir la asignatura para pasar lista.
 class AsistenciaPage extends ConsumerWidget {
@@ -18,8 +21,8 @@ class AsistenciaPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Pasar lista')),
       body: clases.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('$error')),
+        loading: () => const EsqueletoLista(filas: 4, conTarjeta: true),
+        error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(clasesProvider)),
         data: (lista) => lista.isEmpty
             ? EstadoVacio(
                 icono: Icons.fact_check_outlined,
@@ -30,9 +33,9 @@ class AsistenciaPage extends ConsumerWidget {
             : ContenidoCentrado(
                 maxAncho: 720,
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(Espacio.l),
                   itemCount: lista.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
+                  separatorBuilder: (_, _) => const SizedBox(height: Espacio.s),
                   itemBuilder: (context, i) {
                     final c = lista[i];
                     return Card(
@@ -93,8 +96,8 @@ class _PasarListaPageState extends ConsumerState<PasarListaPage> {
         ),
       ),
       body: parciales.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('$error')),
+        loading: () => const EsqueletoLista(),
+        error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(parcialesProvider(widget.claseId))),
         data: (lista) {
           if (lista.isEmpty) {
             return const EstadoVacio(
@@ -106,8 +109,11 @@ class _PasarListaPageState extends ConsumerState<PasarListaPage> {
           final parcial = lista.where((p) => p.clave == _parcial).firstOrNull ?? lista.first;
           final plan = ref.watch(planProvider((widget.claseId, parcial.clave)));
           return plan.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (error, _) => Center(child: Text('$error')),
+            loading: () => const EsqueletoLista(),
+            error: (error, _) => EstadoError(
+              error: error,
+              reintentar: () => ref.invalidate(planProvider((widget.claseId, parcial.clave))),
+            ),
             data: (plan) {
               // Al entrar, el parcial en curso: el primero sin cerrar.
               if (_parcial == null && plan.cerrado && lista.length > 1) {
@@ -190,11 +196,11 @@ class _Lista extends ConsumerWidget {
             height: 56,
             child: ListView(
               scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.l, 0),
               children: [
                 for (final p in parciales)
                   Padding(
-                    padding: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.only(right: Espacio.s),
                     child: ChoiceChip(
                       label: Text(p.titulo),
                       selected: p.clave == plan.parcial.clave,
@@ -205,7 +211,7 @@ class _Lista extends ConsumerWidget {
             ),
           ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
+          padding: const EdgeInsets.fromLTRB(Espacio.s, Espacio.s, Espacio.s, 0),
           child: Row(
             children: [
               IconButton(
@@ -249,7 +255,7 @@ class _Lista extends ConsumerWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+          padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.xs, Espacio.l, Espacio.m),
           child: Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -263,32 +269,35 @@ class _Lista extends ConsumerWidget {
         if (sesion == null && !plan.cerrado)
           Container(
             color: scheme.primaryContainer,
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+            padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.l, Espacio.m),
             child: Row(
               children: [
                 Expanded(
                   child: Text('Todavía no pasas lista este día. Marca solo a los que faltan.',
                       style: TextStyle(color: scheme.onPrimaryContainer)),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: Espacio.s),
                 FilledButton(onPressed: tomarLista, child: const Text('Todos presentes')),
               ],
             ),
           ),
         if (plan.cerrado)
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(Espacio.l),
             child: Text('${plan.parcial.titulo} está cerrado. Reábrelo para cambiar la asistencia.',
                 style: text.bodySmall?.copyWith(color: scheme.error)),
           ),
         Expanded(
           child: ListView.builder(
-            padding: const EdgeInsets.only(bottom: 48),
+            padding: const EdgeInsets.only(bottom: Espacio.xxxl),
             itemCount: plan.alumnos.length,
             itemBuilder: (context, i) {
               final alumno = plan.alumnos[i];
               final estado = estados[alumno.id] ?? EstadoAsistencia.presente;
-              return ListTile(
+              return Semantics(
+                onTapHint: 'marcar ${estado.siguiente.etiqueta.toLowerCase()}',
+                onLongPressHint: 'elegir el estado',
+                child: ListTile(
                 enabled: !plan.cerrado,
                 leading: Text('${i + 1}', style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
                 minLeadingWidth: 24,
@@ -317,6 +326,7 @@ class _Lista extends ConsumerWidget {
                   );
                   if (elegido != null) await marcar(alumno, elegido);
                 },
+              ),
               );
             },
           ),
@@ -338,7 +348,7 @@ class _Lista extends ConsumerWidget {
             shrinkWrap: true,
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.s),
                 child: Text('Listas de ${plan.parcial.titulo}', style: Theme.of(context).textTheme.titleLarge),
               ),
               for (final s in plan.sesiones)
@@ -376,10 +386,11 @@ class _ChipEstado extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final estados = ColoresEstado.of(context);
     final (fondo, texto) = switch (estado) {
       EstadoAsistencia.presente => (scheme.primaryContainer, scheme.onPrimaryContainer),
       EstadoAsistencia.ausente => (scheme.error, scheme.onError),
-      EstadoAsistencia.tarde => (const Color(0xFFFFE08A), scheme.onSurface),
+      EstadoAsistencia.tarde => (estados.advertencia, estados.enAdvertencia),
       EstadoAsistencia.justificada => (scheme.secondary, scheme.onSecondary),
     };
     return Semantics(
@@ -387,7 +398,7 @@ class _ChipEstado extends StatelessWidget {
       excludeSemantics: true,
       child: Container(
         width: 104,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: Espacio.s),
         color: fondo,
         alignment: Alignment.center,
         child: Text(estado.etiqueta, style: TextStyle(color: texto, fontWeight: FontWeight.w600)),

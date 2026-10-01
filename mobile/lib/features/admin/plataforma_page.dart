@@ -7,6 +7,9 @@ import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
 import 'admin_comun.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 final institucionesProvider = FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) => ref
     .watch(apiClientProvider)
@@ -32,7 +35,7 @@ class PlataformaPage extends ConsumerWidget {
       body: ContenidoCentrado(
         maxAncho: 1100,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
+          padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.xxxl),
           children: [
             Wrap(
               spacing: 12,
@@ -54,12 +57,15 @@ class PlataformaPage extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Espacio.xl),
             Text('CENTROS', style: text.labelSmall),
-            const SizedBox(height: 8),
+            const SizedBox(height: Espacio.s),
             instituciones.when(
-              loading: () => const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator())),
-              error: (e, _) => Text(e is ApiException ? e.message : '$e'),
+              loading: () => const SizedBox(height: 320, child: EsqueletoLista(filas: 4, conTarjeta: true)),
+              error: (e, _) => SizedBox(
+                height: 360,
+                child: EstadoError(error: e, reintentar: () => ref.invalidate(institucionesProvider)),
+              ),
               data: (lista) => lista.isEmpty
                   ? const EstadoVacio(
                       icono: Icons.apartment,
@@ -71,7 +77,7 @@ class PlataformaPage extends ConsumerWidget {
                       children: [
                         for (final i in lista)
                           Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.only(bottom: Espacio.s),
                             child: Card(
                               child: ListTile(
                                 title: Text('${i['nombre']}', style: text.titleMedium),
@@ -199,7 +205,7 @@ class _FormCentroState extends ConsumerState<_FormCentro> {
                     decoration: const InputDecoration(labelText: 'Nombre del centro'),
                     validator: (v) => (v?.trim().isEmpty ?? true) ? 'Escribe el nombre' : null,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Espacio.m),
                 ],
                 DropdownButtonFormField<String>(
                   initialValue: _plan,
@@ -210,7 +216,7 @@ class _FormCentroState extends ConsumerState<_FormCentro> {
                     _cupo.text = '${_cupoSugerido[p]}';
                   }),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: Espacio.m),
                 Row(
                   children: [
                     Expanded(
@@ -222,7 +228,7 @@ class _FormCentroState extends ConsumerState<_FormCentro> {
                         validator: (v) => (int.tryParse(v ?? '') ?? 0) < 1 ? 'Mínimo 1' : null,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: Espacio.m),
                     Expanded(
                       child: InkWell(
                         onTap: () async {
@@ -243,16 +249,16 @@ class _FormCentroState extends ConsumerState<_FormCentro> {
                   ],
                 ),
                 if (_nuevo) ...[
-                  const SizedBox(height: 20),
+                  const SizedBox(height: Espacio.xl),
                   Text('ADMINISTRADOR DEL CENTRO', style: Theme.of(context).textTheme.labelSmall),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: Espacio.s),
                   TextFormField(
                     controller: _adminNombre,
                     textCapitalization: TextCapitalization.words,
                     decoration: const InputDecoration(labelText: 'Nombre (director, coordinador…)'),
                     validator: (v) => (v?.trim().isEmpty ?? true) ? 'Escribe el nombre' : null,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Espacio.m),
                   TextFormField(
                     controller: _adminCorreo,
                     keyboardType: TextInputType.emailAddress,
@@ -268,7 +274,7 @@ class _FormCentroState extends ConsumerState<_FormCentro> {
                     onChanged: (v) => setState(() => _activa = v),
                   ),
                 if (_error != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Espacio.m),
                   Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ],
               ],

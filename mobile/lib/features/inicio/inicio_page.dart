@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/planes/estadisticas.dart';
 import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
@@ -9,8 +10,12 @@ import '../../ui/barra_puntos.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/indicador_sync.dart';
 import '../../ui/shell.dart';
+import '../../core/avisos/avisos.dart';
 import '../avisos/avisos_page.dart';
 import '../clases/importar_cuadros.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 /// Tablero del periodo: una tarjeta por asignatura (un cuadro de SACE importado) con
 /// su parcial en curso, cómo va el plan y qué falta calificar.
@@ -32,7 +37,7 @@ class InicioPage extends ConsumerWidget {
           if (compacto) const IndicadorSync(),
           if (hayClases && !compacto)
             Padding(
-              padding: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.only(right: Espacio.l),
               child: FilledButton.icon(
                 onPressed: () => importarCuadros(context, ref),
                 icon: const Icon(Icons.upload_file),
@@ -50,8 +55,8 @@ class InicioPage extends ConsumerWidget {
             )
           : null,
       body: tablero.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('No se pudo abrir la base local: $error')),
+        loading: () => const EsqueletoTarjetas(),
+        error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(tableroProvider)),
         data: (avances) => avances.isEmpty
             ? EstadoVacio(
                 icono: Icons.upload_file_outlined,
@@ -68,14 +73,15 @@ class InicioPage extends ConsumerWidget {
                 onRefresh: () => ref.read(syncControllerProvider.notifier).sincronizar(),
                 child: CustomScrollView(
                   slivers: [
+                    const SliverToBoxAdapter(child: _LoUrgente()),
                     SliverToBoxAdapter(child: _PrimerosPasos(avances: avances)),
                     SliverToBoxAdapter(child: _Resumen(avances: avances)),
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.l, Espacio.bajoBotonFlotante),
                       sliver: SliverGrid.builder(
                         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 440,
-                          mainAxisExtent: 236,
+                          mainAxisExtent: 252,
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),
@@ -118,12 +124,12 @@ class _PrimerosPasos extends ConsumerWidget {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, 0),
       child: Card(
         color: scheme.surface,
         shape: RoundedRectangleBorder(side: BorderSide(color: scheme.primary, width: 2)),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+          padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.s, Espacio.s),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -139,7 +145,7 @@ class _PrimerosPasos extends ConsumerWidget {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.only(right: 8, bottom: 4),
+                padding: const EdgeInsets.only(right: Espacio.s, bottom: Espacio.xs),
                 child: LinearProgressIndicator(
                   value: hechos / pasos.length,
                   minHeight: 6,
@@ -148,7 +154,7 @@ class _PrimerosPasos extends ConsumerWidget {
               ),
               for (final (hecho, titulo, detalle, ruta) in pasos)
                 ListTile(
-                  contentPadding: const EdgeInsets.only(right: 8),
+                  contentPadding: const EdgeInsets.only(right: Espacio.s),
                   leading: Icon(hecho ? Icons.check_box : Icons.check_box_outline_blank,
                       color: hecho ? scheme.primary : scheme.onSurfaceVariant),
                   title: Text(titulo,
@@ -181,7 +187,7 @@ class _Resumen extends StatelessWidget {
     final sinPlan = avances.where((a) => a.plan != null && a.plan!.rubros.isEmpty).length;
     final enRiesgo = avances.fold(0, (s, a) => s + (a.estadisticas?.enRiesgo.length ?? 0));
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.s),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
@@ -208,13 +214,13 @@ class _Dato extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: Espacio.m, vertical: Espacio.s),
       color: destacado ? scheme.primary : scheme.primaryContainer,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icono, size: 18, color: destacado ? scheme.onPrimary : scheme.primary),
-          const SizedBox(width: 6),
+          const SizedBox(width: Espacio.s),
           Text(texto,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   color: destacado ? scheme.onPrimary : scheme.onPrimaryContainer, fontWeight: FontWeight.w600)),
@@ -244,7 +250,7 @@ class _TarjetaAsignatura extends StatelessWidget {
       child: InkWell(
         onTap: () => context.go('/inicio/asignaturas/${clase.id}'),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(Espacio.l),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -256,7 +262,7 @@ class _TarjetaAsignatura extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(clase.asignatura, style: text.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: Espacio.xxs),
                         Text(
                           [clase.gradoSeccion, clase.jornada, '${clase.alumnos} alumnos']
                               .where((t) => t.isNotEmpty)
@@ -270,7 +276,7 @@ class _TarjetaAsignatura extends StatelessWidget {
                   ),
                   if (plan != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: Espacio.s, vertical: Espacio.xs),
                       color: plan.cerrado ? scheme.secondary : scheme.primary,
                       child: Text(
                         plan.cerrado ? 'Cerrado' : plan.parcial.titulo,
@@ -286,37 +292,50 @@ class _TarjetaAsignatura extends StatelessWidget {
                 Row(
                   children: [
                     Icon(Icons.warning_amber, size: 18, color: scheme.error),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: Espacio.s),
                     Expanded(child: Text('Sin plan de calificación', style: text.bodyMedium)),
                   ],
                 )
               else ...[
-                BarraPuntos(valor: resultado!.asignado, total: resultado.totalPlan, etiqueta: 'Actividades del plan'),
-                if (avance.estadisticas case final e? when e.promedio != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    [
-                      'Promedio ${e.promedio!.toStringAsFixed(1)}${plan.cerrado ? '' : ' %'}',
-                      if (e.enRiesgo.isNotEmpty) '${e.enRiesgo.length} en riesgo',
-                    ].join(' · '),
-                    style: text.bodySmall?.copyWith(
-                        color: e.enRiesgo.isNotEmpty ? scheme.error : scheme.onSurfaceVariant, fontWeight: FontWeight.w600),
+                // Lo primero que se lee: cómo va el grupo. El avance del plan, debajo y más chico.
+                if (avance.estadisticas case final e? when e.promedio != null)
+                  Row(
+                    children: [
+                      _Cifra(
+                        valor: e.promedio!.toStringAsFixed(plan.cerrado ? 1 : 0) + (plan.cerrado ? '' : ' %'),
+                        etiqueta: 'Promedio',
+                        alerta: e.promedio! < notaMinima,
+                      ),
+                      const SizedBox(width: Espacio.xl),
+                      _Cifra(valor: '${e.enRiesgo.length}', etiqueta: 'En riesgo', alerta: e.enRiesgo.isNotEmpty),
+                    ],
                   ),
-                ],
+                const SizedBox(height: Espacio.m),
+                BarraPuntos(valor: resultado!.asignado, total: resultado.totalPlan, etiqueta: 'Plan', alto: 6),
               ],
-              const SizedBox(height: 12),
+              const SizedBox(height: Espacio.m),
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      sinPlan
-                          ? 'Toca para armarlo'
-                          : pendientes == 0
-                              ? 'Todo calificado'
-                              : '$pendientes ${pendientes == 1 ? 'actividad' : 'actividades'} por calificar',
-                      style: text.bodySmall?.copyWith(
-                          color: pendientes > 0 ? scheme.primary : scheme.onSurfaceVariant,
-                          fontWeight: pendientes > 0 ? FontWeight.w600 : null),
+                    child: Row(
+                      children: [
+                        if (pendientes > 0 && !sinPlan) ...[
+                          Icon(Icons.edit_note, size: 20, color: scheme.primary),
+                          const SizedBox(width: Espacio.xs),
+                        ],
+                        Flexible(
+                          child: Text(
+                            sinPlan
+                                ? 'Toca para armarlo'
+                                : pendientes == 0
+                                    ? 'Todo calificado'
+                                    : '$pendientes por calificar',
+                            style: (pendientes > 0 ? text.labelLarge : text.bodySmall)?.copyWith(
+                                color: pendientes > 0 ? scheme.primary : scheme.onSurfaceVariant,
+                                fontWeight: pendientes > 0 ? FontWeight.w700 : null),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   TextButton.icon(
@@ -327,6 +346,89 @@ class _TarjetaAsignatura extends StatelessWidget {
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Un número grande con su etiqueta: lo que el docente busca al mirar la tarjeta.
+class _Cifra extends StatelessWidget {
+  const _Cifra({required this.valor, required this.etiqueta, this.alerta = false});
+
+  final String valor;
+  final String etiqueta;
+  final bool alerta;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      label: '$etiqueta: $valor',
+      excludeSemantics: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(valor,
+              style: text.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w800, color: alerta ? scheme.error : scheme.onSurface, height: 1.1)),
+          Text(etiqueta, style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lo primero de la pantalla: el aviso más importante, para resolverlo de un toque.
+/// El resto queda en la campana.
+class _LoUrgente extends ConsumerWidget {
+  const _LoUrgente();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final avisos = ref.watch(avisosProvider).valueOrNull ?? const <Aviso>[];
+    if (avisos.isEmpty) return const SizedBox.shrink();
+    final aviso = avisos.first;
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final acento = aviso.urgente ? scheme.error : scheme.primary;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, 0),
+      child: Material(
+        color: scheme.surfaceContainerLowest,
+        child: InkWell(
+          onTap: () => context.go(aviso.ruta ?? '/inicio/avisos'),
+          child: Container(
+            decoration: BoxDecoration(border: Border(left: BorderSide(color: acento, width: 4))),
+            padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.s, Espacio.m),
+            child: Row(
+              children: [
+                Icon(aviso.tipo.icono, color: acento),
+                const SizedBox(width: Espacio.m),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(aviso.titulo, style: text.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: Espacio.xxs),
+                      Text(aviso.detalle, style: text.bodySmall, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ],
+                  ),
+                ),
+                if (avisos.length > 1)
+                  Tooltip(
+                    message: 'Ver los ${avisos.length} avisos',
+                    child: TextButton(
+                      onPressed: () => context.go('/inicio/avisos'),
+                      child: Text('+${avisos.length - 1}'),
+                    ),
+                  )
+                else
+                  Icon(Icons.chevron_right, color: scheme.onSurfaceVariant),
+              ],
+            ),
           ),
         ),
       ),

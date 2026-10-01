@@ -8,6 +8,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/enlaces.dart';
 import '../../core/providers.dart';
 import '../auth/cambiar_clave_dialog.dart';
+import '../../theme/tokens.dart';
 
 /// Nombres de los planes institucionales, como en la página de precios.
 const planesCentro = {
@@ -33,12 +34,12 @@ Future<void> mostrarCuentaCreada(BuildContext context, Map<String, dynamic> cuen
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('${cuenta['nombre']}', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 12),
+            const SizedBox(height: Espacio.m),
             SelectableText('Correo: ${cuenta['email']}'),
-            const SizedBox(height: 4),
+            const SizedBox(height: Espacio.xs),
             SelectableText('Contraseña temporal: ${cuenta['claveTemporal']}',
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
-            const SizedBox(height: 16),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+            const SizedBox(height: Espacio.l),
             const Text('Compártela con la persona. Solo se muestra esta vez; al entrar deberá crear su contraseña.'),
           ],
         ),
@@ -132,7 +133,7 @@ class _FormCuentaState extends ConsumerState<_FormCuenta> {
                   decoration: const InputDecoration(labelText: 'Nombre completo'),
                   validator: (v) => (v?.trim().isEmpty ?? true) ? 'Escribe el nombre' : null,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: Espacio.m),
                 TextFormField(
                   controller: _correo,
                   keyboardType: TextInputType.emailAddress,
@@ -141,7 +142,7 @@ class _FormCuentaState extends ConsumerState<_FormCuenta> {
                   onFieldSubmitted: (_) => _guardar(),
                 ),
                 if (_error != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Espacio.m),
                   Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ],
               ],

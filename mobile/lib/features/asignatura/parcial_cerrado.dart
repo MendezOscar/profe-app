@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
+import '../../theme/tokens.dart';
 
 /// Aviso de parcial cerrado: sus notas ya pasaron al cuadro. Reabrirlo permite corregir;
 /// al cerrarlo otra vez, el cuadro se actualiza.
@@ -18,11 +19,11 @@ class ParcialCerrado extends ConsumerWidget {
     final fecha = DateFormat.yMMMd('es').format(plan.cerradoEn!.toLocal());
     return Container(
       color: scheme.secondary,
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.s, Espacio.s),
       child: Row(
         children: [
           Icon(Icons.lock_outline, color: scheme.onSecondary),
-          const SizedBox(width: 12),
+          const SizedBox(width: Espacio.m),
           Expanded(
             child: Text('Cerrado el $fecha. Las notas ya están en el cuadro de SACE.',
                 style: TextStyle(color: scheme.onSecondary)),

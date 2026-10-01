@@ -10,6 +10,7 @@ import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
 import '../clases/importar_cuadros.dart';
 import 'parcial_cerrado.dart';
+import '../../theme/tokens.dart';
 
 /// El plan del parcial: rubros con sus puntos, que deberían sumar 100. Se puede cambiar
 /// en cualquier momento; las actividades ya calificadas no se tocan.
@@ -35,7 +36,7 @@ class PlanTab extends ConsumerWidget {
         slivers: [
           if (plan.cerrado) SliverToBoxAdapter(child: ParcialCerrado(plan: plan)),
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+            padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.s),
             sliver: SliverToBoxAdapter(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -43,7 +44,7 @@ class PlanTab extends ConsumerWidget {
                   BarraPuntos(valor: resultado.totalPlan, etiqueta: 'Total del plan', alto: 12),
                   if (resultado.totalPlan != 100)
                     Padding(
-                      padding: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.only(top: Espacio.s),
                       child: Text(
                         resultado.totalPlan < 100
                             ? 'Faltan ${formatoPuntos(100 - resultado.totalPlan)} puntos para llegar a 100.'
@@ -70,19 +71,19 @@ class PlanTab extends ConsumerWidget {
               final actividades = plan.actividades.where((a) => a.rubroId == rubro.id).length;
               return Padding(
                 key: ValueKey(rubro.id),
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.s),
                 child: Card(
                   child: InkWell(
                     onTap: plan.cerrado ? null : () => editarRubro(context, ref, plan, rubro: rubro),
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(4, 12, 16, 12),
+                      padding: const EdgeInsets.fromLTRB(Espacio.xs, Espacio.m, Espacio.l, Espacio.m),
                       child: Row(
                         children: [
                           ReorderableDragStartListener(
                             index: i,
                             enabled: !plan.cerrado,
                             child: const Padding(
-                              padding: EdgeInsets.all(8),
+                              padding: EdgeInsets.all(Espacio.s),
                               child: Icon(Icons.drag_indicator, semanticLabel: 'Arrastrar para ordenar'),
                             ),
                           ),
@@ -98,7 +99,7 @@ class PlanTab extends ConsumerWidget {
                                         style: Theme.of(context).textTheme.titleMedium),
                                   ],
                                 ),
-                                const SizedBox(height: 8),
+                                const SizedBox(height: Espacio.s),
                                 BarraPuntos(
                                   valor: asignado,
                                   total: rubro.puntos,
@@ -120,7 +121,7 @@ class PlanTab extends ConsumerWidget {
           ),
           if (!plan.cerrado)
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.l, Espacio.xxl),
               sliver: SliverToBoxAdapter(
                 child: OutlinedButton.icon(
                   onPressed: () => editarRubro(context, ref, plan),
@@ -178,14 +179,14 @@ class _SinPlan extends ConsumerWidget {
             label: const Text('Usar una rúbrica'),
           ),
           for (final p in otros) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: Espacio.s),
             OutlinedButton.icon(
               onPressed: () => copiarDe(p),
               icon: const Icon(Icons.copy_outlined),
               label: Text('Copiar el plan de ${p.titulo}'),
             ),
           ],
-          const SizedBox(height: 8),
+          const SizedBox(height: Espacio.s),
           TextButton.icon(
             onPressed: () => editarRubro(context, ref, plan),
             icon: const Icon(Icons.add),
@@ -223,7 +224,7 @@ Future<void> editarRubro(BuildContext context, WidgetRef ref, PlanParcial plan, 
               decoration: const InputDecoration(labelText: 'Nombre', hintText: 'Tareas, Examen…'),
               validator: (v) => (v?.trim().isEmpty ?? true) ? 'Escribe un nombre' : null,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Espacio.l),
             TextFormField(
               controller: puntos,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),

@@ -91,7 +91,7 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
                 child: Column(
                   children: [
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 16, 8, 0),
+                      padding: const EdgeInsets.fromLTRB(Espacio.xl, Espacio.l, Espacio.s, 0),
                       child: Row(
                         children: [
                           Image.asset('assets/brand/logo-azul.png', height: 28, semanticLabel: 'ProfeApp'),
@@ -109,7 +109,7 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                      padding: const EdgeInsets.fromLTRB(Espacio.xl, 0, Espacio.xl, Espacio.xl),
                       child: Row(
                         children: [
                           Semantics(
@@ -119,7 +119,7 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
                                 for (var i = 0; i < _pasos.length; i++)
                                   AnimatedContainer(
                                     duration: const Duration(milliseconds: 250),
-                                    margin: const EdgeInsets.only(right: 6),
+                                    margin: const EdgeInsets.only(right: Espacio.s),
                                     width: i == _actual ? 24 : 8,
                                     height: 8,
                                     color: i == _actual ? scheme.primary : scheme.primaryContainer,
@@ -135,7 +135,7 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
                               children: [
                                 Text(_ultima ? 'Empezar' : 'Siguiente', style: text.labelLarge?.copyWith(
                                     color: scheme.onPrimary, fontWeight: FontWeight.w800)),
-                                const SizedBox(width: 8),
+                                const SizedBox(width: Espacio.s),
                                 Icon(_ultima ? Icons.check : Icons.arrow_forward, size: 20),
                               ],
                             ),
@@ -164,11 +164,11 @@ class _Pagina extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: Espacio.xl, vertical: Espacio.l),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 24),
+          const SizedBox(height: Espacio.xl),
           // Ilustración con piezas de la marca: bloque azul, ícono blanco y el número del paso.
           AspectRatio(
             aspectRatio: 1.4,
@@ -194,9 +194,9 @@ class _Pagina extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: Espacio.xxl),
           Text(paso.titulo, style: text.headlineMedium),
-          const SizedBox(height: 12),
+          const SizedBox(height: Espacio.m),
           Text(paso.texto, style: text.bodyLarge?.copyWith(color: ProfeColors.textoSuave, height: 1.45)),
         ],
       ),

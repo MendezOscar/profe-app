@@ -7,6 +7,7 @@ import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
+import '../../theme/tokens.dart';
 
 /// Cómo va el grupo en el parcial: promedio, quién está en riesgo, qué rubro cuesta más,
 /// quién no entrega y quién falta. Abajo, la evolución de parcial a parcial.
@@ -40,9 +41,9 @@ class EstadisticasTab extends ConsumerWidget {
 
     return ContenidoCentrado(
       child: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+        padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.bajoBotonFlotante),
         itemCount: secciones.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 16),
+        separatorBuilder: (_, _) => const SizedBox(height: Espacio.l),
         itemBuilder: (_, i) => secciones[i],
       ),
     );
@@ -63,16 +64,16 @@ class _Seccion extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     return Card(
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(Espacio.l),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(titulo, style: text.titleMedium),
             if (ayuda != null) ...[
-              const SizedBox(height: 2),
+              const SizedBox(height: Espacio.xxs),
               Text(ayuda!, style: text.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
-            const SizedBox(height: 12),
+            const SizedBox(height: Espacio.m),
             child,
           ],
         ),
@@ -125,7 +126,7 @@ class _Cifra extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: 150,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(Espacio.m),
       color: scheme.primaryContainer,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -156,7 +157,7 @@ class _Barra extends StatelessWidget {
       label: '$etiqueta: $texto',
       excludeSemantics: true,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(vertical: Espacio.xs),
         child: Row(
           children: [
             SizedBox(width: 120, child: Text(etiqueta, style: text.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -307,10 +308,10 @@ class _Entregas extends StatelessWidget {
           if (quienes.isNotEmpty) ...[
             const Divider(),
             Text('Quiénes no entregan', style: text.labelLarge),
-            const SizedBox(height: 4),
+            const SizedBox(height: Espacio.xs),
             for (final a in quienes.take(5))
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+                padding: const EdgeInsets.symmetric(vertical: Espacio.xxs),
                 child: Text('${a.alumno.nombre} · ${a.noEntregadas}', style: text.bodyMedium),
               ),
           ],
@@ -341,7 +342,7 @@ class _Asistencia extends StatelessWidget {
             Text('Nadie ha faltado en este parcial.', style: text.bodyMedium)
           else ...[
             Text('Con más faltas', style: text.labelLarge),
-            const SizedBox(height: 4),
+            const SizedBox(height: Espacio.xs),
             for (final a in faltistas.take(5))
               _Barra(
                 etiqueta: a.alumno.nombre.split(' ').take(2).join(' '),
@@ -352,12 +353,12 @@ class _Asistencia extends StatelessWidget {
               ),
           ],
           if (e.diasConMasFaltas.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: Espacio.m),
             Text('Días con más ausencias', style: text.labelLarge),
-            const SizedBox(height: 4),
+            const SizedBox(height: Espacio.xs),
             for (final d in e.diasConMasFaltas)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 2),
+                padding: const EdgeInsets.symmetric(vertical: Espacio.xxs),
                 child: Text('${fecha.format(d.fecha)} · ${d.ausentes} ${d.ausentes == 1 ? 'ausente' : 'ausentes'}',
                     style: text.bodyMedium),
               ),
@@ -394,7 +395,7 @@ class _Evolucion extends StatelessWidget {
 
     Widget tendencia(String alumnoId) {
       final notas = [for (final p in puntos) p.porAlumno[alumnoId]].whereType<int>().toList();
-      if (notas.length < 2) return const SizedBox(width: 32);
+      if (notas.length < 2) return const SizedBox(width: Espacio.xxl);
       final cambio = notas.last - notas[notas.length - 2];
       final (icono, color) = cambio >= 5
           ? (Icons.trending_up, scheme.primary)
@@ -421,7 +422,7 @@ class _Evolucion extends StatelessWidget {
               texto: p.promedio?.toStringAsFixed(1) ?? '—',
               color: (p.promedio ?? 100) < notaMinima ? scheme.error : null,
             ),
-          const SizedBox(height: 12),
+          const SizedBox(height: Espacio.m),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Column(
@@ -436,13 +437,13 @@ class _Evolucion extends StatelessWidget {
                         child: Text(p.parcial.titulo.replaceFirst('PARCIAL ', 'P. '),
                             textAlign: TextAlign.center, style: text.labelSmall),
                       ),
-                    const SizedBox(width: 32),
+                    const SizedBox(width: Espacio.xxl),
                   ],
                 ),
                 const Divider(),
                 for (final a in alumnos)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: Espacio.xs),
                     child: Row(
                       children: [
                         SizedBox(

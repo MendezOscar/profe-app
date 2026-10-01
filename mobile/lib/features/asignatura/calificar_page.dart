@@ -10,6 +10,10 @@ import '../../core/sync/sync_controller.dart';
 import '../../ui/barra_teclado.dart';
 import '../../ui/shell.dart';
 import 'plan_tab.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
+import '../../ui/estado_vacio.dart';
 
 /// Captura de una actividad: bajar por la lista escribiendo con el teclado numérico
 /// ("Siguiente" o Enter pasa al próximo alumno). Todo se guarda al escribir.
@@ -24,8 +28,8 @@ class CalificarPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final plan = ref.watch(planProvider((claseId, parcial)));
     return plan.when(
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
-      error: (error, _) => Scaffold(appBar: AppBar(), body: Center(child: Text('$error'))),
+      loading: () => const EsqueletoPagina(),
+      error: (error, _) => PaginaError(error: error, reintentar: () => ref.invalidate(planProvider((claseId, parcial)))),
       data: (plan) {
         final actividad = plan.actividades.where((a) => a.id == actividadId).firstOrNull;
         if (actividad == null) {
@@ -177,7 +181,7 @@ class _CapturaState extends ConsumerState<_Captura> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.l, Espacio.s),
               child: Row(
                 children: [
                   Expanded(
@@ -190,10 +194,10 @@ class _CapturaState extends ConsumerState<_Captura> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: Espacio.m),
                   Text('$hechas/${_plan.alumnos.length}', style: text.labelLarge),
                   if (promedio != null) ...[
-                    const SizedBox(width: 12),
+                    const SizedBox(width: Espacio.m),
                     Text('Prom. ${formatoPuntos(double.parse(promedio.toStringAsFixed(1)))}',
                         style: text.labelLarge?.copyWith(color: scheme.onSurfaceVariant)),
                   ],
@@ -202,7 +206,7 @@ class _CapturaState extends ConsumerState<_Captura> {
             ),
             if (_plan.alumnos.length > 12)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.s),
                 child: TextField(
                   controller: _buscar,
                   decoration: const InputDecoration(
@@ -215,15 +219,25 @@ class _CapturaState extends ConsumerState<_Captura> {
               ),
             if (_soloLectura)
               Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.s),
                 child: Text('El parcial está cerrado. Reábrelo desde el plan para corregir notas.',
                     style: text.bodySmall?.copyWith(color: scheme.error)),
               ),
             const Divider(height: 2),
             Expanded(
-              child: ListView.builder(
+              child: visibles.isEmpty
+                  ? EstadoVacio(
+                      icono: Icons.search_off,
+                      titulo: 'Nadie coincide con «${_buscar.text.trim()}»',
+                      mensaje: 'Revisa cómo se escribe o busca por un apellido.',
+                      accion: OutlinedButton(
+                        onPressed: () => setState(_buscar.clear),
+                        child: const Text('Ver todos'),
+                      ),
+                    )
+                  : ListView.builder(
                 keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: const EdgeInsets.only(bottom: 48),
+                padding: const EdgeInsets.only(bottom: Espacio.xxxl),
                 itemCount: visibles.length,
                 itemBuilder: (context, i) {
                   final alumno = visibles[i];
@@ -235,7 +249,9 @@ class _CapturaState extends ConsumerState<_Captura> {
                     title: Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis),
                     trailing: SizedBox(
                       width: 88,
-                      child: TextField(
+                      child: Semantics(
+          label: 'Nota de ${alumno.nombre}',
+          child: TextField(
                         controller: _controllers[alumno.id],
                         focusNode: _focus[alumno.id],
                         enabled: !_soloLectura,
@@ -255,6 +271,7 @@ class _CapturaState extends ConsumerState<_Captura> {
                         onChanged: (v) => _guardar(alumno, v),
                         onSubmitted: (_) => _siguiente(visibles, i),
                       ),
+        ),
                     ),
                   );
                 },

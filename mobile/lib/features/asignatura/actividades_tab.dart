@@ -11,6 +11,7 @@ import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
 import 'parcial_cerrado.dart';
 import 'plan_tab.dart';
+import '../../theme/tokens.dart';
 
 /// Actividades del parcial agrupadas por rubro. Tocar una abre la captura de notas.
 class ActividadesTab extends ConsumerWidget {
@@ -60,12 +61,12 @@ class ActividadesTab extends ConsumerWidget {
           : ContenidoCentrado(
               maxAncho: 720,
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 96),
+                padding: const EdgeInsets.only(bottom: Espacio.bajoBotonFlotante),
                 children: [
                   if (plan.cerrado) ParcialCerrado(plan: plan),
                   if (!plan.cerrado && plan.actividades.length > 1)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, 0),
                       child: OutlinedButton.icon(
                         onPressed: () => calificarVarias(context, plan),
                         icon: const Icon(Icons.library_add_check_outlined),
@@ -74,7 +75,7 @@ class ActividadesTab extends ConsumerWidget {
                     ),
                   for (final rubro in plan.rubros) ...[
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.xl, Espacio.l, Espacio.s),
                       child: Row(
                         children: [
                           Expanded(child: Text(rubro.nombre.toUpperCase(), style: text.labelSmall)),
@@ -91,7 +92,7 @@ class ActividadesTab extends ConsumerWidget {
                       _TileActividad(plan: plan, actividad: a),
                     if (!plan.actividades.any((a) => a.rubroId == rubro.id))
                       Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        padding: const EdgeInsets.symmetric(horizontal: Espacio.l),
                         child: Text('Sin actividades',
                             style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
                       ),
@@ -119,10 +120,10 @@ class _TileActividad extends ConsumerWidget {
     final completa = hechas == total && total > 0;
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.s),
       child: Card(
         child: ListTile(
-          contentPadding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+          contentPadding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.xs, Espacio.xs, Espacio.xs),
           onTap: () => context.go(
               '/inicio/asignaturas/${plan.claseId}/actividades/${actividad.id}?parcial=${Uri.encodeQueryComponent(plan.parcial.clave)}'),
           title: Text(actividad.titulo, style: text.titleMedium),
@@ -133,7 +134,7 @@ class _TileActividad extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: Espacio.s, vertical: Espacio.xs),
                 color: completa ? scheme.primaryContainer : scheme.primary,
                 child: Text(
                   completa ? 'Calificada' : '$hechas/$total',
@@ -226,12 +227,12 @@ class _ElegirActividadesState extends State<_ElegirActividades> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.s),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('¿Qué actividades vas a calificar?', style: text.titleLarge),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: Espacio.xs),
                   Text('Las calificas todas en una sola pantalla, alumno por alumno.', style: text.bodyMedium),
                 ],
               ),
@@ -255,7 +256,7 @@ class _ElegirActividadesState extends State<_ElegirActividades> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(Espacio.l),
               child: FilledButton(
                 onPressed: _marcadas.isEmpty ? null : () => Navigator.pop(context, [
                   for (final a in plan.actividades)
@@ -349,7 +350,7 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
                   decoration: const InputDecoration(labelText: 'Título', hintText: 'Tarea 1, Examen parcial…'),
                   validator: (v) => (v?.trim().isEmpty ?? true) ? 'Escribe un título' : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Espacio.l),
                 DropdownButtonFormField<String>(
                   initialValue: _rubroId,
                   decoration: const InputDecoration(labelText: 'Rubro'),
@@ -362,7 +363,7 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
                     if (widget.actividad == null) _sugerirPuntos();
                   }),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Espacio.l),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -382,7 +383,7 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
                         },
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: Espacio.m),
                     Expanded(
                       child: InkWell(
                         onTap: _elegirFecha,
@@ -394,7 +395,7 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Espacio.l),
                 TextFormField(
                   controller: _descripcion,
                   maxLines: 3,

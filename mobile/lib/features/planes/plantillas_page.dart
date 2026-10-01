@@ -9,6 +9,9 @@ import '../../core/sync/sync_controller.dart';
 import '../../ui/barra_puntos.dart';
 import '../../ui/shell.dart';
 import '../asignatura/plan_tab.dart';
+import '../../theme/tokens.dart';
+import '../../ui/esqueleto.dart';
+import '../../ui/estado_error.dart';
 
 /// Moldes de plan reutilizables. Aplicarlos a una asignatura copia los rubros: cambiar la
 /// plantilla después no toca los planes que ya están en marcha.
@@ -30,30 +33,30 @@ class PlantillasPage extends ConsumerWidget {
         label: const Text('Nueva rúbrica'),
       ),
       body: plantillas.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => Center(child: Text('$error')),
+        loading: () => const EsqueletoLista(filas: 4, conTarjeta: true),
+        error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(plantillasProvider)),
         data: (lista) {
           final propias = lista.where((p) => !p.prearmada).toList();
           final prearmadas = lista.where((p) => p.prearmada).toList();
           return ContenidoCentrado(
             maxAncho: 720,
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.bajoBotonFlotante),
               children: [
                 Text(
                   'Una rúbrica de evaluación reparte los 100 puntos de un parcial en rubros. Úsala al importar cuadros '
                   'o desde el plan de cada asignatura.',
                   style: text.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Espacio.l),
                 if (propias.isNotEmpty) ...[
                   Text('MIS RÚBRICAS', style: text.labelSmall),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: Espacio.s),
                   for (final p in propias) _TarjetaPlantilla(plantilla: p),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: Espacio.l),
                 ],
                 Text('INCLUIDAS', style: text.labelSmall),
-                const SizedBox(height: 8),
+                const SizedBox(height: Espacio.s),
                 for (final p in prearmadas) _TarjetaPlantilla(plantilla: p),
               ],
             ),
@@ -73,12 +76,12 @@ class _TarjetaPlantilla extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: Espacio.s),
       child: Card(
         child: InkWell(
           onTap: () => editarPlantilla(context, ref, plantilla: plantilla),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 4, 12),
+            padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.xs, Espacio.m),
             child: Row(
               children: [
                 Expanded(
@@ -86,7 +89,7 @@ class _TarjetaPlantilla extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(plantilla.nombre, style: text.titleMedium),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: Espacio.xs),
                       Text(plantilla.rubros.map((r) => '${r.nombre} ${formatoPuntos(r.puntos)}').join(' · ')),
                     ],
                   ),
@@ -184,12 +187,12 @@ class _EditorPlantillaState extends ConsumerState<_EditorPlantilla> {
                   decoration: const InputDecoration(labelText: 'Nombre'),
                   validator: (v) => (v?.trim().isEmpty ?? true) ? 'Escribe un nombre' : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Espacio.l),
                 BarraPuntos(valor: _total, etiqueta: 'Total'),
-                const SizedBox(height: 16),
+                const SizedBox(height: Espacio.l),
                 for (final (i, (nombre, puntos)) in _rubros.indexed)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
+                    padding: const EdgeInsets.only(bottom: Espacio.m),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -202,7 +205,7 @@ class _EditorPlantillaState extends ConsumerState<_EditorPlantilla> {
                             validator: (v) => (v?.trim().isEmpty ?? true) ? 'Falta' : null,
                           ),
                         ),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: Espacio.s),
                         Expanded(
                           flex: 2,
                           child: TextFormField(

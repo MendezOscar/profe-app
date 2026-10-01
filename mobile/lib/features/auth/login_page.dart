@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/enlaces.dart';
+import '../../theme/tokens.dart';
 
 /// Entrada del docente. Las cuentas no se crean desde la app.
 class LoginPage extends ConsumerStatefulWidget {
@@ -53,7 +54,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(Espacio.xl),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: Form(
@@ -66,10 +67,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     alignment: Alignment.centerLeft,
                     child: Image.asset('assets/brand/logo-azul.png', height: 44, semanticLabel: 'ProfeApp'),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Espacio.m),
                   Text('Tus notas sin internet, listas para subir a SACE',
                       style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: Espacio.xxl),
                   TextFormField(
                     controller: _email,
                     keyboardType: TextInputType.emailAddress,
@@ -78,7 +79,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     validator: (value) =>
                         (value == null || !value.contains('@')) ? 'Ingresa un correo válido' : null,
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: Espacio.m),
                   TextFormField(
                     controller: _password,
                     obscureText: _obscure,
@@ -88,6 +89,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       labelText: 'Contraseña',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
+                        tooltip: _obscure ? 'Mostrar contraseña' : 'Ocultar contraseña',
                         onPressed: () => setState(() => _obscure = !_obscure),
                         icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                       ),
@@ -95,15 +97,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     validator: (value) => (value == null || value.length < 4) ? 'Contraseña muy corta' : null,
                   ),
                   if (auth.error != null) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: Espacio.l),
                     Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(Espacio.m),
                       // Sin esquinas redondeadas: regla de la marca.
                       color: scheme.errorContainer,
                       child: Row(
                         children: [
                           Icon(Icons.error_outline, color: scheme.onErrorContainer, size: 20),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: Espacio.s),
                           Expanded(
                             child: Text(auth.error!, style: TextStyle(color: scheme.onErrorContainer)),
                           ),
@@ -111,7 +113,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       ),
                     ),
                   ],
-                  const SizedBox(height: 20),
+                  const SizedBox(height: Espacio.xl),
                   FilledButton(
                     onPressed: auth.isLoading ? null : _submit,
                     child: auth.isLoading
@@ -120,14 +122,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   ),
                   if (_tardando && auth.isLoading)
                     Padding(
-                      padding: const EdgeInsets.only(top: 12),
+                      padding: const EdgeInsets.only(top: Espacio.m),
                       child: Text(
                         'Conectando con el servidor… la primera vez del día puede tardar hasta un minuto.',
                         style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                         textAlign: TextAlign.center,
                       ),
                     ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: Espacio.xl),
                   Wrap(
                     alignment: WrapAlignment.center,
                     children: [

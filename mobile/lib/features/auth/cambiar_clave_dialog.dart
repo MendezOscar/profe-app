@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/providers.dart';
+import '../../theme/tokens.dart';
 
 /// Cambio de contraseña. Necesita internet: la contraseña vive en el servidor.
 Future<void> mostrarCambiarClave(BuildContext context) =>
@@ -81,7 +82,7 @@ class _CambiarClaveDialogState extends ConsumerState<_CambiarClaveDialog> {
           children: [
             if (widget.obligatorio)
               const Padding(
-                padding: EdgeInsets.only(bottom: 16),
+                padding: EdgeInsets.only(bottom: Espacio.l),
                 child: Text('Entraste con una contraseña temporal. Crea la tuya para seguir.'),
               ),
             TextFormField(
@@ -91,7 +92,7 @@ class _CambiarClaveDialogState extends ConsumerState<_CambiarClaveDialog> {
               decoration: InputDecoration(labelText: widget.obligatorio ? 'Contraseña temporal' : 'Contraseña actual'),
               validator: (v) => (v == null || v.isEmpty) ? 'Escribe tu contraseña actual' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Espacio.m),
             TextFormField(
               controller: _nueva,
               obscureText: true,
@@ -103,7 +104,7 @@ class _CambiarClaveDialogState extends ConsumerState<_CambiarClaveDialog> {
               ),
               validator: (v) => (v == null || v.length < 8) ? 'Mínimo 8 caracteres' : null,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: Espacio.m),
             TextFormField(
               controller: _confirmacion,
               obscureText: true,
@@ -111,7 +112,7 @@ class _CambiarClaveDialogState extends ConsumerState<_CambiarClaveDialog> {
               validator: (v) => v != _nueva.text ? 'No coincide con la nueva' : null,
             ),
             if (_error != null) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: Espacio.m),
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
           ],

@@ -12,6 +12,7 @@ import '../../ui/indicador_sync.dart';
 import '../../ui/shell.dart';
 import '../auth/cambiar_clave_dialog.dart';
 import 'eliminar_cuenta_dialog.dart';
+import '../../theme/tokens.dart';
 
 class CuentaPage extends ConsumerWidget {
   const CuentaPage({super.key});
@@ -29,7 +30,7 @@ class CuentaPage extends ConsumerWidget {
       body: ContenidoCentrado(
         maxAncho: 640,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(Espacio.l),
           children: [
             Row(
               children: [
@@ -43,7 +44,7 @@ class CuentaPage extends ConsumerWidget {
                     style: text.headlineMedium?.copyWith(color: scheme.onPrimary),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: Espacio.l),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,7 +56,7 @@ class CuentaPage extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Espacio.xl),
             Card(
               child: Column(
                 children: [
@@ -92,7 +93,7 @@ class CuentaPage extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Espacio.xl),
             Card(
               child: Column(
                 children: [
@@ -113,7 +114,7 @@ class CuentaPage extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: Espacio.xl),
             OutlinedButton.icon(
               onPressed: () async {
                 await ref.read(authControllerProvider.notifier).logout();
@@ -123,7 +124,7 @@ class CuentaPage extends ConsumerWidget {
               icon: const Icon(Icons.logout),
               label: const Text('Cerrar sesión'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: Espacio.s),
             TextButton.icon(
               style: TextButton.styleFrom(foregroundColor: scheme.error),
               onPressed: () => mostrarEliminarCuenta(context),

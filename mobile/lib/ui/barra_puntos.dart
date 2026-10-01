@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../core/planes/calculo_parcial.dart';
+import '../theme/tokens.dart';
 
 /// Cuánto de los 100 puntos lleva algo (el plan, las actividades, un alumno).
 /// Se pinta en rojo si se pasa del total.
@@ -29,7 +30,7 @@ class BarraPuntos extends StatelessWidget {
         children: [
           if (etiqueta != null)
             Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: const EdgeInsets.only(bottom: Espacio.xs),
               child: Row(
                 children: [
                   Expanded(child: Text(etiqueta!, style: text.labelMedium)),

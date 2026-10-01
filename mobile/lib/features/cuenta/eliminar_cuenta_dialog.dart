@@ -5,6 +5,7 @@ import '../../core/api/api_exception.dart';
 import '../../core/auth/auth_controller.dart';
 import '../../core/local/local_db.dart';
 import '../../core/providers.dart';
+import '../../theme/tokens.dart';
 
 /// Eliminar la cuenta desde la app, como exigen App Store y Google Play. Borra todo en el
 /// servidor y en este dispositivo. Pide la contraseña para confirmar.
@@ -72,7 +73,7 @@ class _EliminarCuentaDialogState extends ConsumerState<_EliminarCuentaDialog> {
                 'asistencia, tanto en la nube como en este dispositivo. No se puede deshacer.\n\n'
                 'Si necesitas tus cuadros, expórtalos antes.',
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: Espacio.l),
               TextField(
                 controller: _clave,
                 obscureText: true,

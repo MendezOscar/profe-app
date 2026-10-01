@@ -45,7 +45,7 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
                 child: Image.asset('assets/brand/logo-blanco.png', width: 200, semanticLabel: 'ProfeApp'),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: Espacio.xxl),
             AnimatedOpacity(
               opacity: _demora ? 1 : 0,
               duration: const Duration(milliseconds: 300),
