@@ -68,10 +68,14 @@ class _EliminarCuentaDialogState extends ConsumerState<_EliminarCuentaDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Se borran para siempre tu cuenta, tus asignaturas, cuadros de SACE, planes, notas y '
-                'asistencia, tanto en la nube como en este dispositivo. No se puede deshacer.\n\n'
-                'Si necesitas tus cuadros, expórtalos antes.',
+              Text(
+                ref.read(sessionProvider)?.role == 'AdminCentro'
+                    ? 'Se borra para siempre tu cuenta de administración del centro. No se puede deshacer.\n\n'
+                        'Las cuentas de los docentes y sus datos no se tocan. Para volver a administrar el '
+                        'centro hay que pedir una cuenta nueva a ProfeApp.'
+                    : 'Se borran para siempre tu cuenta, tus asignaturas, cuadros de SACE, planes, notas y '
+                        'asistencia, tanto en la nube como en este dispositivo. No se puede deshacer.\n\n'
+                        'Si necesitas tus cuadros, expórtalos antes.',
               ),
               const SizedBox(height: Espacio.l),
               TextField(

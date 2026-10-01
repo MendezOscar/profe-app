@@ -173,8 +173,8 @@ class _ListaAlumnos extends StatelessWidget {
           minLeadingWidth: 24,
           title: Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis),
           subtitle: Text([
-            if (nota.pendientes > 0) '${nota.pendientes} pendientes',
-            if (nota.inasistencias > 0) '${nota.inasistencias} faltas',
+            if (nota.pendientes > 0) '${nota.pendientes} ${nota.pendientes == 1 ? 'pendiente' : 'pendientes'}',
+            if (nota.inasistencias > 0) '${nota.inasistencias} ${nota.inasistencias == 1 ? 'falta' : 'faltas'}',
           ].join(' · ')),
           trailing: _Nota(nota),
           onTap: () => showModalBottomSheet<void>(
@@ -214,7 +214,7 @@ class _Desglose extends StatelessWidget {
                 _Nota(nota),
               ],
             ),
-            Text('${formatoPuntos(nota.obtenidos)} pts obtenidos · ${nota.inasistencias} faltas',
+            Text('${formatoPuntos(nota.obtenidos)} pts obtenidos · ${nota.inasistencias} ${nota.inasistencias == 1 ? 'falta' : 'faltas'}',
                 style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
             const SizedBox(height: Espacio.m),
             for (final rubro in plan.rubros) ...[

@@ -8,6 +8,7 @@ import '../../core/auth/auth_controller.dart';
 import '../../core/enlaces.dart';
 import '../../core/providers.dart';
 import '../auth/cambiar_clave_dialog.dart';
+import '../cuenta/eliminar_cuenta_dialog.dart';
 import '../../theme/tokens.dart';
 
 /// Nombres de los planes institucionales, como en la página de precios.
@@ -165,13 +166,30 @@ class MenuCuentaAdmin extends ConsumerWidget {
         tooltip: 'Cuenta',
         icon: const Icon(Icons.account_circle_outlined),
         onSelected: (o) async {
-          if (o == 'clave') return mostrarCambiarClave(context);
+          switch (o) {
+            case 'clave':
+              return mostrarCambiarClave(context);
+            case 'ayuda':
+              return Enlaces.abrir(Enlaces.soporte);
+            case 'privacidad':
+              return Enlaces.abrir(Enlaces.privacidad);
+            case 'terminos':
+              return Enlaces.abrir(Enlaces.terminos);
+            case 'eliminar':
+              return mostrarEliminarCuenta(context);
+          }
           await ref.read(authControllerProvider.notifier).logout();
           if (kIsWeb) await Enlaces.volverAlSitio();
         },
-        itemBuilder: (_) => const [
-          PopupMenuItem(value: 'clave', child: Text('Cambiar contraseña')),
-          PopupMenuItem(value: 'salir', child: Text('Cerrar sesión')),
+        itemBuilder: (_) => [
+          const PopupMenuItem(value: 'clave', child: Text('Cambiar contraseña')),
+          const PopupMenuItem(value: 'ayuda', child: Text('Ayuda')),
+          const PopupMenuItem(value: 'privacidad', child: Text('Privacidad')),
+          const PopupMenuItem(value: 'terminos', child: Text('Términos')),
+          const PopupMenuItem(value: 'salir', child: Text('Cerrar sesión')),
+          // La de plataforma no se elimina desde la app (ve los datos de todos).
+          if (ref.read(sessionProvider)?.role == 'AdminCentro')
+            const PopupMenuItem(value: 'eliminar', child: Text('Eliminar mi cuenta')),
         ],
       );
 }

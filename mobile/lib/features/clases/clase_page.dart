@@ -358,7 +358,11 @@ class _Tabla extends StatelessWidget {
           alignment: alineado,
           padding: const EdgeInsets.symmetric(horizontal: Espacio.s),
           decoration: BoxDecoration(border: Border(left: borde)),
-          child: Text(texto, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: estilo),
+          // Palabras largas como INASISTENCIAS se achican antes que partirse a la mitad.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(texto, textAlign: TextAlign.center, maxLines: 1, style: estilo),
+          ),
         );
 
     return Scrollbar(
@@ -394,7 +398,7 @@ class _Tabla extends StatelessWidget {
                             encabezado(
                               c.grupo == c.nombre ? '' : c.nombre,
                               _celda,
-                              estilo: text.labelSmall,
+                              estilo: text.labelSmall?.copyWith(letterSpacing: 0.4),
                             ),
                         ],
                       ),

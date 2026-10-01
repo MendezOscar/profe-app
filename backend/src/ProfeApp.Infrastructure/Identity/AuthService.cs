@@ -204,6 +204,9 @@ public sealed class AuthService(
     {
         var user = await users.FindByIdAsync(currentUser.RequireUserId().ToString());
         if (user is null) return Result.Fail(Error.NotFound("El usuario"));
+        // La cuenta de plataforma ve los datos de todos: no se borra por esta vía.
+        if (await RoleOfAsync(user) == Roles.PlatformAdmin)
+            return Result.Fail(Error.Forbidden("La cuenta de plataforma no se elimina desde la app."));
         if (await ClaveIncorrectaAsync(user, request.Password ?? "") is { } error)
             return Result.Fail(error.Code == "locked_out" ? error : Error.Validation("La contraseña no es correcta."));
 
@@ -211,12 +214,15 @@ public sealed class AuthService(
         await strategy.ExecuteAsync(async () =>
         {
             await using var tx = await db.Database.BeginTransactionAsync(ct);
-            // El filtro de tenant ya limita estas consultas a lo del docente. Columnas,
-            // alumnos y valores caen en cascada con su clase.
-            await db.Registros.ExecuteDeleteAsync(ct);
-            // SQL directo: EF no admite ExecuteDelete en una tabla compartida (clase + archivo).
+            // Por el tenant del usuario y no por el filtro de la petición: así nunca depende de
+            // quién llama. Sin espacio propio (administrador de centro) no hay datos que borrar.
+            // Columnas, alumnos y valores caen en cascada con su clase.
             if (user.TenantId is Guid espacio)
+            {
+                await db.Registros.IgnoreQueryFilters().Where(r => r.TenantId == espacio).ExecuteDeleteAsync(ct);
+                // SQL directo: EF no admite ExecuteDelete en una tabla compartida (clase + archivo).
                 await db.Database.ExecuteSqlAsync($"DELETE FROM clases WHERE tenant_id = {espacio}", ct);
+            }
             await db.RefreshTokens.Where(t => t.UserId == user.Id).ExecuteDeleteAsync(ct);
             var result = await users.DeleteAsync(user);
             if (!result.Succeeded) throw new InvalidOperationException(string.Join(" ", result.Errors.Select(e => e.Description)));

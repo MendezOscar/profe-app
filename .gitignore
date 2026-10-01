@@ -32,3 +32,6 @@ dist/
 # wrangler pages dev (prueba local del sitio)
 node_modules/
 .wrangler/
+
+# Capturas para las tiendas: muestran nombres de alumnos de la cuenta demo (ver docs/tiendas.md).
+docs/tiendas/capturas/

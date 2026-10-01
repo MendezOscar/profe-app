@@ -40,6 +40,38 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task Las_cuentas_de_administracion_se_eliminan_sin_tocar_los_datos_de_los_docentes()
+    {
+        var docente = await RegisterAsync();
+        (await docente.PostAsJsonAsync("/api/v1/sync/push", new
+        {
+            clases = Array.Empty<object>(),
+            registros = new[] { new { tipo = "plantilla", claseClave = "", clave = "mia", datos = "{\"nombre\":\"Mía\",\"rubros\":[]}", eliminado = false, actualizadoEn = DateTimeOffset.UtcNow } },
+        })).IsSuccessStatusCode.Should().BeTrue();
+
+        var plataforma = await PlataformaAsync();
+        var creado = await ReadAsync(await plataforma.PostAsJsonAsync("/api/v1/plataforma/instituciones", new
+        {
+            nombre = "Instituto a Borrar",
+            plan = "pequeno",
+            maxDocentes = 2,
+            adminEmail = $"director-{Guid.NewGuid():N}@prueba.hn",
+            adminNombre = "Director",
+        }));
+        var admin = creado.GetProperty("admin");
+        var clave = admin.GetProperty("claveTemporal").GetString()!;
+        var centro = await LoginAsync(admin.GetProperty("email").GetString()!, clave);
+
+        (await plataforma.PostAsJsonAsync("/api/v1/auth/delete-account", new { password = "Prueba1234!" }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden, "la cuenta de plataforma ve los datos de todos");
+        (await centro.PostAsJsonAsync("/api/v1/auth/delete-account", new { password = clave }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        var pull = await ReadAsync(await docente.GetAsync("/api/v1/sync/pull"));
+        pull.GetProperty("registros").EnumerateArray().Select(r => r.GetProperty("clave").GetString()).Should().Contain("mia");
+    }
+
+    [Fact]
     public async Task El_centro_da_de_alta_docentes_que_entran_con_clave_temporal_y_deben_cambiarla()
     {
         var centro = await CentroAsync();
