@@ -36,7 +36,7 @@ de SACE propio o el de ejemplo.
 | Nombre (30) | `ProfeApp — Notas y asistencia` |
 | **Descripción corta (80)** | `Califica, pasa lista y llena tu cuadro de SACE, aunque no tengas internet.` (74) |
 | Categoría | Educación · etiquetas: educación, productividad |
-| Correo de contacto | `cruzmendez.dev@gmail.com` |
+| Correo de contacto | `soporte@profeapphn.com` |
 | Teléfono de contacto | `+504 9824 2108` |
 | Sitio web | `https://profeapphn.com` |
 | Política de privacidad | `https://profeapphn.com/privacidad` |

@@ -15,7 +15,7 @@ Aquí va lo que comparten las dos.
 | Términos de uso | https://profeapphn.com/terminos |
 | Soporte | https://profeapphn.com/soporte |
 | Eliminación de cuenta (Google Play) | https://profeapphn.com/eliminar-cuenta |
-| Correo de contacto | cruzmendez.dev@gmail.com |
+| Correo de contacto | soporte@profeapphn.com |
 
 El sitio se arma con `scripts/cloudflare-build.sh`: `site/` va a la raíz y el panel Flutter a
 `/app/`, enrutados por `site/_worker.js`. Son estáticas: abren aunque la API esté dormida.
