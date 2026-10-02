@@ -18,9 +18,9 @@ rechazos «por información»): las respuestas que Apple pidió entonces ya van 
 | Clasificación por edad | 4+ |
 | Idioma principal | Español (México): es el más cercano a Honduras |
 | Derechos de autor | `2026 Oscar Armando Cruz Mendez` (año y titular, sin ©) |
-| URL de soporte | `https://profe-app.pages.dev/soporte` |
-| URL de marketing | `https://profe-app.pages.dev/` |
-| URL de política de privacidad | `https://profe-app.pages.dev/privacidad` |
+| URL de soporte | `https://profeapphn.com/soporte` |
+| URL de marketing | `https://profeapphn.com/` |
+| URL de política de privacidad | `https://profeapphn.com/privacidad` |
 | Precio | Gratis |
 | Disponibilidad | Honduras (el producto trabaja con SACE, que es de Honduras) |
 

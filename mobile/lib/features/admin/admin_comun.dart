@@ -22,7 +22,7 @@ const planesCentro = {
 /// La contraseña temporal sólo se ve una vez: se muestra para copiarla y compartirla.
 Future<void> mostrarCuentaCreada(BuildContext context, Map<String, dynamic> cuenta, {String titulo = 'Cuenta creada'}) {
   final texto = 'ProfeApp\nCorreo: ${cuenta['email']}\nContraseña temporal: ${cuenta['claveTemporal']}\n'
-      'Entra en https://profe-app.pages.dev/app/ o en la app. Al entrar te pedirá crear tu contraseña.';
+      'Entra en https://profeapphn.com/app/ o en la app. Al entrar te pedirá crear tu contraseña.';
   return showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(

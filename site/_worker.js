@@ -9,7 +9,8 @@ const CACHE_LARGA = /\.(ttf|otf|woff2?|png|jpe?g|svg|ico|webp)$/i;
 
 // Política de seguridad (CSP). El sitio no tiene scripts; el panel Flutter necesita
 // WebAssembly (base local y CanvasKit, que Flutter baja de gstatic) y hablar con la API.
-const API = 'https://profeapp-o7hw.onrender.com';
+const SITIO = 'https://profeapphn.com';
+const API = 'https://api.profeapphn.com';
 const COMUNES = "base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'";
 const CSP_SITIO = `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; ${COMUNES}`;
 const CSP_PANEL = [
@@ -45,6 +46,12 @@ const RUTAS_DEL_PANEL = ['/login', '/inicio', '/asistencia', '/plantillas', '/cu
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+
+    // Un solo dominio: el de pages.dev y el www llevan a profeapphn.com. Las vistas previas
+    // de cada rama (<hash>.profe-app.pages.dev) no se tocan.
+    if (url.hostname === 'profe-app.pages.dev' || url.hostname === 'www.profeapphn.com') {
+      return Response.redirect(`${SITIO}${url.pathname}${url.search}`, 301);
+    }
 
     // Antes el panel vivía en la raíz: los enlaces y marcadores viejos siguen entrando.
     if (RUTAS_DEL_PANEL.some((r) => url.pathname === r || url.pathname.startsWith(`${r}/`))) {

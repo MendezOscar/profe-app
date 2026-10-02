@@ -47,7 +47,7 @@ Antes del primer deploy, cargar los dos secretos en *Environment*:
 
 **Cuentas:** la app no tiene registro público y la API no expone `/auth/register`. Por ahora se entra con el docente demo, que se crea con `App__SeedDemoData=true` (ya configurada en Render). La variable no se quita: si el usuario ya existe, no hace nada. El alta de docentes reales está por definir.
 
-Si la web se publica en otro dominio que no sea `profeapp.pages.dev`, hay que cambiar `App__CorsOrigins__0` por ese dominio exacto, sin barra final.
+Si la web se publica en otro dominio que no sea `profeapphn.com`, hay que cambiar `App__CorsOrigins__0` por ese dominio exacto, sin barra final.
 
 ## 3. Cloudflare Pages (web)
 
@@ -57,19 +57,21 @@ En Cloudflare: *Workers & Pages* → *Create* → *Pages* → *Connect to Git* �
 
 | Campo | Valor |
 |---|---|
-| Project name | `profe-app` (queda en `https://profe-app.pages.dev`) |
+| Project name | `profe-app` (queda en `https://profe-app.pages.dev`, que redirige a `https://profeapphn.com`) |
 | Production branch | `main` |
 | Framework preset | `None` |
 | Build command | `bash scripts/cloudflare-build.sh` |
 | Build output directory | `mobile/build/web` |
 | Root directory | vacío (raíz del repo) |
-| Environment variables | `API_BASE_URL` = `https://profeapp-o7hw.onrender.com` |
+| Environment variables | `API_BASE_URL` = `https://api.profeapphn.com` |
 
 El primer build tarda unos minutos porque baja Flutter. Para no recompilar la web con cambios que sólo tocan el backend: *Settings → Build → Build watch paths* → incluir `mobile/*`, `scripts/*` y `site/*` (la landing).
 
 El build deja la landing y las páginas legales (`site/`) en la raíz y el panel en `/app/`. El enrutado lo hace [site/_worker.js](../site/_worker.js): las rutas de `/app/` sin extensión devuelven el `index.html` del panel, y los enlaces viejos de la raíz (`/inicio`, `/login`…) redirigen a `/app/…`.
 
-**CORS:** la API sólo acepta al navegador desde `App__CorsOrigins__0`, que en [render.yaml](../render.yaml) es `https://profe-app.pages.dev`. Si el dominio cambia, hay que actualizar esa variable en Render.
+**CORS:** la API sólo acepta al navegador desde `App__CorsOrigins__0`, que en [render.yaml](../render.yaml) es `https://profeapphn.com`. Si el dominio cambia, hay que actualizar esa variable en Render.
+
+**Dominio:** `profeapphn.com` está registrado en Cloudflare. El sitio es un *Custom domain* del proyecto de Pages (`profeapphn.com` y `www`, que el worker redirige al dominio sin www). La API es un *Custom Domain* de Render (`api.profeapphn.com`, CNAME a `profeapp-o7hw.onrender.com` sin proxy de Cloudflare).
 
 ## 4. APK de Android
 
@@ -107,8 +109,8 @@ Antes de cada versión nueva, subir `version:` en `mobile/pubspec.yaml`. El núm
 ## Verificación
 
 ```bash
-curl https://profeapp-o7hw.onrender.com/health/live   # sin base
-curl https://profeapp-o7hw.onrender.com/health        # con base: "Healthy" si Aiven responde
+curl https://api.profeapphn.com/health/live   # sin base
+curl https://api.profeapphn.com/health        # con base: "Healthy" si Aiven responde
 ```
 
 Después, en la web o en el APK:
@@ -149,7 +151,7 @@ No hay registro público. Las cuentas se crean desde los paneles, con contraseñ
   la URL de la API, actualizar la constante `API` del worker además de `env/prod.json`, o el
   panel no podrá conectarse. El panel no admite scripts en línea: todo va en archivos
   (por eso `web/arranque.js`).
-- **CORS**: sólo los orígenes de `App__CorsOrigins__N` (hoy `https://profe-app.pages.dev`),
+- **CORS**: sólo los orígenes de `App__CorsOrigins__N` (hoy `https://profeapphn.com`),
   sin cookies: el token va en el encabezado `Authorization`.
 - **Bloqueo de cuenta**: 10 contraseñas equivocadas seguidas bloquean la cuenta 15 minutos
   (login, cambiar contraseña y eliminar cuenta), además del límite por IP del login.

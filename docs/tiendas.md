@@ -10,11 +10,11 @@ Aquí va lo que comparten las dos.
 
 | Para | URL |
 | --- | --- |
-| Sitio / marketing | https://profe-app.pages.dev/ |
-| Política de privacidad | https://profe-app.pages.dev/privacidad |
-| Términos de uso | https://profe-app.pages.dev/terminos |
-| Soporte | https://profe-app.pages.dev/soporte |
-| Eliminación de cuenta (Google Play) | https://profe-app.pages.dev/eliminar-cuenta |
+| Sitio / marketing | https://profeapphn.com/ |
+| Política de privacidad | https://profeapphn.com/privacidad |
+| Términos de uso | https://profeapphn.com/terminos |
+| Soporte | https://profeapphn.com/soporte |
+| Eliminación de cuenta (Google Play) | https://profeapphn.com/eliminar-cuenta |
 | Correo de contacto | cruzmendez.dev@gmail.com |
 
 El sitio se arma con `scripts/cloudflare-build.sh`: `site/` va a la raíz y el panel Flutter a

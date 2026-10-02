@@ -38,8 +38,8 @@ de SACE propio o el de ejemplo.
 | Categoría | Educación · etiquetas: educación, productividad |
 | Correo de contacto | `cruzmendez.dev@gmail.com` |
 | Teléfono de contacto | `+504 9824 2108` |
-| Sitio web | `https://profe-app.pages.dev` |
-| Política de privacidad | `https://profe-app.pages.dev/privacidad` |
+| Sitio web | `https://profeapphn.com` |
+| Política de privacidad | `https://profeapphn.com/privacidad` |
 | Anuncios | No contiene anuncios |
 | Compras dentro de la app | No |
 
@@ -133,7 +133,7 @@ Ve y administra los docentes de su centro.
 
 | Declaración | Respuesta |
 | --- | --- |
-| Política de privacidad | `https://profe-app.pages.dev/privacidad` |
+| Política de privacidad | `https://profeapphn.com/privacidad` |
 | Anuncios | No |
 | Acceso a la app | Arriba |
 | Clasificación de contenido | Cuestionario IARC, abajo |
@@ -182,7 +182,7 @@ Las tres preguntas generales:
 
 - **¿Se cifra en tránsito?** Sí, todo va por HTTPS.
 - **¿Se pueden borrar los datos?** Sí, desde la app (Cuenta → Eliminar mi cuenta) y por web.
-- **URL para pedir que se borren:** `https://profe-app.pages.dev/eliminar-cuenta`
+- **URL para pedir que se borren:** `https://profeapphn.com/eliminar-cuenta`
 
 «Compartir» en Google es entregar datos a otra empresa para sus propios fines. Render, Aiven y
 Cloudflare solo procesan por cuenta de ProfeApp: no cuenta como compartir.

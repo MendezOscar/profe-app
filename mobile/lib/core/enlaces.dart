@@ -3,7 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 /// Páginas del sitio público: la landing y lo legal que piden las tiendas.
 class Enlaces {
-  static const _sitio = String.fromEnvironment('SITE_URL', defaultValue: 'https://profe-app.pages.dev');
+  static const _sitio = String.fromEnvironment('SITE_URL', defaultValue: 'https://profeapphn.com');
 
   /// En la web, el mismo sitio donde corre el panel (sirve igual en local y en producción).
   static Uri get sitio => kIsWeb ? Uri.base.resolve('/') : Uri.parse(_sitio);
