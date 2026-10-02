@@ -162,7 +162,7 @@ class _TuPlan extends StatelessWidget {
         subtitle: Text([
           cobro.mensaje,
           if (asignaturas != null)
-            tope == null ? '$asignaturas asignaturas, sin tope' : '$asignaturas de $tope asignaturas del plan',
+            tope == null ? '$asignaturas secciones, sin tope' : '$asignaturas de $tope secciones del plan',
           if (kIsWeb && cobro.comoPagar != null) 'Cómo pagar: ${cobro.comoPagar}',
         ].join('\n')),
         isThreeLine: true,

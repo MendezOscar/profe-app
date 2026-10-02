@@ -42,7 +42,7 @@ public sealed class CobroService(AppDbContext db, ICurrentUser currentUser, IMem
         var situacion = plan.En(clock.Today);
         if (situacion.SoloLectura) return Error.Conflict(Mensaje(situacion, cuenta.EsCentro), "solo_lectura");
 
-        // Sólo frena asignaturas nuevas: quien ya tiene más de las que cubre su plan (porque
+        // Sólo frena secciones nuevas (cada clase es una asignatura en una sección): quien ya tiene más de las que cubre su plan (porque
         // se lo bajaron) sigue respaldando las que tiene.
         if (cuenta.EsCentro || NivelesDocente.Tope(plan.Nivel) is not { } tope) return null;
         var entrantes = (request.Clases ?? []).Where(c => !c.Eliminada).Select(c => c.Clave).Distinct().ToList();
@@ -54,7 +54,7 @@ public sealed class CobroService(AppDbContext db, ICurrentUser currentUser, IMem
         if (nuevas == 0 || activas.Count - borradas + nuevas <= tope) return null;
 
         return Error.Conflict(
-            $"Tu plan cubre {tope} asignaturas y ya las tienes todas. Para agregar otra hay que pasar a un plan mayor.",
+            $"Tu plan cubre {tope} secciones (asignatura por sección) y ya las tienes todas. Para agregar otra hay que pasar a un plan mayor.",
             "tope_asignaturas");
     }
 

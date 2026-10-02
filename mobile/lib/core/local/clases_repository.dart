@@ -12,7 +12,7 @@ class TopeAsignaturas implements Exception {
   final int tope;
 
   @override
-  String toString() => 'Tu plan cubre $tope asignaturas y ya las tienes todas. '
+  String toString() => 'Tu plan cubre $tope secciones (asignatura por sección) y ya las tienes todas. '
       'Para agregar otra, primero elimina una o pasa a un plan mayor.';
 }
 

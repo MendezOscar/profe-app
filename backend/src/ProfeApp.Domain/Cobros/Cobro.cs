@@ -84,7 +84,8 @@ public sealed record SituacionCobro(
 }
 
 /// <summary>
-/// Los planes del docente personal se separan por cuántas asignaturas maneja. Sin nivel
+/// Los planes del docente personal se separan por cuántas secciones maneja: cada cuadro
+/// de SACE (una asignatura en una sección) cuenta una. Sin nivel
 /// no hay tope (cuentas de cortesía); los docentes de un centro tampoco lo tienen.
 /// </summary>
 public static class NivelesDocente

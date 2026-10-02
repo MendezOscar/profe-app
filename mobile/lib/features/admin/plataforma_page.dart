@@ -301,7 +301,7 @@ class _Fila extends ConsumerWidget {
             () {
               final n = d['asignaturas'] as int;
               final tope = c.topeAsignaturas;
-              return tope == null ? '$n ${n == 1 ? 'asignatura' : 'asignaturas'}' : '$n de $tope asignaturas';
+              return tope == null ? '$n ${n == 1 ? 'sección' : 'secciones'}' : '$n de $tope secciones';
             }(),
           ];
     final nivel = cuenta.esCentro ? null : nivelesDocente[c.nivel]?.$1;
@@ -737,7 +737,7 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
             Text('Sin fecha de vencimiento la cuenta nunca queda de solo lectura.', style: text.bodySmall),
             if (!widget.cuenta.esCentro) ...[
               const SizedBox(height: Espacio.l),
-              Text('Asignaturas que cubre', style: text.labelLarge),
+              Text('Secciones que cubre (asignatura por sección)', style: text.labelLarge),
               const SizedBox(height: Espacio.s),
               Wrap(
                 spacing: Espacio.s,

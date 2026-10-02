@@ -163,12 +163,13 @@ registrar pago, plan y vencimiento, reponer contraseña y suspender.
 
 - **A quién se cobra**: al docente del plan personal (en su espacio, `tenants`) o al centro
   (`instituciones`). Los docentes de un centro no tienen cobro propio.
-- **Planes del docente** por asignaturas: Básico hasta 3, Docente hasta 8, Plus sin tope
+- **Planes del docente** por secciones (cada clase importada es una asignatura en una sección):
+  Básico hasta 3, Docente hasta 8, Plus sin tope
   (`NivelesDocente`). Sin nivel no hay tope (demo, revisión, cortesía).
 - **Vencimiento**: sin «pagado hasta» la cuenta nunca vence. Siete días antes se avisa; vencida
   corren los días de gracia; después, **sólo lectura**: entra, ve y exporta, pero `/sync/push`
   responde 409 `solo_lectura` y lo del teléfono queda pendiente hasta que se registre el pago.
-- **Tope**: una asignatura nueva por encima del plan no se importa en la app y el servidor la
+- **Tope**: una sección nueva por encima del plan no se importa en la app y el servidor la
   rechaza con 409 `tope_asignaturas`. Las que ya tiene siguen respaldándose.
 - **Suspender** es otra cosa: nadie de la cuenta entra y se cierran sus sesiones.
 - **Registrar pago** suma los meses al vencimiento que ya tenía (no a hoy); cada pago queda en
