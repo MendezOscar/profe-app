@@ -6,6 +6,16 @@ import 'package:uuid/uuid.dart';
 import '../models/clase.dart';
 import '../sace/cuadro_sace.dart';
 
+/// El plan del docente cubre [tope] asignaturas y ya las tiene todas.
+class TopeAsignaturas implements Exception {
+  TopeAsignaturas(this.tope);
+  final int tope;
+
+  @override
+  String toString() => 'Tu plan cubre $tope asignaturas y ya las tienes todas. '
+      'Para agregar otra, primero elimina una o pasa a un plan mayor.';
+}
+
 /// Clases, alumnos y notas en la base del teléfono. Todo funciona sin red.
 class ClasesRepository {
   ClasesRepository(this._db);
@@ -16,15 +26,23 @@ class ClasesRepository {
   /// Importa un cuadro descargado de SACE. Si la clase ya existe (el mismo cuadro bajado
   /// de nuevo), se actualiza la plantilla y se conserva lo capturado: lo del teléfono manda
   /// y lo que traiga el archivo sólo llena lo que estaba vacío.
-  Future<ResultadoImportacion> importar(Uint8List bytes, String nombreArchivo) async {
+  ///
+  /// Con [tope] (el del plan del docente), una asignatura nueva o revivida que lo pase no
+  /// se importa: lanza [TopeAsignaturas]. Actualizar las que ya tiene siempre se puede.
+  Future<ResultadoImportacion> importar(Uint8List bytes, String nombreArchivo, {int? tope}) async {
     final cuadro = CuadroSace.fromBytes(bytes);
     final db = await _db;
     final now = ahoraUtc();
 
     return db.transaction((tx) async {
-      final existente = await tx.query('clases', columns: ['id'], where: 'clave = ?', whereArgs: [cuadro.claveClase]);
+      final existente =
+          await tx.query('clases', columns: ['id', 'eliminada'], where: 'clave = ?', whereArgs: [cuadro.claveClase]);
       final nueva = existente.isEmpty;
       final claseId = nueva ? _uuid.v4() : existente.first['id'] as String;
+      if (tope != null && (nueva || existente.first['eliminada'] == 1)) {
+        final activas = Sqflite.firstIntValue(await tx.rawQuery('SELECT count(*) FROM clases WHERE eliminada = 0')) ?? 0;
+        if (activas >= tope) throw TopeAsignaturas(tope);
+      }
 
       final datos = {
         'clave': cuadro.claveClase,

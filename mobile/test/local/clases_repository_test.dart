@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:profeapp/core/local/clases_repository.dart';
 import 'package:profeapp/core/local/local_db.dart';
@@ -27,6 +29,19 @@ void main() {
     expect(clase.alumnos, hasLength(3));
     expect(clase.columnas, hasLength(6));
     expect(clase.valores[clase.alumnos[1].id]?['PARCIAL I|NIVELACION'], 10);
+  });
+
+  test('Con el tope del plan lleno no entra una asignatura nueva, pero se actualiza la que ya está', () async {
+    await repo.importar(cuadroMedia(), 'cuadro.xlsx', tope: 1);
+
+    final otraVez = await repo.importar(cuadroMedia(), 'cuadro.xlsx', tope: 1);
+
+    expect(otraVez.nueva, isFalse);
+    await expectLater(
+      repo.importar(File('test/fixtures/cuadro_basica.xls').readAsBytesSync(), 'basica.xls', tope: 1),
+      throwsA(isA<TopeAsignaturas>()),
+    );
+    expect(await repo.listar(), hasLength(1));
   });
 
   test('Reimportar la plantilla con una columna nueva conserva lo capturado en el teléfono', () async {

@@ -35,5 +35,26 @@ public static class AdminEndpoints
         plataforma.MapPost("/docentes", async (CrearDocenteRequest r, IPlataformaService s, CancellationToken ct) =>
                 (await s.CrearDocentePersonalAsync(r, ct)).ToHttp())
             .WithSummary("Cuenta de docente del plan personal, con contraseña temporal.");
+        plataforma.MapGet("/docentes", async (string? buscar, int? pagina, IPlataformaService s, CancellationToken ct) =>
+                (await s.DocentesAsync(buscar, pagina ?? 0, ct)).ToHttp())
+            .WithSummary("Docentes del plan personal, por páginas, con su cobro.");
+
+        // Cobro: lo mismo para un docente (por su usuario) que para un centro.
+        foreach (var (ruta, tipo) in new[] { ("docentes", TipoCuenta.Docente), ("instituciones", TipoCuenta.Centro) })
+        {
+            plataforma.MapPut($"/{ruta}/{{id:guid}}/plan", async (Guid id, PlanCobroRequest r, IPlataformaService s, CancellationToken ct) =>
+                (await s.FijarPlanAsync(tipo, id, r, ct)).ToHttp());
+            plataforma.MapPost($"/{ruta}/{{id:guid}}/pagos", async (Guid id, RegistrarPagoRequest r, IPlataformaService s, CancellationToken ct) =>
+                    (await s.RegistrarPagoAsync(tipo, id, r, ct)).ToHttp())
+                .WithSummary("Anota un pago y corre el vencimiento.");
+            plataforma.MapGet($"/{ruta}/{{id:guid}}/pagos", async (Guid id, IPlataformaService s, CancellationToken ct) =>
+                (await s.PagosAsync(tipo, id, ct)).ToHttp());
+            plataforma.MapPost($"/{ruta}/{{id:guid}}/suspender", async (Guid id, IPlataformaService s, CancellationToken ct) =>
+                (await s.CambiarEstadoAsync(tipo, id, false, ct)).ToHttp());
+            plataforma.MapPost($"/{ruta}/{{id:guid}}/reactivar", async (Guid id, IPlataformaService s, CancellationToken ct) =>
+                (await s.CambiarEstadoAsync(tipo, id, true, ct)).ToHttp());
+            plataforma.MapPost($"/{ruta}/{{id:guid}}/reponer-clave", async (Guid id, IPlataformaService s, CancellationToken ct) =>
+                (await s.ReponerClaveAsync(tipo, id, ct)).ToHttp());
+        }
     }
 }

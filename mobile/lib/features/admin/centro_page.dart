@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_exception.dart';
+import '../../core/models/cobro.dart';
 import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
@@ -98,7 +100,7 @@ class _Licencia extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final usados = institucion['docentes'] as int;
     final cupo = institucion['maxDocentes'] as int;
-    final vence = institucion['venceEn'] as String?;
+    final cobro = Cobro.fromJson(institucion['cobro'] as Map<String, dynamic>);
     final lleno = usados >= cupo;
     return Card(
       child: Padding(
@@ -109,7 +111,19 @@ class _Licencia extends StatelessWidget {
           children: [
             _Dato(etiqueta: 'Plan', valor: planesCentro[institucion['plan']] ?? '${institucion['plan']}'),
             _Dato(etiqueta: 'Docentes', valor: '$usados de $cupo', alerta: lleno),
-            _Dato(etiqueta: 'Vence', valor: vence == null ? 'Sin vencimiento' : fechaCorta(vence)),
+            _Dato(
+              etiqueta: 'Pagado hasta',
+              valor: cobro.pagadoHasta == null ? 'Sin vencimiento' : fechaCorta(cobro.pagadoHasta!.toIso8601String()),
+              alerta: cobro.pideAtencion,
+            ),
+            if (cobro.pideAtencion)
+              SizedBox(
+                width: 320,
+                child: Text(
+                  [cobro.mensaje, if (kIsWeb && cobro.comoPagar != null) 'Cómo pagar: ${cobro.comoPagar}'].join('\n'),
+                  style: text.bodySmall?.copyWith(color: scheme.error),
+                ),
+              ),
             if (lleno)
               SizedBox(
                 width: 320,

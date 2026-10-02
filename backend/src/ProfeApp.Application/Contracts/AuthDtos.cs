@@ -17,7 +17,8 @@ public sealed record CurrentUserDto(
     string FullName,
     string Role,
     Guid? TenantId,
-    bool MustChangePassword);
+    bool MustChangePassword,
+    CobroDto? Cobro = null);
 
 public sealed record AuthResponse(AuthTokens Tokens, CurrentUserDto User);
 

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/enlaces.dart';
+import '../../core/models/cobro.dart';
 import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
@@ -56,6 +57,10 @@ class CuentaPage extends ConsumerWidget {
                 ),
               ],
             ),
+            if (session?.cobro case final cobro?) ...[
+              const SizedBox(height: Espacio.xl),
+              _TuPlan(cobro: cobro, asignaturas: ref.watch(clasesProvider).valueOrNull?.length),
+            ],
             const SizedBox(height: Espacio.xl),
             Card(
               child: Column(
@@ -133,6 +138,34 @@ class CuentaPage extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// El plan de la cuenta: hasta cuándo está al día y cuántas asignaturas cubre. Los datos
+/// para pagar sólo en la web (ver [AvisoCobro]).
+class _TuPlan extends StatelessWidget {
+  const _TuPlan({required this.cobro, required this.asignaturas});
+
+  final Cobro cobro;
+  final int? asignaturas;
+
+  @override
+  Widget build(BuildContext context) {
+    final nivel = nivelesDocente[cobro.nivel]?.$1;
+    final tope = cobro.topeAsignaturas;
+    return Card(
+      child: ListTile(
+        leading: Icon(cobro.soloLectura ? Icons.lock_outline : Icons.workspace_premium_outlined),
+        title: Text(cobro.planNombre ?? (nivel == null ? 'Tu plan' : 'Plan $nivel')),
+        subtitle: Text([
+          cobro.mensaje,
+          if (asignaturas != null)
+            tope == null ? '$asignaturas asignaturas, sin tope' : '$asignaturas de $tope asignaturas del plan',
+          if (kIsWeb && cobro.comoPagar != null) 'Cómo pagar: ${cobro.comoPagar}',
+        ].join('\n')),
+        isThreeLine: true,
       ),
     );
   }

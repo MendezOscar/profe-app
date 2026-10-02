@@ -1,4 +1,6 @@
 using ProfeApp.Api.Common;
+using ProfeApp.Application.Abstractions;
+using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
 using ProfeApp.Application.Services;
 using ProfeApp.Domain.Common;
@@ -13,8 +15,12 @@ public static class SyncEndpoints
             .RequireAuthorization(Policies.DocenteOnly)
             .RequireRateLimiting(Limites.Usuario);
 
-        group.MapPost("/push", async (SyncPushRequest request, SyncService sync, CancellationToken ct) =>
-                (await sync.PushAsync(request, ct)).ToHttp())
+        // Con el plan vencido (pasada la gracia) o una asignatura nueva por encima del tope,
+        // no se respalda nada: lo del teléfono queda pendiente y sube al ponerse al día.
+        group.MapPost("/push", async (SyncPushRequest request, SyncService sync, ICobroService cobro, CancellationToken ct) =>
+                await cobro.BloqueoDeSyncAsync(request, ct) is { } bloqueo
+                    ? Result.Fail(bloqueo).ToHttp()
+                    : (await sync.PushAsync(request, ct)).ToHttp())
             .WithSummary("Sube clases cambiadas en el teléfono. Idempotente: gana la captura más nueva por celda.");
 
         group.MapGet("/pull", async (DateTimeOffset? desde, DateTimeOffset? hasta, int? pagina, string? despues, SyncService sync, CancellationToken ct) =>

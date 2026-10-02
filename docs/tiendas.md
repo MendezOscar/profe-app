@@ -33,7 +33,9 @@ El sitio se arma con `scripts/cloudflare-build.sh`: `site/` va a la raíz y el p
   Firebase ni APNs.
 - **Cifrado**: solo HTTPS. `ITSAppUsesNonExemptEncryption = false` en `Info.plist`.
 - **Sin registro público ni compras**: las cuentas las da ProfeApp o el centro. Nada que comprar
-  en la app ni en la ficha (ver la regla 3.1 en [app-store.md](app-store.md)).
+  en la app ni en la ficha (ver la regla 3.1 en [app-store.md](app-store.md)). El aviso de plan
+  por vencer o vencido solo informa; el texto «Cómo pagar» que se fija en la plataforma se ve
+  únicamente en la web (`kIsWeb`), nunca en la app de las tiendas.
 - **Aviso de independencia**: «no está afiliado ni respaldado por la Secretaría de Educación ni
   por SACE», en las dos descripciones y en el pie del sitio.
 

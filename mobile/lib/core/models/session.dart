@@ -1,3 +1,5 @@
+import 'cobro.dart';
+
 class Session {
   const Session({
     required this.accessToken,
@@ -8,6 +10,7 @@ class Session {
     required this.fullName,
     required this.role,
     this.mustChangePassword = false,
+    this.cobro,
   });
 
   final String accessToken;
@@ -18,6 +21,9 @@ class Session {
   final String fullName;
   final String role;
   final bool mustChangePassword;
+
+  /// El plan de la cuenta. Null en la plataforma, o en una sesión guardada por una versión anterior.
+  final Cobro? cobro;
 
   bool get isExpired => DateTime.now().isAfter(accessTokenExpiresAt.subtract(const Duration(seconds: 30)));
 
@@ -33,8 +39,21 @@ class Session {
       fullName: user['fullName'] as String,
       role: user['role'] as String? ?? 'Docente',
       mustChangePassword: user['mustChangePassword'] as bool? ?? false,
+      cobro: user['cobro'] == null ? null : Cobro.fromJson(user['cobro'] as Map<String, dynamic>),
     );
   }
+
+  Session conCobro(Cobro? cobro) => Session(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        accessTokenExpiresAt: accessTokenExpiresAt,
+        userId: userId,
+        email: email,
+        fullName: fullName,
+        role: role,
+        mustChangePassword: mustChangePassword,
+        cobro: cobro,
+      );
 
   Map<String, dynamic> toJson() => {
         'accessToken': accessToken,
@@ -45,6 +64,7 @@ class Session {
         'fullName': fullName,
         'role': role,
         'mustChangePassword': mustChangePassword,
+        if (cobro != null) 'cobro': cobro!.toJson(),
       };
 
   factory Session.fromJson(Map<String, dynamic> json) => Session(
@@ -56,5 +76,6 @@ class Session {
         fullName: json['fullName'] as String,
         role: json['role'] as String? ?? 'Docente',
         mustChangePassword: json['mustChangePassword'] as bool? ?? false,
+        cobro: json['cobro'] == null ? null : Cobro.fromJson(json['cobro'] as Map<String, dynamic>),
       );
 }

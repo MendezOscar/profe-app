@@ -2,6 +2,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/local/clases_repository.dart';
 import '../../core/planes/calculo_parcial.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
@@ -13,6 +14,18 @@ import '../../theme/tokens.dart';
 /// Reimportar un cuadro ya importado lo actualiza sin perder lo capturado. Al final
 /// ofrece aplicar un plan de calificación a las asignaturas nuevas.
 Future<void> importarCuadros(BuildContext context, WidgetRef ref) async {
+  final cobro = ref.read(sessionProvider)?.cobro;
+  if (cobro?.soloLectura ?? false) {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('No se pueden importar cuadros'),
+        content: Text(cobro!.mensaje),
+        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido'))],
+      ),
+    );
+    return;
+  }
   final picked = await FilePicker.pickFiles(
     type: FileType.custom,
     allowedExtensions: const ['xlsx', 'xls'],
@@ -22,6 +35,7 @@ Future<void> importarCuadros(BuildContext context, WidgetRef ref) async {
   if (picked == null || !context.mounted) return;
 
   final repo = ref.read(clasesRepositoryProvider);
+  final tope = ref.read(sessionProvider)?.cobro?.topeAsignaturas;
   final nuevas = <String>[];
   var actualizadas = 0;
   var alumnos = 0;
@@ -29,7 +43,7 @@ Future<void> importarCuadros(BuildContext context, WidgetRef ref) async {
   for (final file in picked.files) {
     if (file.bytes == null) continue;
     try {
-      final r = await repo.importar(file.bytes!, file.name);
+      final r = await repo.importar(file.bytes!, file.name, tope: tope);
       alumnos += r.alumnos;
       if (r.nueva) {
         nuevas.add(r.claseId);
@@ -40,6 +54,8 @@ Future<void> importarCuadros(BuildContext context, WidgetRef ref) async {
       ref.invalidate(parcialesProvider(r.claseId));
     } on FormatoNoSoportado catch (error) {
       errores.add('${file.name}: ${error.message}');
+    } on TopeAsignaturas catch (error) {
+      errores.add('${file.name}: $error');
     }
   }
   ref.invalidate(clasesProvider);

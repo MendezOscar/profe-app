@@ -1,12 +1,12 @@
 using System.Net.Mail;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Caching.Memory;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
 using ProfeApp.Domain.Common;
 using ProfeApp.Domain.Tenants;
+using ProfeApp.Infrastructure.Cobros;
 using ProfeApp.Infrastructure.Persistence;
 
 namespace ProfeApp.Infrastructure.Identity;
@@ -17,12 +17,9 @@ public sealed class AuthService(
     TokenService tokens,
     ITenantContext tenant,
     ICurrentUser currentUser,
-    IMemoryCache cache,
+    CobroService cobros,
     IClock clock) : IAuthService
 {
-    /// <summary>La licencia casi no cambia y se consulta en cada renovación de sesión.</summary>
-    internal static string ClaveLicencia(Guid institucionId) => $"licencia:{institucionId}";
-
     public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, string? ip, CancellationToken ct = default)
     {
         var email = (request.Email ?? "").Trim().ToLowerInvariant();
@@ -79,12 +76,7 @@ public sealed class AuthService(
         // Aún no hay JWT: fijamos el tenant a mano para poder leer su espacio.
         tenant.SetTenant(user.TenantId, ignoreFilter: true);
 
-        if (user.TenantId is { } tenantId
-            && !await db.Tenants.AnyAsync(t => t.Id == tenantId && t.IsActive, ct))
-            return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "tenant_disabled",
-                "Tu cuenta está suspendida. Contacta a soporte."));
-
-        if (await LicenciaVencidaAsync(user, ct) is { } vencida) return Result<AuthResponse>.Fail(vencida);
+        if (await SuspendidaAsync(user, ct) is { } suspendida) return Result<AuthResponse>.Fail(suspendida);
 
         return await IssueAsync(user, ip, request.DeviceName, ct);
     }
@@ -110,19 +102,19 @@ public sealed class AuthService(
         return null;
     }
 
-    /// <summary>Con licencia de centro, el acceso depende de que esté activa y sin vencer.</summary>
-    private async Task<Error?> LicenciaVencidaAsync(AppUser user, CancellationToken ct)
+    /// <summary>
+    /// Suspendida (por la plataforma), la cuenta no entra. Vencida no: entra en sólo lectura,
+    /// para que el docente pueda ver y exportar lo suyo.
+    /// </summary>
+    private async Task<Error?> SuspendidaAsync(AppUser user, CancellationToken ct)
     {
-        if (user.InstitucionId is not { } id) return null;
-        var institucion = await cache.GetOrCreateAsync(ClaveLicencia(id), e =>
-        {
-            e.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(5);
-            return db.Instituciones.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct);
-        });
-        return institucion is null || !institucion.Vigente(clock.Now)
-            ? new Error(ErrorKind.Forbidden, "licencia_vencida",
-                "La licencia de tu centro no está vigente. Habla con la administración de tu centro.")
-            : null;
+        var (cuenta, plan) = await cobros.DeUsuarioAsync(user.Id, ct);
+        if (cuenta.CuentaId is null || plan is { Activa: true }) return null;
+        return cuenta.EsCentro
+            ? new Error(ErrorKind.Forbidden, "cuenta_suspendida",
+                "La licencia de tu centro está suspendida. Habla con la administración de tu centro.")
+            : new Error(ErrorKind.Forbidden, "cuenta_suspendida",
+                "Tu cuenta está suspendida. Escríbenos a soporte@profeapphn.com.");
     }
 
     public async Task<Result<AuthResponse>> RefreshAsync(RefreshRequest request, string? ip, CancellationToken ct = default)
@@ -136,7 +128,7 @@ public sealed class AuthService(
         var user = await users.FindByIdAsync(existing.UserId.ToString());
         if (user is null || !user.IsActive)
             return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "user_disabled", "El usuario está deshabilitado."));
-        if (await LicenciaVencidaAsync(user, ct) is { } vencida) return Result<AuthResponse>.Fail(vencida);
+        if (await SuspendidaAsync(user, ct) is { } suspendida) return Result<AuthResponse>.Fail(suspendida);
 
         var role = await RoleOfAsync(user);
         var (access, accessExpires) = tokens.CreateAccessToken(user, role);
@@ -147,7 +139,7 @@ public sealed class AuthService(
         existing.ReplacedByTokenId = refreshEntity.Id;
         await db.SaveChangesAsync(ct);
 
-        return new AuthResponse(new AuthTokens(access, accessExpires, refresh, refreshEntity.ExpiresAt), Profile(user, role));
+        return new AuthResponse(new AuthTokens(access, accessExpires, refresh, refreshEntity.ExpiresAt), await ProfileAsync(user, role, ct));
     }
 
     public async Task<Result> LogoutAsync(string refreshToken, CancellationToken ct = default)
@@ -166,7 +158,7 @@ public sealed class AuthService(
     {
         var user = await users.FindByIdAsync(currentUser.RequireUserId().ToString());
         if (user is null) return Result<CurrentUserDto>.Fail(Error.NotFound("El usuario"));
-        return Profile(user, await RoleOfAsync(user));
+        return await ProfileAsync(user, await RoleOfAsync(user), ct);
     }
 
     public async Task<Result> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken ct = default)
@@ -242,14 +234,19 @@ public sealed class AuthService(
         user.LastLoginAt = clock.Now;
         await users.UpdateAsync(user);
 
-        return new AuthResponse(new AuthTokens(access, accessExpires, refresh, refreshEntity.ExpiresAt), Profile(user, role));
+        return new AuthResponse(new AuthTokens(access, accessExpires, refresh, refreshEntity.ExpiresAt), await ProfileAsync(user, role, ct));
     }
 
     private async Task<string> RoleOfAsync(AppUser user) =>
         (await users.GetRolesAsync(user)).FirstOrDefault() ?? Roles.Docente;
 
-    private static CurrentUserDto Profile(AppUser user, string role) =>
-        new(user.Id, user.Email!, user.FullName, role, user.TenantId, user.MustChangePassword);
+    /// <summary>Con el cobro: cada renovación de sesión le lleva a la app el estado de su plan.</summary>
+    private async Task<CurrentUserDto> ProfileAsync(AppUser user, string role, CancellationToken ct)
+    {
+        var (cuenta, plan) = await cobros.DeUsuarioAsync(user.Id, ct);
+        return new(user.Id, user.Email!, user.FullName, role, user.TenantId, user.MustChangePassword,
+            role == Roles.PlatformAdmin ? null : cobros.Describir(cuenta, plan));
+    }
 
     /// <summary>Formato de correo razonable y dentro del largo que admite la base.</summary>
     internal static bool CorreoValido(string email) =>

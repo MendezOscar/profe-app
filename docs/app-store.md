@@ -167,7 +167,8 @@ En la app no se compra nada: no hay compras dentro de la app, ni precios, ni enl
 comprar. El servicio lo contrata por fuera de la app el centro educativo para sus docentes
 (3.1.3(c), servicios para empresas u organizaciones) o el propio docente, que también lo usa
 desde el navegador (3.1.3(f), app gratuita que acompaña una herramienta web). La app no mueve
-dinero ni tiene pasarela de pago.
+dinero ni tiene pasarela de pago. Si el servicio de la cuenta vence, la app solo informa la
+fecha y que lo nuevo no se respalda; no muestra precios, datos de pago ni enlaces para pagar.
 
 SERVICIOS EXTERNOS
 API propia en Render, base de datos PostgreSQL en Aiven y el sitio y panel web en Cloudflare

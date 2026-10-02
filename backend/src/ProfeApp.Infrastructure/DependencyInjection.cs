@@ -4,6 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Services;
+using ProfeApp.Infrastructure.Cobros;
 using ProfeApp.Infrastructure.Identity;
 using ProfeApp.Infrastructure.Instituciones;
 using ProfeApp.Infrastructure.Mantenimiento;
@@ -51,6 +52,8 @@ public static class DependencyInjection
 
         services.AddScoped<TokenService>();
         services.AddMemoryCache();
+        services.AddScoped<CobroService>();
+        services.AddScoped<ICobroService>(p => p.GetRequiredService<CobroService>());
         services.AddScoped<IAuthService, AuthService>();
         services.AddSingleton<ICuadroSaceWriter, CuadroSaceWriter>();
         services.AddScoped<SyncService>();

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/api_exception.dart';
 import '../config.dart';
+import '../models/cobro.dart';
 import '../models/session.dart';
 import 'token_storage.dart';
 
@@ -125,6 +126,16 @@ class AuthController extends Notifier<AuthState> {
     final actual = state.session;
     if (actual == null || !actual.mustChangePassword) return;
     final session = Session.fromJson({...actual.toJson(), 'mustChangePassword': false});
+    await _storage.write(session);
+    state = state.copyWith(session: session);
+  }
+
+  /// El servidor avisó que el plan cambió (por ejemplo, quedó de sólo lectura): se guarda
+  /// el estado nuevo para que los avisos y el candado de la app lo reflejen ya.
+  Future<void> cobroActualizado(Map<String, dynamic> cobro) async {
+    final actual = state.session;
+    if (actual == null) return;
+    final session = actual.conCobro(Cobro.fromJson(cobro));
     await _storage.write(session);
     state = state.copyWith(session: session);
   }

@@ -12,6 +12,8 @@ public class TenantConfig : IEntityTypeConfiguration<Tenant>
     {
         b.ToTable("tenants");
         b.Property(x => x.Name).HasMaxLength(160).IsRequired();
+        b.Property(x => x.Nivel).HasMaxLength(20);
+        b.ConfigurarCobro();
     }
 }
 

@@ -20,8 +20,11 @@ class IndicadorSync extends ConsumerWidget {
         (Icons.cloud_off_outlined, 'Sin conexión', 'Sin conexión: todo queda guardado en este dispositivo'),
       EstadoSync.error => (Icons.sync_problem_outlined, 'Error al respaldar', 'No se pudo respaldar: ${sync.mensaje ?? ''}'),
       EstadoSync.pendiente => (Icons.cloud_upload_outlined, 'Pendiente', 'Pendiente de respaldar'),
+      EstadoSync.soloLectura => (Icons.lock_outline, 'Sin respaldo', sync.mensaje ?? 'Lo nuevo no se respalda por ahora'),
     };
-    final color = sync.estado == EstadoSync.error ? Theme.of(context).colorScheme.error : null;
+    final color = sync.estado == EstadoSync.error || sync.estado == EstadoSync.soloLectura
+        ? Theme.of(context).colorScheme.error
+        : null;
     final accion = sync.estado == EstadoSync.sincronizando
         ? null
         : () => ref.read(syncControllerProvider.notifier).sincronizar();

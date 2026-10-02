@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/profeapp_theme.dart';
+import 'aviso_cobro.dart';
 import 'estado_error.dart';
 import 'indicador_sync.dart';
 
@@ -56,7 +57,7 @@ class ShellAdaptativo extends StatelessWidget {
 
     if (ancho == Ancho.compacto) {
       return Scaffold(
-        body: Column(children: [Expanded(child: child), const AvisoSinConexion()]),
+        body: Column(children: [const AvisoCobro(), Expanded(child: child), const AvisoSinConexion()]),
         bottomNavigationBar: _esRaiz
             ? NavigationBar(
                 selectedIndex: _indice,
@@ -105,7 +106,7 @@ class ShellAdaptativo extends StatelessWidget {
             ],
           ),
           const VerticalDivider(width: 2),
-          Expanded(child: Column(children: [Expanded(child: child), const AvisoSinConexion()])),
+          Expanded(child: Column(children: [const AvisoCobro(), Expanded(child: child), const AvisoSinConexion()])),
         ],
       ),
     );

@@ -10,7 +10,7 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
     private static readonly DateTimeOffset Importada = new(2026, 7, 1, 12, 0, 0, TimeSpan.Zero);
 
-    private static object Clase(
+    internal static object Clase(
         string clave, bool conArchivo = true, bool eliminada = false, DateTimeOffset? plantilla = null,
         object[]? valores = null) => new
     {
