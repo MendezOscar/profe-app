@@ -178,11 +178,20 @@ suspensión.
 | Archivos y documentos | El cuadro de SACE (Excel) | Sí | No | Funcionalidad | Sí |
 | Ubicación, contactos, mensajes, fotos, audio, salud, finanzas, actividad, ID del dispositivo | — | No | — | — | — |
 
+En cada tipo de dato, la misma pantalla: ✅ Recopilados (no Compartidos); procesamiento
+**efímero: No** (se guarda en el servidor, es el respaldo); **necesaria**; para qué: ✅ Funciones
+de la app, y en nombre, correo e ID de usuario también ✅ Administración de la cuenta. Nada de
+estadísticas, comunicaciones, publicidad, personalización ni prevención de fraudes.
+
 Las tres preguntas generales:
 
 - **¿Se cifra en tránsito?** Sí, todo va por HTTPS.
 - **¿Se pueden borrar los datos?** Sí, desde la app (Cuenta → Eliminar mi cuenta) y por web.
 - **URL para pedir que se borren:** `https://profeapphn.com/eliminar-cuenta`
+- **Métodos de creación de cuenta:** solo «Nombre de usuario y contraseña». No «la app no
+  permite crear cuentas»: el administrador de un centro las crea desde la app.
+- **¿Borrar parte de los datos sin borrar la cuenta?** Sí: eliminar una asignatura (con sus
+  alumnos, notas y asistencia) o actividades sueltas, y se borra también en el servidor.
 
 «Compartir» en Google es entregar datos a otra empresa para sus propios fines. Render, Aiven y
 Cloudflare solo procesan por cuenta de ProfeApp: no cuenta como compartir.
