@@ -6,6 +6,8 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ProfeApp solo abre la fototeca si eliges desde ahí el cuadro de SACE que quieres importar. No lee ni guarda tus fotos.</string>
 	<key>CFBundleDisplayName</key>
 	<string>ProfeApp</string>
 	<key>CFBundleExecutable</key>

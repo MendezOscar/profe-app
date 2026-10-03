@@ -250,8 +250,11 @@ Xcode → Organizer. Cada subida necesita un número de compilación nuevo: el `
 Si al subir llega un correo de Apple por «Missing purpose string» (ITMS-90683), es porque algún
 paquete enlaza una API de fotos o cámara aunque la app no la use. Se agrega en `Info.plist` la
 clave que nombre el correo, con una frase que describa para qué es (nunca una frase de
-desarrollo, que fue lo que Apple le señaló a Garaj), y se vuelve a compilar. Con la versión
-actual no debería pasar: la app no pide fotos, cámara ni ubicación.
+desarrollo, que fue lo que Apple le señaló a Garaj), y se vuelve a compilar. Pasó con la
+compilación 1: `file_picker` enlaza la fototeca, así que `NSPhotoLibraryUsageDescription` ya
+está. La app nunca pide permiso de fotos: el selector de archivos de iOS no lo necesita.
+
+La app pide iOS 15 o superior (Apple lo exige para subir desde abril de 2027).
 
 ## Lista antes de mandar
 
