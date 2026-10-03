@@ -45,8 +45,8 @@ Las dos tiendas entran con estas cuentas, **en producción** (a donde apunta el 
 
 | Cuenta | Cómo se crea | Datos |
 | --- | --- | --- |
-| Docente de revisión | Plataforma → Nueva cuenta de docente | Un cuadro ficticio (`mobile/test/fixtures/cuadro_basica.xls`) con tres parciales cerrados y el cuarto en curso |
-| Administrador de centro de revisión | Plataforma → Nuevo centro («Centro de Revisión», plan pequeño, sin vencimiento) | Con el docente de revisión dado de alta en su centro |
+| Docente de revisión (`docentetiendas@pruebas.hn`, plan personal sin vencimiento) | Plataforma → Nueva cuenta de docente | QUÍMICA 10-1, QUÍMICA 10-2 y FÍSICA 11-1: cuadros ficticios (alumnos inventados, identidades `9999…`) con tres parciales cerrados y el cuarto en curso |
+| Administrador de centro (`institutotiendas@pruebas.com`, «Instituto de pruebas») | Plataforma → Nuevo centro | Tres docentes ficticios (`@pruebas.hn`) con sus secciones y avance; pagado hasta el 31-12-2026 |
 
 - **No usar la cuenta demo** (`docente@demo.hn`): la usa el equipo, y cualquier prueba suya
   cambia lo que ve el revisor.
@@ -60,10 +60,8 @@ Las dos tiendas entran con estas cuentas, **en producción** (a donde apunta el 
 
 ## Capturas
 
-En `docs/tiendas/capturas/`, **fuera del repositorio** (`.gitignore`): muestran nombres e
-identidades de alumnos de la cuenta demo. Si esos datos son ficticios, se pueden versionar
-quitando la línea del `.gitignore`; si no, hay que rehacerlas con la cuenta de revisión, que sí
-usa el cuadro ficticio.
+En `docs/tiendas/capturas/`, tomadas con la **cuenta de revisión** (`docentetiendas@pruebas.hn`):
+alumnos, identidades (prefijo `9999`) y centro son inventados.
 
 | Carpeta | Medida | Para |
 | --- | --- | --- |
@@ -71,19 +69,19 @@ usa el cuadro ficticio.
 | `ipad-13/` | 2064 × 2752 | App Store, iPad (obligatorio) |
 | `android-telefono/` | 1080 × 2400 | Google Play |
 
-Se toman del panel web (la misma app Flutter) con Chrome a esas medidas y a 2× o 3×, entrando
-con la cuenta y navegando por las rutas de cada pantalla. No llevan barra de estado del
+Se toman del panel web en producción (la misma app Flutter) con Chrome a esas medidas y a 2× o
+3×, entrando con la cuenta de revisión y navegando por las rutas de cada pantalla. No llevan barra de estado del
 teléfono, que las tiendas no exigen.
 
-## Estado (30 de septiembre de 2026)
+## Estado (2 de octubre de 2026)
 
 | Paso | Estado |
 | --- | --- |
-| Versión `1.0.0+1`, `.aab` y `.ipa` firmados | Hecho |
+| Versión `1.0.0+1`, `.aab` y `.ipa` firmados | Recompilados el 2 de octubre con todo lo último |
 | Fichas, notas para el revisor, privacidad, seguridad de los datos | Escritas en los dos documentos |
 | Icono 512 y gráfico destacado de Play | En `docs/tiendas/play-store/` |
-| Capturas de iPhone, iPad y Android | Hechas con la cuenta demo (ver arriba) |
+| Capturas de iPhone, iPad y Android | Hechas con la cuenta de revisión, datos ficticios |
 | Contraseña de la cuenta demo cambiada | Hecho |
-| Cuentas de revisión en producción | **Falta**: necesita la cuenta de plataforma |
+| Cuentas de revisión en producción | Hechas y con datos ficticios (credenciales en `CREDENCIALES.local.md`) |
 | Video en el iPhone para Apple | **Falta** |
 | Cuenta de Play Console y prueba cerrada de 14 días | **Falta** |

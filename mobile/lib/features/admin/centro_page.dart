@@ -219,9 +219,9 @@ class _Docente extends ConsumerWidget {
                     Wrap(
                       spacing: 16,
                       children: [
-                        Text('${docente['asignaturas']} asignaturas', style: text.labelLarge),
-                        Text('${docente['actividades']} actividades', style: text.labelLarge),
-                        Text('${docente['parcialesCerrados']} parciales cerrados',
+                        Text(_cuantos(docente['asignaturas'] as int, 'asignatura', 'asignaturas'), style: text.labelLarge),
+                        Text(_cuantos(docente['actividades'] as int, 'actividad', 'actividades'), style: text.labelLarge),
+                        Text(_cuantos(docente['parcialesCerrados'] as int, 'parcial cerrado', 'parciales cerrados'),
                             style: text.labelLarge?.copyWith(color: scheme.primary, fontWeight: FontWeight.w800)),
                       ],
                     ),
@@ -243,3 +243,5 @@ class _Docente extends ConsumerWidget {
     );
   }
 }
+
+String _cuantos(int n, String uno, String varios) => '$n ${n == 1 ? uno : varios}';
