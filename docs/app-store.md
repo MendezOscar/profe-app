@@ -143,8 +143,8 @@ un centro educativo para sus docentes. Hay dos tipos de cuenta en la app:
 1) Docente (la principal)
    Usuario: <correo de la cuenta de revisión docente>
    Contraseña: <contraseña>
-   Tiene una asignatura de ejemplo (Química, 20 alumnos ficticios) con tres parciales cerrados y
-   el cuarto en curso.
+   Tiene tres secciones de ejemplo (Química 10-1 y 10-2, Física 11-1; alumnos ficticios) con
+   tres parciales cerrados y el cuarto en curso.
    Qué revisar: Inicio → tocar la asignatura → pestañas Plan, Actividades, Notas y
    Estadísticas; el ícono de lista arriba para pasar lista; el ícono de tabla para el cuadro de
    SACE y exportarlo; la campana de Inicio para los avisos.
@@ -152,7 +152,8 @@ un centro educativo para sus docentes. Hay dos tipos de cuenta en la app:
 2) Administrador de centro
    Usuario: <correo de la cuenta de revisión del centro>
    Contraseña: <contraseña>
-   Ve los docentes de su centro, los da de alta, los desactiva y les restablece la contraseña.
+   Ve los docentes de su centro (tres de ejemplo, ficticios) y su avance; los da de alta, los
+   desactiva y les restablece la contraseña.
 
 Existe además una cuenta interna de plataforma que solo usa el equipo de ProfeApp para crear
 centros; no es para usuarios.
