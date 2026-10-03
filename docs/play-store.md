@@ -135,6 +135,7 @@ Ve y administra los docentes de su centro.
 | --- | --- |
 | Política de privacidad | `https://profeapphn.com/privacidad` |
 | Anuncios | No |
+| ID de publicidad | **No** (el `.aab` no pide `AD_ID` ni trae SDK de anuncios o analítica). Sin esta declaración no deja enviar a revisión |
 | Acceso a la app | Arriba |
 | Clasificación de contenido | Cuestionario IARC, abajo |
 | Público objetivo | **18 años o más**. La app es para docentes, no está dirigida a niños |
