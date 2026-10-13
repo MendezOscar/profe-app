@@ -18,8 +18,9 @@ class ProfeApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'ProfeApp',
       debugShowCheckedModeBanner: false,
-      // La marca define sólo tema claro.
+      // Claro u oscuro según el modo del teléfono.
       theme: profeTheme(),
+      darkTheme: profeTheme(oscuro: true),
       routerConfig: ref.watch(routerProvider),
       // En el teléfono, tocar fuera de un campo cierra el teclado.
       builder: (context, child) => GestureDetector(

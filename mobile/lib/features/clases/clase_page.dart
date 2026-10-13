@@ -8,6 +8,7 @@ import '../../core/avisos/avisos.dart';
 import '../../core/models/clase.dart';
 import '../../core/preferencias.dart';
 import '../../core/providers.dart';
+import '../../core/resena.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../ui/barra_teclado.dart';
 import 'eliminar_clase.dart';
@@ -177,6 +178,7 @@ class _CapturaState extends ConsumerState<_Captura> {
       await ref.read(preferenciasProvider).setString(claveExportado(_clase.resumen.id), DateTime.now().toUtc().toIso8601String());
       ref.invalidate(todosLosAvisosProvider);
       _avisar('Cuadro listo. Súbelo en SACE: Notas → Cargar Archivos Notas.');
+      await pedirResenaSiToca(ref);
     } on ApiException catch (error) {
       _avisar(error.isNetworkError
           ? 'Necesitas internet para generar el archivo. Lo capturado sigue guardado en el teléfono.'

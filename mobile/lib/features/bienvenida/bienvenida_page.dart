@@ -94,7 +94,7 @@ class _BienvenidaPageState extends ConsumerState<BienvenidaPage> {
                       padding: const EdgeInsets.fromLTRB(Espacio.xl, Espacio.l, Espacio.s, 0),
                       child: Row(
                         children: [
-                          Image.asset('assets/brand/logo-azul.png', height: 28, semanticLabel: 'ProfeApp'),
+                          Image.asset(logoMarca(context), height: 28, semanticLabel: 'ProfeApp'),
                           const Spacer(),
                           if (!_ultima) TextButton(onPressed: _terminar, child: const Text('Saltar')),
                         ],
@@ -163,6 +163,7 @@ class _Pagina extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: Espacio.xl, vertical: Espacio.l),
       child: Column(
@@ -173,21 +174,21 @@ class _Pagina extends StatelessWidget {
           AspectRatio(
             aspectRatio: 1.4,
             child: Container(
-              color: ProfeColors.azulClaro,
+              color: scheme.primaryContainer,
               child: Stack(
                 children: [
                   Positioned(
                     left: 24,
                     top: 20,
                     child: Text('0$numero',
-                        style: text.displayMedium?.copyWith(fontWeight: FontWeight.w800, color: ProfeColors.azul.withValues(alpha: 0.25))),
+                        style: text.displayMedium?.copyWith(fontWeight: FontWeight.w800, color: scheme.primary.withValues(alpha: 0.25))),
                   ),
                   Center(
                     child: Container(
                       width: 128,
                       height: 128,
-                      color: ProfeColors.azul,
-                      child: Icon(paso.icono, size: 64, color: ProfeColors.blanco),
+                      color: scheme.primary,
+                      child: Icon(paso.icono, size: 64, color: scheme.onPrimary),
                     ),
                   ),
                 ],
@@ -197,7 +198,7 @@ class _Pagina extends StatelessWidget {
           const SizedBox(height: Espacio.xxl),
           Text(paso.titulo, style: text.headlineMedium),
           const SizedBox(height: Espacio.m),
-          Text(paso.texto, style: text.bodyLarge?.copyWith(color: ProfeColors.textoSuave, height: 1.45)),
+          Text(paso.texto, style: text.bodyLarge?.copyWith(color: scheme.onSurfaceVariant, height: 1.45)),
         ],
       ),
     );

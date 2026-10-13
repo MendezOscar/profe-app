@@ -73,6 +73,12 @@ Se toman del panel web en producción (la misma app Flutter) con Chrome a esas m
 3×, entrando con la cuenta de revisión y navegando por las rutas de cada pantalla. No llevan barra de estado del
 teléfono, que las tiendas no exigen.
 
+**Las que se suben** son las de `docs/tiendas/capturas-con-texto/` (mismas carpetas y medidas):
+cada captura sobre el azul de la marca con un título y una línea que dicen qué hace esa pantalla,
+como pidieron los testers de la prueba cerrada. Se generan desde las de `capturas/` con
+`node scripts/capturas-con-texto.mjs` (necesita `playwright-core` y Chrome); los textos están en
+el script.
+
 ## Estado (2 de octubre de 2026)
 
 | Paso | Estado |

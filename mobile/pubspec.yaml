@@ -1,7 +1,7 @@
 name: profeapp
 description: ProfeApp - cuadro de notas offline del docente, listo para subir a SACE.
 publish_to: 'none'
-version: 1.0.0+3
+version: 1.0.0+4
 
 environment:
   sdk: ^3.9.0
@@ -46,6 +46,7 @@ dependencies:
   url_launcher: ^6.3.2
   flutter_local_notifications: ^20.1.0
   timezone: ^0.10.1
+  in_app_review: ^2.0.12
 
 dev_dependencies:
   flutter_test:

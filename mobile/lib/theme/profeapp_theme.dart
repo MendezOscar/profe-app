@@ -30,8 +30,35 @@ class ProfeColors {
   static const amarillo = Color(0xFFFFE08A);
 }
 
-ThemeData profeTheme() {
-  const scheme = ColorScheme.light(
+/// Colores del modo oscuro, fuera del kit de marca: fondo marino profundo, el azul de la
+/// marca aclarado para que contraste sobre él y textos claros. Mismos papeles que en claro.
+class ProfeColorsOscuro {
+  static const fondo = Color(0xFF0E1525);
+  static const superficie = Color(0xFF151E33);
+  static const superficie2 = Color(0xFF1B2640);
+  static const superficie3 = Color(0xFF23304F);
+  static const superficie4 = Color(0xFF2B3A5D);
+  static const texto = Color(0xFFE6EBF5);
+  static const textoSuave = Color(0xFFAEB8CC);
+  static const borde = Color(0xFF8794B0);
+  static const bordeSuave = Color(0xFF33415F);
+  static const azul = Color(0xFF8DB0FF);
+  static const enAzul = Color(0xFF0B1E4D);
+  static const azulContenedor = Color(0xFF1E3F8C);
+  static const enAzulContenedor = Color(0xFFDCE6FF);
+  static const rojo = Color(0xFFFFB4AB);
+  static const enRojo = Color(0xFF690005);
+  static const rojoSuave = Color(0xFF5C1A15);
+  static const enRojoSuave = Color(0xFFFFDAD6);
+  static const verde = Color(0xFF7BD8A4);
+  static const enVerde = Color(0xFF00391C);
+  static const verdeSuave = Color(0xFF143A27);
+}
+
+/// El tema de la app. Sigue el modo del teléfono: [oscuro] lo decide MaterialApp con
+/// darkTheme, no el docente.
+ThemeData profeTheme({bool oscuro = false}) {
+  const claro = ColorScheme.light(
     primary: ProfeColors.azul,
     onPrimary: ProfeColors.blanco,
     primaryContainer: ProfeColors.azulClaro,
@@ -52,14 +79,43 @@ ThemeData profeTheme() {
     errorContainer: ProfeColors.rojoSuave,
     onErrorContainer: ProfeColors.rojo,
   );
+  const noche = ColorScheme.dark(
+    primary: ProfeColorsOscuro.azul,
+    onPrimary: ProfeColorsOscuro.enAzul,
+    primaryContainer: ProfeColorsOscuro.azulContenedor,
+    onPrimaryContainer: ProfeColorsOscuro.enAzulContenedor,
+    secondary: ProfeColorsOscuro.texto,
+    onSecondary: ProfeColors.marino,
+    secondaryContainer: ProfeColorsOscuro.superficie4,
+    onSecondaryContainer: ProfeColorsOscuro.texto,
+    surface: ProfeColorsOscuro.superficie,
+    onSurface: ProfeColorsOscuro.texto,
+    onSurfaceVariant: ProfeColorsOscuro.textoSuave,
+    outline: ProfeColorsOscuro.borde,
+    outlineVariant: ProfeColorsOscuro.bordeSuave,
+    surfaceContainerLowest: ProfeColorsOscuro.fondo,
+    surfaceContainerLow: ProfeColorsOscuro.superficie,
+    surfaceContainer: ProfeColorsOscuro.superficie2,
+    surfaceContainerHigh: ProfeColorsOscuro.superficie3,
+    surfaceContainerHighest: ProfeColorsOscuro.superficie4,
+    error: ProfeColorsOscuro.rojo,
+    onError: ProfeColorsOscuro.enRojo,
+    errorContainer: ProfeColorsOscuro.rojoSuave,
+    onErrorContainer: ProfeColorsOscuro.enRojoSuave,
+  );
+  final scheme = oscuro ? noche : claro;
+  final fondo = oscuro ? ProfeColorsOscuro.fondo : ProfeColors.fondo;
+  final tinta = scheme.onSurface;
+  final borde = BorderSide(color: scheme.outline, width: 2);
   const square = RoundedRectangleBorder(borderRadius: BorderRadius.zero);
-  final text = ThemeData.light().textTheme.apply(
-    fontFamily: 'Archivo', bodyColor: ProfeColors.marino, displayColor: ProfeColors.marino);
+  final text = (oscuro ? ThemeData.dark() : ThemeData.light()).textTheme.apply(
+    fontFamily: 'Archivo', bodyColor: tinta, displayColor: tinta);
   return ThemeData(
     useMaterial3: true,
+    brightness: scheme.brightness,
     fontFamily: 'Archivo',
     colorScheme: scheme,
-    scaffoldBackgroundColor: ProfeColors.fondo,
+    scaffoldBackgroundColor: fondo,
     textTheme: text.copyWith(
       headlineLarge: text.headlineLarge?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.6),
       headlineMedium: text.headlineMedium?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.4),
@@ -69,41 +125,56 @@ ThemeData profeTheme() {
       // Interlineado amplio para leer listas largas de nombres en el teléfono.
       bodyLarge: text.bodyLarge?.copyWith(height: 1.45),
       bodyMedium: text.bodyMedium?.copyWith(height: 1.4),
-      bodySmall: text.bodySmall?.copyWith(height: 1.35, color: ProfeColors.textoSuave),
+      bodySmall: text.bodySmall?.copyWith(height: 1.35, color: scheme.onSurfaceVariant),
     ),
-    extensions: const [
-      ColoresEstado(
-        exito: ProfeColors.verde,
-        enExito: ProfeColors.blanco,
-        exitoSuave: ProfeColors.verdeSuave,
-        advertencia: ProfeColors.amarillo,
-        enAdvertencia: ProfeColors.marino,
-        riesgo: ProfeColors.rojo,
-        riesgoSuave: ProfeColors.rojoSuave,
-        esqueleto: ProfeColors.superficie3,
-      ),
+    extensions: [
+      oscuro
+          ? const ColoresEstado(
+              exito: ProfeColorsOscuro.verde,
+              enExito: ProfeColorsOscuro.enVerde,
+              exitoSuave: ProfeColorsOscuro.verdeSuave,
+              advertencia: ProfeColors.amarillo,
+              enAdvertencia: ProfeColors.marino,
+              riesgo: ProfeColorsOscuro.rojo,
+              riesgoSuave: ProfeColorsOscuro.rojoSuave,
+              esqueleto: ProfeColorsOscuro.superficie3,
+            )
+          : const ColoresEstado(
+              exito: ProfeColors.verde,
+              enExito: ProfeColors.blanco,
+              exitoSuave: ProfeColors.verdeSuave,
+              advertencia: ProfeColors.amarillo,
+              enAdvertencia: ProfeColors.marino,
+              riesgo: ProfeColors.rojo,
+              riesgoSuave: ProfeColors.rojoSuave,
+              esqueleto: ProfeColors.superficie3,
+            ),
     ],
-    appBarTheme: const AppBarTheme(
-      backgroundColor: ProfeColors.fondo, foregroundColor: ProfeColors.marino,
+    appBarTheme: AppBarTheme(
+      backgroundColor: fondo, foregroundColor: tinta,
       elevation: 0, scrolledUnderElevation: 0, centerTitle: false,
-      shape: Border(bottom: BorderSide(color: ProfeColors.marino, width: 2))),
+      shape: Border(bottom: borde)),
     filledButtonTheme: FilledButtonThemeData(style: FilledButton.styleFrom(
       shape: square, alignment: Alignment.centerLeft, minimumSize: const Size(64, 48),
       padding: const EdgeInsets.symmetric(horizontal: 16),
       textStyle: const TextStyle(fontWeight: FontWeight.w800))),
     outlinedButtonTheme: OutlinedButtonThemeData(style: OutlinedButton.styleFrom(
-      shape: square, foregroundColor: ProfeColors.marino, minimumSize: const Size(64, 48),
-      side: const BorderSide(color: ProfeColors.marino, width: 2))),
-    cardTheme: const CardThemeData(shape: square, elevation: 0, color: ProfeColors.superficie2, margin: EdgeInsets.zero),
-    inputDecorationTheme: const InputDecorationTheme(
-      filled: true, fillColor: ProfeColors.blanco,
-      border: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: ProfeColors.marino, width: 2)),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: ProfeColors.marino, width: 2)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: ProfeColors.azul, width: 2))),
+      shape: square, foregroundColor: tinta, minimumSize: const Size(64, 48), side: borde)),
+    cardTheme: CardThemeData(shape: square, elevation: 0, color: scheme.surfaceContainer, margin: EdgeInsets.zero),
+    inputDecorationTheme: InputDecorationTheme(
+      filled: true, fillColor: scheme.surface,
+      border: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: borde),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: borde),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.zero, borderSide: BorderSide(color: scheme.primary, width: 2))),
     chipTheme: const ChipThemeData(shape: square, side: BorderSide.none),
-    dividerTheme: const DividerThemeData(color: ProfeColors.marino, thickness: 2),
-    navigationBarTheme: const NavigationBarThemeData(
-      backgroundColor: ProfeColors.blanco, indicatorColor: ProfeColors.azulClaro,
+    dividerTheme: DividerThemeData(color: oscuro ? scheme.outlineVariant : scheme.outline, thickness: 2),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: scheme.surface, indicatorColor: scheme.primaryContainer,
       indicatorShape: square),
   );
 }
+
+/// El logo que se lee sobre el fondo del tema: el azul en claro, el blanco en oscuro.
+String logoMarca(BuildContext context) => Theme.of(context).brightness == Brightness.dark
+    ? 'assets/brand/logo-blanco.png'
+    : 'assets/brand/logo-azul.png';

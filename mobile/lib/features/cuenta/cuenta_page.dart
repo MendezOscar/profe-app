@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:in_app_review/in_app_review.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/enlaces.dart';
@@ -115,6 +116,16 @@ class CuentaPage extends ConsumerWidget {
                       onTap: () => Enlaces.abrir(url),
                     ),
                     if (url != Enlaces.terminos) const Divider(height: 2),
+                  ],
+                  // Sólo Android: en iOS abrir la ficha pide el Apple ID de la app.
+                  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+                    const Divider(height: 2),
+                    ListTile(
+                      leading: const Icon(Icons.star_outline),
+                      title: const Text('Califica ProfeApp'),
+                      trailing: const Icon(Icons.open_in_new, size: 18),
+                      onTap: () => InAppReview.instance.openStoreListing(),
+                    ),
                   ],
                 ],
               ),

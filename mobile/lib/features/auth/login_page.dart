@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_controller.dart';
 import '../../core/enlaces.dart';
-import '../../theme/tokens.dart';
+import '../../theme/profeapp_theme.dart';
 
 /// Entrada del docente. Las cuentas no se crean desde la app.
 class LoginPage extends ConsumerStatefulWidget {
@@ -65,7 +65,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                 children: [
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Image.asset('assets/brand/logo-azul.png', height: 44, semanticLabel: 'ProfeApp'),
+                    child: Image.asset(logoMarca(context), height: 44, semanticLabel: 'ProfeApp'),
                   ),
                   const SizedBox(height: Espacio.m),
                   Text('Tus notas sin internet, listas para subir a SACE',

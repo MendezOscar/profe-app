@@ -78,8 +78,8 @@ class ShellAdaptativo extends StatelessWidget {
           NavigationRail(
             extended: extendido,
             minExtendedWidth: 220,
-            backgroundColor: ProfeColors.blanco,
-            indicatorColor: ProfeColors.azulClaro,
+            backgroundColor: Theme.of(context).colorScheme.surface,
+            indicatorColor: Theme.of(context).colorScheme.primaryContainer,
             indicatorShape: const RoundedRectangleBorder(),
             selectedIndex: _indice,
             onDestinationSelected: ir,
@@ -87,7 +87,7 @@ class ShellAdaptativo extends StatelessWidget {
             leading: Padding(
               padding: const EdgeInsets.symmetric(vertical: Espacio.l),
               child: extendido
-                  ? Image.asset('assets/brand/logo-azul.png', height: 32, semanticLabel: 'ProfeApp')
+                  ? Image.asset(logoMarca(context), height: 32, semanticLabel: 'ProfeApp')
                   : Image.asset('assets/brand/simbolo-1024.png', height: 40, semanticLabel: 'ProfeApp'),
             ),
             trailing: Expanded(

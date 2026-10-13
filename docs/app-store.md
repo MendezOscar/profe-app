@@ -103,8 +103,8 @@ Primera versión.
 
 ## Capturas
 
-En `docs/tiendas/capturas/` (fuera del repositorio, ver [tiendas.md](tiendas.md#capturas)),
-tomadas del panel con los datos de la cuenta demo:
+Se suben las de `docs/tiendas/capturas-con-texto/` (con título encima; ver
+[tiendas.md](tiendas.md#capturas)), hechas del panel con los datos de la cuenta de revisión:
 
 | Carpeta | Medida | Para |
 | --- | --- | --- |

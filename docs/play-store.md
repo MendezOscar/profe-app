@@ -48,45 +48,70 @@ La descripción corta sale bajo el nombre y **se indexa**: nombra lo que el doce
 
 ### Descripción completa (4000)
 
-La de la App Store con un párrafo más al final, porque Play **indexa este campo**:
+Play no tiene campo de palabras clave: **indexa este texto**. Por eso es más larga que la de
+la App Store y repite, con naturalidad, lo que un docente escribe en el buscador: libreta o
+registro de notas, cuadro de notas, SACE, pasar lista, control de asistencia, parciales,
+calificaciones, sin internet, maestro, profesor, Honduras. Los testers de la prueba cerrada
+señalaron que la primera versión (1 689 caracteres) se quedaba corta.
 
 ```
-ProfeApp es la libreta de notas del docente hondureño, hecha para trabajar con los cuadros que
-descargas de SACE: calificaciones por puntos, asistencia y cierre del parcial desde el teléfono.
+ProfeApp es la libreta de notas digital del docente hondureño: registro de calificaciones,
+control de asistencia y cierre de parciales en el teléfono, conectado con los cuadros de notas
+que descargas de SACE. Funciona sin internet.
 
-TUS CUADROS, EN EL TELÉFONO
-· Importa los cuadros de todas tus asignaturas a la vez, tal como los descargas de SACE.
-· Tus alumnos quedan listos y trabajas aunque no haya internet.
+Deja de pasar las notas del cuaderno a Excel y de Excel a SACE. Con ProfeApp calificas y pasas
+lista en el aula, y al cerrar el parcial tienes el cuadro listo para cargar.
+
+TUS CUADROS DE SACE, EN EL TELÉFONO
+· Importa los cuadros de todas tus asignaturas y secciones a la vez, tal como los descargas de
+  SACE (.xls o .xlsx).
+· La lista de alumnos queda lista: no escribes ni un nombre.
+· Sirve para educación básica y media: la app se adapta a los parciales, la nivelación y la
+  recuperación que trae tu cuadro.
 
 CALIFICA POR PUNTOS
-· Arma una rúbrica de evaluación (tareas, trabajos, proyectos, exámenes) y reutilízala en todas
-  tus secciones.
-· Califica alumno por alumno con el teclado numérico, o varias actividades de una sola vez.
+· Arma la rúbrica o plan de evaluación del parcial: tareas, trabajos en clase, proyectos,
+  exámenes, con los puntos de cada uno hasta sumar 100.
+· Guárdala como plantilla y aplícala a todas tus secciones; luego ajusta cada una por su cuenta.
+· Califica alumno por alumno con el teclado numérico, o una actividad para todo el grupo.
+· Medios puntos, entregas pendientes y "no entregó" sin complicaciones.
 
 PASA LISTA EN SEGUNDOS
-· Todos presentes de entrada: marcas solo a los que faltan, llegan tarde o justifican.
+· Todos presentes de entrada: marcas solo ausencias, llegadas tarde y faltas justificadas.
+· Historial de asistencia por fecha, editable.
+· Las inasistencias se cuentan solas para el cuadro.
 
-CIERRA EL PARCIAL
-· ProfeApp suma los puntos y las faltas y llena NOTA TOTAL e INASISTENCIAS en el cuadro.
-· Exportas el archivo listo para cargarlo en SACE.
+CIERRA EL PARCIAL Y EXPORTA PARA SACE
+· ProfeApp suma los puntos y las faltas y llena NOTA TOTAL e INASISTENCIAS.
+· Antes de cerrar te avisa qué falta: actividades sin calificar o un plan que no suma 100.
+· Exportas el cuadro de notas listo para subirlo en SACE (Notas → Cargar Archivos Notas).
 
 SABE CÓMO VA TU GRUPO
-· Promedio, alumnos en riesgo, rendimiento por rubro, entregas y asistencia de cada parcial.
-· La evolución de cada alumno de parcial a parcial.
+· Promedio del grupo, alumnos en riesgo (bajo 70 o con muchas faltas), distribución de notas,
+  rendimiento por rubro, entregas y porcentaje de asistencia de cada parcial.
+· La evolución de cada alumno de parcial a parcial, para hablar con madres y padres de familia.
 
 NO SE TE PASA NADA
 · Avisos de lo que falta calificar, la lista de hoy, el parcial por cerrar y el cuadro por
   exportar, con un recordatorio diario opcional.
 
-SIN INTERNET
-· Todo se guarda en el teléfono. Cuando hay señal, se respalda y se sincroniza con la web y tus
-  otros dispositivos.
+FUNCIONA SIN INTERNET
+· Pensado para escuelas e institutos con poca señal: todo se guarda en el teléfono.
+· Cuando hay conexión, se respalda solo en la nube y se sincroniza con la versión web y tus
+  otros dispositivos. Si pierdes el teléfono, tus notas siguen a salvo.
+
+TAMBIÉN EN LA COMPUTADORA
+· Entra desde el navegador en profeapphn.com con la misma cuenta y trabaja el libro de notas en
+  pantalla grande.
 
 PARA QUIÉN ES
-· Docentes de educación media y básica que llenan cuadros de SACE.
-· Centros educativos que quieren dar la herramienta a todo su personal.
+· Maestros y profesores de educación básica y media que llenan cuadros de SACE, en centros
+  públicos o privados.
+· Colegios, institutos y escuelas que quieren dar la herramienta a todo su personal docente,
+  con un panel para la dirección.
 
-Las cuentas las entrega ProfeApp o la administración de tu centro educativo.
+Las cuentas las entrega ProfeApp o la administración de tu centro educativo. Ayuda por WhatsApp
+y en soporte@profeapphn.com.
 
 ProfeApp es un servicio independiente: no está afiliado ni respaldado por la Secretaría de
 Educación de Honduras ni por SACE.
@@ -101,7 +126,7 @@ representa a un gobierno cuando la app trabaja con algo oficial.
 | --- | --- | --- |
 | Icono | 512 × 512 PNG, a sangre | [`tiendas/play-store/icono-512.png`](tiendas/play-store/icono-512.png) (el del kit de marca) |
 | Gráfico destacado | 1024 × 500, sin transparencia | [`tiendas/play-store/destacado-1024x500.png`](tiendas/play-store/destacado-1024x500.png) |
-| Capturas de teléfono | 1080 × 2400, mínimo 2 | `tiendas/capturas/android-telefono/` (las 7, en orden) |
+| Capturas de teléfono | 1080 × 2400, mínimo 2 | `tiendas/capturas-con-texto/android-telefono/` (las 7, en orden) |
 
 El icono va a sangre (cuadrado azul completo): Play le pone su propia máscara redondeada. El
 gráfico destacado deja el texto a la izquierda y las pantallas a la derecha, lejos de los bordes
