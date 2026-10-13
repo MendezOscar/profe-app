@@ -101,6 +101,19 @@ Primera versión.
 
 **Publicar automáticamente** al aprobarse. Puede tardar hasta 24 horas en aparecer.
 
+## Encabezado y resultados de búsqueda (iOS 27)
+
+Opcionales. Van en la página de la versión, en **Encabezado** y **Resultados de la búsqueda**,
+con **Cargar**. Apple los revisa aparte y los acepta sin transparencia:
+
+| Pieza | Medida | Archivo |
+| --- | --- | --- |
+| Encabezado | 3840 × 1646 (21:9) | [`tiendas/app-store/encabezado-3840x1646.jpg`](tiendas/app-store/encabezado-3840x1646.jpg) |
+| Resultados de la búsqueda | 3840 × 2560 (3:2) | [`tiendas/app-store/resultados-busqueda-3840x2560.jpg`](tiendas/app-store/resultados-busqueda-3840x2560.jpg) |
+
+Se generan con `node scripts/encabezado-app-store.mjs`. Muestran una sola idea, centrada, y no
+llevan precios ni la dirección del sitio, que Apple no acepta en estas piezas.
+
 ## Capturas
 
 Se suben las de `docs/tiendas/capturas-con-texto/` (con título encima; ver
