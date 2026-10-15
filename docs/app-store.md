@@ -108,8 +108,8 @@ con **Cargar**. Apple los revisa aparte y los acepta sin transparencia:
 
 | Pieza | Medida | Archivo |
 | --- | --- | --- |
-| Encabezado | 3840 × 1646 (21:9) | [`tiendas/app-store/encabezado-3840x1646.jpg`](tiendas/app-store/encabezado-3840x1646.jpg) |
-| Resultados de la búsqueda | 3840 × 2560 (3:2) | [`tiendas/app-store/resultados-busqueda-3840x2560.jpg`](tiendas/app-store/resultados-busqueda-3840x2560.jpg) |
+| Encabezado | 3840 × 1646 (21:9) | [`tiendas/app-store/encabezado-3840x1646.png`](tiendas/app-store/encabezado-3840x1646.png) |
+| Resultados de la búsqueda | 3840 × 2560 (3:2) | [`tiendas/app-store/resultados-busqueda-3840x2560.png`](tiendas/app-store/resultados-busqueda-3840x2560.png) |
 
 Se generan con `node scripts/encabezado-app-store.mjs`. Muestran una sola idea, centrada, y no
 llevan precios ni la dirección del sitio, que Apple no acepta en estas piezas.
