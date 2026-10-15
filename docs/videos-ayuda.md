@@ -6,6 +6,13 @@ Se graban solos sobre el panel web local con la cuenta demo y cuadros de SACE in
 alumnos e identidades con prefijo `9999` ficticios). Los archivos quedan en `videos-ayuda/`
 (fuera del repositorio) y se suben a YouTube; la página de soporte enlaza a cada uno.
 
+## Publicados
+
+Públicos en YouTube como Shorts y enlazados en [soporte](https://profeapphn.com/soporte):
+[1](https://youtube.com/shorts/KSDjwhQqCdQ) · [2](https://youtube.com/shorts/XutvXxxsvrQ) ·
+[3](https://youtube.com/shorts/qY3kpojSukc) · [4](https://youtube.com/shorts/ipkELR1feVU) ·
+[5](https://youtube.com/shorts/kZeYb9k5Wfk).
+
 ## Para YouTube
 
 Subirlos como **No listados** o **Públicos**, en una lista «Cómo usar ProfeApp», en este orden.
