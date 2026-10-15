@@ -1,7 +1,8 @@
 // Graba los videos de ayuda sobre el panel local (cuenta demo). Cada video es una página del mismo contexto.
 // Pasos en docs/videos-ayuda.md. Las coordenadas son de la app a 430 × 800 (tamaño de teléfono).
 import { chromium } from 'playwright-core';
-import { mkdirSync, renameSync, rmSync } from 'node:fs';
+import { mkdirSync, renameSync, rmSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 const aqui = new URL('.', import.meta.url).pathname;
 const OX = 55, OY = 124;
@@ -18,21 +19,63 @@ const espera = (ms) => p.waitForTimeout(ms);
 const foto = (n) => p.screenshot({ path: `${fotos}/${n}.png` });
 const toque = async (x, y, ms = 1200) => { await p.evaluate(([a, b]) => window.verToque(a, b), [OX + x, OY + y]); await p.mouse.click(2 * (OX + x), 2 * (OY + y)); await espera(ms); };
 const escribe = async (t) => { await p.keyboard.type(t, { delay: 85 }); await espera(400); };
-const paso = async (n, t, ms = 2600) => { await p.evaluate(([a, b]) => window.verPaso(a, b), [n, t]); await espera(ms); };
+const paso = async (n, t, ms = 2600) => { await p.evaluate(([a, b]) => window.verPaso(a, b), [n, t]); await espera(Math.max(ms, await narrar(t))); };
+
+// Narración: una frase por paso con la voz del Mac; se espera a que termine antes del siguiente toque.
+// Al cerrar cada video, ffmpeg la mezcla con la música (más baja mientras se habla) y saca un .mp4.
+const tmp = `${tmpdir()}/profeapp-videos/voz`; mkdirSync(tmp, { recursive: true });
+const musica = `${salida}/musica.mp3`;
+let voz, inicio, frases;
+const hablado = (t) => t.replace(/ProfeApp/g, 'Profe App').replace(/→/g, ',').replace(/[«»]/g, '').replace(/NOTA TOTAL/g, 'nota total').replace(/INASISTENCIAS/g, 'inasistencias');
+const duracion = (f) => Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString());
+async function narrar(t) {
+  if (!voz) return 0;
+  const f = `${tmp}/${Date.now()}-${frases.length}.aiff`;
+  execFileSync('say', ['-v', voz, '-r', '172', '-o', f, hablado(t)]);
+  frases.push({ f, ms: Date.now() - inicio });
+  return duracion(f) * 1000 + 500;
+}
+function mezclar(webm, mp4) {
+  const total = duracion(webm);
+  const entradas = ['-i', webm];
+  if (existsSync(musica)) entradas.push('-i', musica);
+  frases.forEach((x) => entradas.push('-i', x.f));
+  const base = existsSync(musica) ? 2 : 1;
+  const voces = frases.map((x, i) => `[${base + i}:a]adelay=${x.ms}|${x.ms},aresample=48000[v${i}]`);
+  const mezclaVoz = `${frases.map((_, i) => `[v${i}]`).join('')}amix=inputs=${frases.length}:normalize=0,apad[voz]`;
+  const grafo = existsSync(musica)
+    ? [...voces, mezclaVoz, '[voz]asplit[va][vb]',
+       `[1:a]atrim=0:${total},asetpts=N/SR/TB,volume=0.2,afade=t=in:d=1.5,afade=t=out:st=${Math.max(0, total - 3)}:d=3,aresample=48000[m]`,
+       '[m][vb]sidechaincompress=threshold=0.02:ratio=8:attack=30:release=600[md]',
+       `[md][va]amix=inputs=2:normalize=0,atrim=0:${total},loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[a]`]
+    : [...voces, mezclaVoz.replace('[voz]', `,atrim=0:${total}[a]`)];
+  execFileSync('ffmpeg', ['-y', '-v', 'error', ...entradas, '-filter_complex', grafo.join(';'), '-map', '0:v', '-map', '[a]',
+    '-c:v', 'libx264', '-preset', 'slow', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', '30', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', mp4]);
+}
 const rueda = async (dy) => { await p.mouse.move(2 * (OX + 215), 2 * (OY + 450)); await p.mouse.wheel(0, dy); await espera(1200); };
 
 async function video(nombre, k, titulo, sub, cuerpo) {
+  // Paulina en los videos impares, Eddy en los pares.
+  voz = nombre ? (Number(nombre[0]) % 2 ? 'Paulina' : 'Eddy (Español (México))') : null;
+  frases = [];
   p = await ctx.newPage();
+  inicio = Date.now();
   p.on('pageerror', (e) => console.log(nombre, 'ERROR', e.message.slice(0, 150)));
   await p.goto('http://localhost:8099/tutorial.html');
   await p.evaluate(([a, b, c]) => window.verPortada(a, b, c), [k, titulo, sub]);
   await p.evaluate(() => { document.getElementById('app').src = '/app/'; });
-  await espera(9000);
+  const portada = Date.now();
+  const habla = await narrar(`${titulo}. ${sub}`);
+  await espera(Math.max(9000, habla) - (Date.now() - portada));
   await p.evaluate(() => window.quitarPortada()); await espera(800);
   await cuerpo();
   await espera(2500);
   const v = p.video(); await p.close();
-  if (nombre) { const ruta = `${salida}/${nombre}.webm`; rmSync(ruta, { force: true }); renameSync(await v.path(), ruta); console.log('ok', ruta); }
+  if (nombre) {
+    const crudo = await v.path();
+    mezclar(crudo, `${salida}/${nombre}.mp4`); rmSync(crudo, { force: true });
+    console.log('ok', `${salida}/${nombre}.mp4`);
+  }
   else rmSync(await v.path(), { force: true });
 }
 
