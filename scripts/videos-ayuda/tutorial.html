@@ -1,0 +1,31 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><style>
+@font-face{font-family:A;src:url(/Archivo-ExtraBold.ttf);font-weight:800}
+@font-face{font-family:A;src:url(/Archivo-SemiBold.ttf);font-weight:600}
+*{margin:0;box-sizing:border-box}
+html{zoom:2}
+html,body{width:540px;height:960px;overflow:hidden;background:#2B59C3;font-family:A;color:#fff}
+#paso{position:absolute;left:28px;right:28px;top:20px;height:92px;display:flex;flex-direction:column;justify-content:center}
+#num{font-weight:800;font-size:13px;letter-spacing:.12em;text-transform:uppercase;opacity:.8}
+#texto{font-weight:600;font-size:19px;line-height:1.28;margin-top:4px;transition:opacity .25s}
+#tel{position:absolute;left:51px;top:120px;width:438px;height:808px;border:4px solid #14213D;background:#F5F7FB;box-shadow:0 12px 32px rgba(0,0,0,.3)}
+iframe{border:0;width:430px;height:800px;display:block}
+#pie{position:absolute;bottom:8px;width:100%;text-align:center;font-weight:600;font-size:12px;opacity:.85}
+#portada{position:absolute;inset:0;background:#2B59C3;display:flex;flex-direction:column;justify-content:center;padding:48px;transition:opacity .6s;z-index:5}
+#portada img{width:64px;height:64px;margin-bottom:28px}
+#portada .k{font-weight:800;font-size:15px;letter-spacing:.14em;text-transform:uppercase;opacity:.85}
+#portada h1{font-weight:800;font-size:44px;line-height:1.05;letter-spacing:-.02em;margin-top:12px}
+#portada p{font-weight:600;font-size:19px;line-height:1.35;margin-top:18px;opacity:.92}
+.toque{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;border-radius:50%;background:rgba(255,200,40,.55);border:3px solid #FFE08A;pointer-events:none;z-index:4;animation:t .7s ease-out forwards}
+@keyframes t{0%{transform:scale(.4);opacity:1}100%{transform:scale(1.4);opacity:0}}
+</style></head><body>
+<div id="paso"><div id="num"></div><div id="texto"></div></div>
+<div id="tel"><iframe id="app" src="about:blank"></iframe></div>
+<div id="pie">profeapphn.com · Videos de ayuda de ProfeApp</div>
+<div id="portada"><img src="/app/icons/Icon-192.png" alt=""><div class="k" id="pk"></div><h1 id="pt"></h1><p id="ps"></p></div>
+<script>
+const $=(id)=>document.getElementById(id);
+window.verPortada=(k,t,s)=>{$('pk').textContent=k;$('pt').textContent=t;$('ps').textContent=s;$('portada').style.opacity=1;$('portada').style.pointerEvents='auto';};
+window.quitarPortada=()=>{$('portada').style.opacity=0;$('portada').style.pointerEvents='none';};
+window.verPaso=(n,t)=>{const x=$('texto');x.style.opacity=0;setTimeout(()=>{$('num').textContent=n;x.textContent=t;x.style.opacity=1;},250);};
+window.verToque=(x,y)=>{const d=document.createElement('div');d.className='toque';d.style.left=x+'px';d.style.top=y+'px';document.body.appendChild(d);setTimeout(()=>d.remove(),800);};
+</script></body></html>

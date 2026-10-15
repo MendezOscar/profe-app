@@ -33,3 +33,8 @@ dist/
 node_modules/
 .wrangler/
 
+
+# Videos de ayuda: se suben a YouTube, no al repositorio
+/videos-ayuda/
+scripts/videos-ayuda/cuadros/
+scripts/videos-ayuda/node_modules/
