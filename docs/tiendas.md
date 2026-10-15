@@ -79,6 +79,10 @@ como pidieron los testers de la prueba cerrada. Se generan desde las de `captura
 `node scripts/capturas-con-texto.mjs` (necesita `playwright-core` y Chrome); los textos están en
 el script.
 
+`capturas-con-texto/iphone-6.3/` (1206 × 2622) es la de 6,9" reducida con
+`sips -z 2622 1206`, para la pestaña de iPhone mediano de App Store Connect, que si no reutiliza
+las grandes.
+
 ## Estado (2 de octubre de 2026)
 
 | Paso | Estado |
