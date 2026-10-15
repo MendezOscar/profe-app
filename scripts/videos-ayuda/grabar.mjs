@@ -55,8 +55,7 @@ function mezclar(webm, mp4) {
 const rueda = async (dy) => { await p.mouse.move(2 * (OX + 215), 2 * (OY + 450)); await p.mouse.wheel(0, dy); await espera(1200); };
 
 async function video(nombre, k, titulo, sub, cuerpo) {
-  // Paulina en los videos impares, Eddy en los pares.
-  voz = nombre ? (Number(nombre[0]) % 2 ? 'Paulina' : 'Eddy (Español (México))') : null;
+  voz = nombre ? 'Paulina' : null;
   frases = [];
   p = await ctx.newPage();
   inicio = Date.now();

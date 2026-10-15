@@ -1,8 +1,7 @@
 # Videos de ayuda
 
 Cinco videos cortos, verticales (1080 × 1920, .mp4), que siguen los «Primeros pasos» de la app.
-Cada paso va escrito en pantalla y narrado con las voces del Mac (Paulina en los impares, Eddy en
-los pares), con música de fondo que baja mientras se habla.
+Cada paso va escrito en pantalla y narrado con la voz Paulina del Mac, con música de fondo que baja mientras se habla.
 Se graban solos sobre el panel web local con la cuenta demo y cuadros de SACE inventados (centro,
 alumnos e identidades con prefijo `9999` ficticios). Los archivos quedan en `videos-ayuda/`
 (fuera del repositorio) y se suben a YouTube; la página de soporte enlaza a cada uno.
