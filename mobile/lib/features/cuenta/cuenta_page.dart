@@ -117,14 +117,14 @@ class CuentaPage extends ConsumerWidget {
                     ),
                     if (url != Enlaces.terminos) const Divider(height: 2),
                   ],
-                  // Sólo Android: en iOS abrir la ficha pide el Apple ID de la app.
-                  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) ...[
+                  // En el teléfono: abre la ficha de la tienda (en iOS, con el Apple ID de la app).
+                  if (!kIsWeb) ...[
                     const Divider(height: 2),
                     ListTile(
                       leading: const Icon(Icons.star_outline),
                       title: const Text('Califica ProfeApp'),
                       trailing: const Icon(Icons.open_in_new, size: 18),
-                      onTap: () => InAppReview.instance.openStoreListing(),
+                      onTap: () => InAppReview.instance.openStoreListing(appStoreId: '6818700199'),
                     ),
                   ],
                 ],
