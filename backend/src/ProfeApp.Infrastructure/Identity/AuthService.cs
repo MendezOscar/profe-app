@@ -1,6 +1,7 @@
 using System.Net.Mail;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
@@ -18,8 +19,13 @@ public sealed class AuthService(
     ITenantContext tenant,
     ICurrentUser currentUser,
     CobroService cobros,
+    IMemoryCache cache,
     IClock clock) : IAuthService
 {
+    private const int IntentosPorCorreo = 5;
+
+    /// <summary>Intentos de login de un correo en el último minuto (se cuenta en Interlocked).</summary>
+    private sealed class Contador { public int N; }
     public async Task<Result<AuthResponse>> RegisterAsync(RegisterRequest request, string? ip, CancellationToken ct = default)
     {
         var email = (request.Email ?? "").Trim().ToLowerInvariant();
@@ -69,6 +75,20 @@ public sealed class AuthService(
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrEmpty(request.Password)
             || request.Email.Length > 254 || request.Password.Length > 128)
             return invalidas;
+        // Por correo, además del límite por IP: frena probar contraseñas contra un docente
+        // antes de que su cuenta llegue a bloquearse. Sin IP conocida (pruebas) no se cuenta.
+        if (ip is not null)
+        {
+            var contador = cache.GetOrCreate($"login:{request.Email.Trim().ToUpperInvariant()}", e =>
+            {
+                e.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(1);
+                return new Contador();
+            })!;
+            if (Interlocked.Increment(ref contador.N) > IntentosPorCorreo)
+                return Result<AuthResponse>.Fail(new Error(ErrorKind.TooManyRequests, "demasiados_intentos",
+                    "Demasiados intentos con este correo. Espera un minuto y vuelve a intentar."));
+        }
+
         var user = await users.FindByEmailAsync(request.Email.Trim());
         if (user is null || !user.IsActive) return invalidas;
         if (await ClaveIncorrectaAsync(user, request.Password) is { } error) return Result<AuthResponse>.Fail(error);

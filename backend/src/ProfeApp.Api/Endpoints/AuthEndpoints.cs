@@ -14,19 +14,20 @@ public static class AuthEndpoints
         // está por definir; por ahora sólo existe el docente demo (App:SeedDemoData).
 
         group.MapPost("/login", async (LoginRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>
-                (await auth.LoginAsync(request, http.Connection.RemoteIpAddress?.ToString(), ct)).ToHttp())
+                (await auth.LoginAsync(request, IpCliente.De(http), ct)).ToHttp())
             .AllowAnonymous()
             .RequireRateLimiting(Limites.Login)
             .WithSummary("Inicia sesión y devuelve el par access/refresh token.");
 
         group.MapPost("/refresh", async (RefreshRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>
-                (await auth.RefreshAsync(request, http.Connection.RemoteIpAddress?.ToString(), ct)).ToHttp())
+                (await auth.RefreshAsync(request, IpCliente.De(http), ct)).ToHttp())
             .AllowAnonymous()
             .RequireRateLimiting(Limites.Renovar);
 
         group.MapPost("/logout", async (RefreshRequest request, IAuthService auth, CancellationToken ct) =>
                 (await auth.LogoutAsync(request.RefreshToken, ct)).ToHttp())
-            .AllowAnonymous();
+            .AllowAnonymous()
+            .RequireRateLimiting(Limites.Renovar);
 
         group.MapGet("/me", async (IAuthService auth, CancellationToken ct) =>
             (await auth.GetCurrentAsync(ct)).ToHttp())

@@ -79,10 +79,11 @@ builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
         policy.SetIsOriginAllowed(_ => true).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
 }));
 
-// Render termina TLS en su proxy: sin esto el esquema y la IP del cliente llegan mal.
+// Render termina TLS en su proxy: sin esto el esquema llega mal. La IP del cliente no sale de
+// aquí sino de IpCliente (CF-Connecting-IP): X-Forwarded-For se puede inventar.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
 });
@@ -113,20 +114,25 @@ builder.Services.AddRateLimiter(options =>
         }, ct);
     };
 
-    // Intentos de login por IP: frena el adivinar contraseñas.
-    options.AddPolicy(Limites.Login, http => http.Connection.RemoteIpAddress is { } ip && !System.Net.IPAddress.IsLoopback(ip)
-        ? RateLimitPartition.GetFixedWindowLimiter(ip.ToString(), _ => new FixedWindowRateLimiterOptions
+    // Por IP real (ver IpCliente). Sin IP conocida (pruebas, llamadas locales) no se limita.
+    static RateLimitPartition<string> PorIp(HttpContext http, int permitidas) => IpCliente.De(http) is { } ip
+        ? RateLimitPartition.GetFixedWindowLimiter(ip, _ => new FixedWindowRateLimiterOptions
         {
-            PermitLimit = 10,
+            PermitLimit = permitidas,
             Window = TimeSpan.FromMinutes(1),
         })
-        : RateLimitPartition.GetNoLimiter("sin-ip"));
+        : RateLimitPartition.GetNoLimiter("sin-ip");
+    static string? UsuarioDe(HttpContext http) => http.User.FindFirstValue("sub") ?? http.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    // Intentos de login por IP: frena probar contraseñas contra muchos correos. 20 y no 10: un
+    // colegio entero sale por la misma IP y entra a primera hora. Por correo, AuthService.
+    options.AddPolicy(Limites.Login, http => PorIp(http, 20));
 
     // Sync por docente: de sobra para un primer pull por páginas, corta un bucle de reintentos.
     options.AddPolicy(Limites.Usuario, http =>
     {
-        var usuario = http.User.FindFirstValue("sub") ?? http.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return usuario is null || http.Connection.RemoteIpAddress is null || System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress)
+        var usuario = UsuarioDe(http);
+        return usuario is null || IpCliente.De(http) is null
             ? RateLimitPartition.GetNoLimiter("sin-usuario")
             : RateLimitPartition.GetTokenBucketLimiter(usuario, _ => new TokenBucketRateLimiterOptions
             {
@@ -142,8 +148,8 @@ builder.Services.AddRateLimiter(options =>
     // no se puede probar contraseñas en serie (además está el bloqueo de la cuenta).
     options.AddPolicy(Limites.Sensible, http =>
     {
-        var usuario = http.User.FindFirstValue("sub") ?? http.User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return usuario is null || http.Connection.RemoteIpAddress is null || System.Net.IPAddress.IsLoopback(http.Connection.RemoteIpAddress)
+        var usuario = UsuarioDe(http);
+        return usuario is null || IpCliente.De(http) is null
             ? RateLimitPartition.GetNoLimiter("sin-usuario")
             : RateLimitPartition.GetFixedWindowLimiter(usuario, _ => new FixedWindowRateLimiterOptions
             {
@@ -152,14 +158,9 @@ builder.Services.AddRateLimiter(options =>
             });
     });
 
-    // Renovar sesión por IP: generoso (un colegio entero detrás de una misma IP), corta bucles.
-    options.AddPolicy(Limites.Renovar, http => http.Connection.RemoteIpAddress is { } ip && !System.Net.IPAddress.IsLoopback(ip)
-        ? RateLimitPartition.GetFixedWindowLimiter(ip.ToString(), _ => new FixedWindowRateLimiterOptions
-        {
-            PermitLimit = 120,
-            Window = TimeSpan.FromMinutes(1),
-        })
-        : RateLimitPartition.GetNoLimiter("sin-ip"));
+    // Renovar y cerrar sesión, y /health (toca la base), por IP: generoso (un colegio entero
+    // detrás de una misma IP), corta bucles e inundaciones.
+    options.AddPolicy(Limites.Renovar, http => PorIp(http, 120));
 
     // Exportar abre el libro completo en memoria: en la semana de cierre todos exportan a
     // la vez. Pocas a la vez y el resto espera su turno, en lugar de quedarse sin memoria.
@@ -169,6 +170,28 @@ builder.Services.AddRateLimiter(options =>
         limiter.QueueLimit = 100;
         limiter.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
+
+    // Red de seguridad para toda la API, encima de los límites de cada ruta: por docente (o por
+    // IP sin sesión), muy por arriba del uso normal. Y exportar, por docente: que nadie llene
+    // solo la cola de la semana de cierre.
+    options.GlobalLimiter = PartitionedRateLimiter.CreateChained(
+        PartitionedRateLimiter.Create<HttpContext, string>(http =>
+            IpCliente.De(http) is not { } ip
+                ? RateLimitPartition.GetNoLimiter("sin-ip")
+                : RateLimitPartition.GetTokenBucketLimiter(UsuarioDe(http) ?? ip, _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 600,
+                    TokensPerPeriod = 100,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+                })),
+        PartitionedRateLimiter.Create<HttpContext, string>(http =>
+            IpCliente.De(http) is not null && http.Request.Path.StartsWithSegments("/api/v1/cuadros/exportar") && UsuarioDe(http) is { } usuario
+                ? RateLimitPartition.GetFixedWindowLimiter(usuario, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(1),
+                })
+                : RateLimitPartition.GetNoLimiter("otra-ruta")));
 });
 
 var app = builder.Build();
@@ -202,7 +225,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
 
-app.MapHealthChecks("/health");
+app.MapHealthChecks("/health").RequireRateLimiting(Limites.Renovar);
 // Sonda de vida que no toca la base: si la base tropieza, la plataforma no debe reiniciar
 // la API por eso; la app reintenta la sincronización sola.
 app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });

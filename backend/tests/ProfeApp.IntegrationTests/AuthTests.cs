@@ -6,6 +6,36 @@ namespace ProfeApp.IntegrationTests;
 
 public class AuthTests(ApiFixture fixture) : ApiTestBase(fixture)
 {
+    /// <summary>Un login como lo ve la API detrás de Cloudflare, con una IP inventada en X-Forwarded-For.</summary>
+    private async Task<HttpStatusCode> LoginDesdeAsync(string ipReal, string email)
+    {
+        using var mensaje = new HttpRequestMessage(HttpMethod.Post, "/api/v1/auth/login")
+        {
+            Content = JsonContent.Create(new { email, password = "Incorrecta1" }),
+        };
+        mensaje.Headers.Add("CF-Connecting-IP", ipReal);
+        mensaje.Headers.Add("X-Forwarded-For", $"10.0.{Random.Shared.Next(255)}.{Random.Shared.Next(255)}");
+        return (await Fixture.CreateClient().SendAsync(mensaje)).StatusCode;
+    }
+
+    [Fact]
+    public async Task El_login_se_limita_por_correo_y_por_ip_real_aunque_inventen_otra()
+    {
+        var correo = $"limite-{Guid.NewGuid():N}@prueba.hn";
+        var porCorreo = new List<HttpStatusCode>();
+        for (var i = 0; i < 6; i++) porCorreo.Add(await LoginDesdeAsync($"198.51.100.{i + 1}", correo));
+
+        var porIp = new List<HttpStatusCode>();
+        for (var i = 0; i < 21; i++) porIp.Add(await LoginDesdeAsync("203.0.113.9", $"ip-{Guid.NewGuid():N}@prueba.hn"));
+
+        porCorreo.Take(5).Should().AllSatisfy(s => s.Should().Be(HttpStatusCode.Forbidden));
+        porCorreo[5].Should().Be(HttpStatusCode.TooManyRequests);
+        porIp.Take(20).Should().AllSatisfy(s => s.Should().Be(HttpStatusCode.Forbidden));
+        porIp[20].Should().Be(HttpStatusCode.TooManyRequests);
+        // Otra IP real sigue entrando con normalidad.
+        (await LoginDesdeAsync("203.0.113.10", $"otra-{Guid.NewGuid():N}@prueba.hn")).Should().Be(HttpStatusCode.Forbidden);
+    }
+
     [Fact]
     public async Task El_docente_demo_entra_y_ve_su_perfil()
     {

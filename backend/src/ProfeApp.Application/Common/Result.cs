@@ -1,6 +1,6 @@
 namespace ProfeApp.Application.Common;
 
-public enum ErrorKind { Validation, NotFound, Conflict, Forbidden, Unexpected }
+public enum ErrorKind { Validation, NotFound, Conflict, Forbidden, TooManyRequests, Unexpected }
 
 public sealed record Error(ErrorKind Kind, string Code, string Message)
 {
