@@ -12,7 +12,6 @@ namespace ProfeApp.Infrastructure.Seed;
 public static class DataSeeder
 {
     public const string DemoEmail = "docente@demo.hn";
-    public const string DemoPassword = "Demo1234!";
 
     /// <summary>Los roles hacen falta siempre, también en producción: el registro asigna Docente.</summary>
     public static async Task EnsureRolesAsync(IServiceProvider services)
@@ -52,16 +51,25 @@ public static class DataSeeder
                 .LogError("No se pudo crear el admin de plataforma: {Error}", string.Join(" ", result.Errors.Select(e => e.Description)));
     }
 
-    /// <summary>Un docente de demostración para desarrollo, dado de alta por el mismo registro que usa la app.</summary>
-    public static async Task SeedDemoAsync(IServiceProvider services, CancellationToken ct = default)
+    /// <summary>
+    /// Un docente de demostración para desarrollo, dado de alta por el mismo registro que usa la app.
+    /// La contraseña sale de App:DemoPassword (user-secrets en local); sin ella no se crea.
+    /// </summary>
+    public static async Task SeedDemoAsync(IServiceProvider services, IConfiguration configuration, CancellationToken ct = default)
     {
         var users = services.GetRequiredService<UserManager<AppUser>>();
         var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("DataSeeder");
+        var password = configuration["App:DemoPassword"];
+        if (string.IsNullOrWhiteSpace(password))
+        {
+            logger.LogWarning("Falta App:DemoPassword: no se crea el docente demo.");
+            return;
+        }
 
         if (await users.FindByEmailAsync(DemoEmail) is not null) return;
 
         var result = await services.GetRequiredService<IAuthService>()
-            .RegisterAsync(new RegisterRequest(DemoEmail, DemoPassword, "Docente Demo"), null, ct);
+            .RegisterAsync(new RegisterRequest(DemoEmail, password, "Docente Demo"), null, ct);
         if (!result.IsSuccess)
             logger.LogError("No se pudo crear el docente demo: {Error}", result.Error!.Message);
     }

@@ -225,8 +225,9 @@ using (var scope = app.Services.CreateScope())
     {
         await DataSeeder.EnsureRolesAsync(scope.ServiceProvider);
         await DataSeeder.EnsurePlatformAdminAsync(scope.ServiceProvider, app.Configuration);
-        if (app.Configuration.GetValue<bool>("App:SeedDemoData"))
-            await DataSeeder.SeedDemoAsync(scope.ServiceProvider);
+        // Nunca en producción, aunque alguien active la bandera por error.
+        if (!app.Environment.IsProduction() && app.Configuration.GetValue<bool>("App:SeedDemoData"))
+            await DataSeeder.SeedDemoAsync(scope.ServiceProvider, app.Configuration);
     }
     catch (Exception error)
     {

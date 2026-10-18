@@ -15,6 +15,9 @@ mobile/ios/Pods/
 
 # Despliegue: secretos y credenciales locales
 infra/.env
+.env
+.env.*
+!.env.example
 # Firma de Android: perder el keystore obliga a desinstalar la app para actualizarla.
 mobile/android/key.properties
 *.jks

@@ -38,7 +38,7 @@ cd scripts/videos-ayuda && npm install && python3 cuadros.py
 docker start profeapp-db && ./reiniciar-local.sh        # API local en :5081 con el docente demo
 (cd ../../mobile && flutter build web --release --base-href /app/ --dart-define=API_BASE_URL=http://localhost:5081)
 node servidor.mjs &                                    # panel + marco en :8099
-node grabar.mjs                                        # ~8 min; deja los .mp4 en videos-ayuda/
+DEMO_PASSWORD=<la del docente demo> node grabar.mjs   # ~8 min; deja los .mp4 en videos-ayuda/
 ```
 
 `ETAPAS=1,3 node grabar.mjs` graba solo esos videos (`p` prepara la sección 2 para el video 5;

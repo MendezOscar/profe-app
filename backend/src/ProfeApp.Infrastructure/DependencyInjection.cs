@@ -26,9 +26,10 @@ public static class DependencyInjection
 
         services.AddDbContext<AppDbContext>((provider, options) =>
         {
-            options.UseNpgsql(
-                configuration.GetConnectionString("Default"),
-                npgsql => npgsql.EnableRetryOnFailure(3));
+            var connection = configuration.GetConnectionString("Default");
+            if (string.IsNullOrWhiteSpace(connection))
+                throw new InvalidOperationException("Falta ConnectionStrings:Default (usa dotnet user-secrets o una variable de entorno).");
+            options.UseNpgsql(connection, npgsql => npgsql.EnableRetryOnFailure(3));
             options.AddInterceptors(provider.GetRequiredService<AuditingInterceptor>());
             if (configuration.GetValue<bool>("App:DetailedSqlLogging"))
                 options.EnableSensitiveDataLogging().EnableDetailedErrors();

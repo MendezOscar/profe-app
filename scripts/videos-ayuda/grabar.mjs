@@ -5,6 +5,9 @@ import { mkdirSync, renameSync, rmSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 const aqui = new URL('.', import.meta.url).pathname;
+// La misma que App:DemoPassword en los user-secrets de la API.
+const clave = process.env.DEMO_PASSWORD;
+if (!clave) throw new Error('Falta DEMO_PASSWORD (la contraseña del docente demo local).');
 const OX = 55, OY = 124;
 const salida = process.env.SALIDA ?? `${aqui}../../videos-ayuda`;
 const fotos = `${tmpdir()}/profeapp-videos/fotos`;
@@ -83,7 +86,7 @@ const etapas = (process.env.ETAPAS ?? '1,2,3,4,p,5').split(',');
 if (etapas.includes('1')) await video('1-importa-tus-cuadros', 'Video 1 de 5', 'Importa tus cuadros de SACE', 'Tus asignaturas y alumnos en la app, en un minuto.', async () => {
   await paso('Paso 1', 'Entra con el correo y la contraseña que te dio ProfeApp o tu centro educativo.', 1500);
   await toque(219, 351, 600); await escribe('docente@demo.hn');
-  await toque(219, 411, 600); await escribe('Demo1234!');
+  await toque(219, 411, 600); await escribe(clave);
   await p.keyboard.press('Enter'); await espera(5000); await foto('1a');
   await paso('Paso 2', 'En SACE, ve a Notas → Descargar Archivos Notas y baja el cuadro de cada asignatura.', 4500);
   await paso('Paso 3', 'Toca «Importar cuadros de SACE» y elige todos tus archivos a la vez.', 2200);
@@ -141,7 +144,7 @@ if (etapas.includes('4')) await video('4-pasa-lista', 'Video 4 de 5', 'Pasa list
 const entrarSiHaceFalta = async () => {
   const f = p.frames().find((x) => x.url().includes('/app/'));
   if (!f.url().includes('/login')) return;
-  await toque(219, 351, 600); await escribe('docente@demo.hn'); await toque(219, 411, 600); await escribe('Demo1234!');
+  await toque(219, 351, 600); await escribe('docente@demo.hn'); await toque(219, 411, 600); await escribe(clave);
   await p.keyboard.press('Enter'); await espera(5000);
 };
 const nota = () => String(Math.round((6 + Math.random() * 4) * 2) / 2);

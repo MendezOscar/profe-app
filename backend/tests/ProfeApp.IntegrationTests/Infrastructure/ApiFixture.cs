@@ -17,6 +17,7 @@ internal sealed class TestApp(string connectionString) : WebApplicationFactory<P
                 ["ConnectionStrings:Default"] = connectionString,
                 ["Jwt:Key"] = "clave-de-pruebas-integracion-con-mas-de-32-caracteres",
                 ["App:SeedDemoData"] = "true",
+                ["App:DemoPassword"] = "Demo1234!",
                 ["App:DetailedSqlLogging"] = "false",
             }));
     }

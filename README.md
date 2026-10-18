@@ -46,12 +46,24 @@ dotnet ef migrations add <Nombre> -p src/ProfeApp.Infrastructure -s src/ProfeApp
 
 ### Usuario de demostración
 
-| Perfil | Correo | Contraseña |
-|---|---|---|
-| Docente | `docente@demo.hn` | `Demo1234!` |
+`docente@demo.hn`, con la contraseña que pongas en `App:DemoPassword`. Sólo se crea al arrancar
+la API en desarrollo, nunca en Production. En producción la cuenta demo tiene otra contraseña,
+que no va en el repositorio.
 
-Sólo existe así en desarrollo local (se crea al arrancar la API en Development). En producción
-la cuenta demo tiene otra contraseña, que no va en el repositorio.
+### Secretos locales
+
+Ningún secreto va en el repositorio (es público). En tu máquina, una vez:
+
+```bash
+printf 'POSTGRES_PASSWORD=profeapp\n' > infra/.env          # clave del Postgres de Docker
+cd backend/src/ProfeApp.Api
+dotnet user-secrets set "ConnectionStrings:Default" "Host=localhost;Port=5436;Database=profeapp;Username=profeapp;Password=profeapp"
+dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
+dotnet user-secrets set "App:DemoPassword" "<contraseña del docente demo>"
+```
+
+En Render los mismos valores van como variables de entorno (`ConnectionStrings__Default`,
+`Jwt__Key`; ver docs/despliegue.md).
 
 Para apuntar la app al backend desplegado:
 
