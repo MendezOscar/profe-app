@@ -26,6 +26,18 @@ public abstract class ApiTestBase(ApiFixture fixture)
     /// Docente nuevo, con su propio espacio: sirve para probar el aislamiento. Se crea con
     /// el servicio porque la API no tiene registro público.
     /// </summary>
+    /// <summary>Contraseña que ponen las pruebas al cambiar una temporal.</summary>
+    protected const string ClaveNueva = "Nueva-Clave-1234";
+
+    /// <summary>Entra con la clave temporal y la cambia, como obliga el servidor antes de dejar usar la API.</summary>
+    protected async Task<HttpClient> EntrarConTemporalAsync(string email, string temporal)
+    {
+        var client = await LoginAsync(email, temporal);
+        (await client.PostAsJsonAsync("/api/v1/auth/change-password", new { currentPassword = temporal, newPassword = ClaveNueva }))
+            .IsSuccessStatusCode.Should().BeTrue();
+        return client;
+    }
+
     protected async Task<HttpClient> RegisterAsync(string? email = null)
     {
         using var scope = Fixture.Services.CreateScope();
@@ -35,6 +47,7 @@ public abstract class ApiTestBase(ApiFixture fixture)
 
         var client = Fixture.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", result.Value.Tokens.AccessToken);
+        Refresh.AddOrUpdate(client, result.Value.Tokens.RefreshToken);
         return client;
     }
 
@@ -45,9 +58,17 @@ public abstract class ApiTestBase(ApiFixture fixture)
         return JsonSerializer.Deserialize<JsonElement>(body, Json);
     }
 
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<HttpClient, string> Refresh = new();
+
+    /// <summary>El refresh token con que quedó logueado el cliente.</summary>
+    protected static string RefreshDe(HttpClient client) => Refresh.TryGetValue(client, out var t) ? t : throw new InvalidOperationException("Sin sesión.");
+
+    protected static void Autorizar(HttpClient client, JsonElement payload) => Authorize(client, payload);
+
     private static void Authorize(HttpClient client, JsonElement payload)
     {
-        var token = payload.GetProperty("tokens").GetProperty("accessToken").GetString();
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var tokens = payload.GetProperty("tokens");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.GetProperty("accessToken").GetString());
+        Refresh.AddOrUpdate(client, tokens.GetProperty("refreshToken").GetString()!);
     }
 }

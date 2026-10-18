@@ -36,6 +36,8 @@ public static class DependencyInjection
         });
         services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
 
+        services.Configure<PasswordHasherOptions>(o => o.IterationCount = AuthService.IteracionesHash);
+        services.AddSingleton<TokensRevocados>();
         services.AddIdentityCore<AppUser>(options =>
             {
                 options.Password.RequiredLength = 8;

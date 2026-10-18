@@ -20,6 +20,8 @@ public sealed class TokenService(AppDbContext db, IOptions<JwtOptions> options, 
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            // Identifica este token para poder anularlo al cerrar sesión (TokensRevocados).
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new(AppClaims.FullName, user.FullName),
             new(ClaimTypes.Role, role)

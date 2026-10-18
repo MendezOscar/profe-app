@@ -133,6 +133,7 @@ class CuentaPage extends ConsumerWidget {
             const SizedBox(height: Espacio.xl),
             OutlinedButton.icon(
               onPressed: () async {
+                if (kIsWeb && !await _puedeSalirDeLaWeb(context, ref)) return;
                 await ref.read(authControllerProvider.notifier).logout();
                 // En la web se vuelve a la landing; en el teléfono, al login.
                 if (kIsWeb) await Enlaces.volverAlSitio();
@@ -152,6 +153,28 @@ class CuentaPage extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// En la web, salir borra lo guardado en el navegador: primero se intenta respaldar y, si
+/// algo no subió (sin internet), se pregunta antes de perderlo.
+Future<bool> _puedeSalirDeLaWeb(BuildContext context, WidgetRef ref) async {
+  await ref.read(syncControllerProvider.notifier).sincronizar();
+  final repo = ref.read(syncRepositoryProvider);
+  final pendientes = (await repo.pendientes()).length + (await repo.registrosPendientes()).length;
+  if (pendientes == 0 || !context.mounted) return true;
+  return await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Hay cambios sin respaldar'),
+          content: const Text('No se pudieron subir a la nube. Al cerrar sesión se borran de este navegador. '
+              'Revisa tu conexión e intenta de nuevo, o sal de todos modos.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Quedarme')),
+            FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Salir y perderlos')),
+          ],
+        ),
+      ) ??
+      false;
 }
 
 /// El plan de la cuenta: hasta cuándo está al día y cuántas asignaturas cubre. Los datos

@@ -37,7 +37,7 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
             adminNombre = "Directora",
         }));
         var admin = creado.GetProperty("admin");
-        return await LoginAsync(admin.GetProperty("email").GetString()!, admin.GetProperty("claveTemporal").GetString()!);
+        return await EntrarConTemporalAsync(admin.GetProperty("email").GetString()!, admin.GetProperty("claveTemporal").GetString()!);
     }
 
     [Fact]
@@ -86,6 +86,17 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
         }));
         var panel = await ReadAsync(await centro.GetAsync("/api/v1/centro"));
 
+        var conTemporal = Fixture.CreateClient();
+        conTemporal.DefaultRequestHeaders.Authorization = new("Bearer", login.GetProperty("tokens").GetProperty("accessToken").GetString());
+        var antes = await conTemporal.GetAsync("/api/v1/sync/pull");
+        (await conTemporal.PostAsJsonAsync("/api/v1/auth/change-password",
+            new { currentPassword = docente.GetProperty("claveTemporal").GetString(), newPassword = ClaveNueva })).IsSuccessStatusCode.Should().BeTrue();
+        var despues = await conTemporal.GetAsync("/api/v1/sync/pull");
+
+        // El servidor, no sólo la app, exige cambiar la temporal; con el mismo token ya sirve.
+        antes.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        (await antes.Content.ReadAsStringAsync()).Should().Contain("debe_cambiar_clave");
+        despues.IsSuccessStatusCode.Should().BeTrue();
         login.GetProperty("user").GetProperty("mustChangePassword").GetBoolean().Should().BeTrue();
         login.GetProperty("user").GetProperty("role").GetString().Should().Be("Docente");
         panel.GetProperty("institucion").GetProperty("docentes").GetInt32().Should().Be(1);
@@ -130,10 +141,12 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
             adminEmail = $"dir-{Guid.NewGuid():N}@prueba.hn", adminNombre = "Director",
         }));
         var admin = creado.GetProperty("admin");
-        var centro = await LoginAsync(admin.GetProperty("email").GetString()!, admin.GetProperty("claveTemporal").GetString()!);
+        var centro = await EntrarConTemporalAsync(admin.GetProperty("email").GetString()!, admin.GetProperty("claveTemporal").GetString()!);
         var docente = await ReadAsync(await centro.PostAsJsonAsync("/api/v1/centro/docentes", new { email = $"d-{Guid.NewGuid():N}@prueba.hn", nombre = "D" }));
-        return (plataforma, creado.GetProperty("institucion").GetProperty("id").GetGuid(),
-            docente.GetProperty("email").GetString()!, docente.GetProperty("claveTemporal").GetString()!);
+        var email = docente.GetProperty("email").GetString()!;
+        // El docente ya cambió su temporal: las pruebas entran con la nueva.
+        await EntrarConTemporalAsync(email, docente.GetProperty("claveTemporal").GetString()!);
+        return (plataforma, creado.GetProperty("institucion").GetProperty("id").GetGuid(), email, ClaveNueva);
     }
 
     private static object Plan(DateOnly? pagadoHasta, int diasGracia = 0, string? nivel = null) =>
@@ -202,7 +215,7 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
         var id = cuenta.GetProperty("usuarioId").GetGuid();
         var vencio = new DateOnly(Hoy.Year - 1, 1, 31);
         (await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{id}/plan", Plan(vencio))).IsSuccessStatusCode.Should().BeTrue();
-        var docente = await LoginAsync(correo, cuenta.GetProperty("claveTemporal").GetString()!);
+        var docente = await EntrarConTemporalAsync(correo, cuenta.GetProperty("claveTemporal").GetString()!);
         var bloqueado = await docente.PostAsJsonAsync("/api/v1/sync/push", new { clases = new[] { SyncTests.Clase("al-dia") } });
 
         var unMes = await ReadAsync(await plataforma.PostAsJsonAsync($"/api/v1/plataforma/docentes/{id}/pagos", new { monto = 99m, periodos = 1 }));
@@ -232,7 +245,7 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
         var cuenta = await ReadAsync(await plataforma.PostAsJsonAsync("/api/v1/plataforma/docentes", new { email = correo, nombre = "Profe Básico" }));
         (await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{cuenta.GetProperty("usuarioId").GetGuid()}/plan",
             Plan(Hoy.AddMonths(1), nivel: "basico"))).IsSuccessStatusCode.Should().BeTrue();
-        var docente = await LoginAsync(correo, cuenta.GetProperty("claveTemporal").GetString()!);
+        var docente = await EntrarConTemporalAsync(correo, cuenta.GetProperty("claveTemporal").GetString()!);
 
         var tres = await docente.PostAsJsonAsync("/api/v1/sync/push",
             new { clases = new[] { SyncTests.Clase("a"), SyncTests.Clase("b"), SyncTests.Clase("c") } });

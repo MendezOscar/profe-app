@@ -29,6 +29,8 @@ dependencies:
   # sesion
   flutter_secure_storage: ^9.2.2
   shared_preferences: ^2.3.3
+  # sessionStorage del navegador: la sesión del panel web que muere al cerrar la pestaña.
+  web: ^1.1.1
 
   # base local: el teléfono es la fuente de verdad, el servidor es respaldo
   sqflite: ^2.4.2

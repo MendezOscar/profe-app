@@ -1,6 +1,7 @@
 using ProfeApp.Api.Common;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Contracts;
+using ProfeApp.Infrastructure.Identity;
 
 namespace ProfeApp.Api.Endpoints;
 
@@ -24,8 +25,12 @@ public static class AuthEndpoints
             .AllowAnonymous()
             .RequireRateLimiting(Limites.Renovar);
 
-        group.MapPost("/logout", async (RefreshRequest request, IAuthService auth, CancellationToken ct) =>
-                (await auth.LogoutAsync(request.RefreshToken, ct)).ToHttp())
+        group.MapPost("/logout", async (RefreshRequest request, IAuthService auth, TokensRevocados revocados, HttpContext http, CancellationToken ct) =>
+            {
+                // Si viene el access token, deja de servir ya y no a los 15 minutos.
+                revocados.Revocar(http.User);
+                return (await auth.LogoutAsync(request.RefreshToken, ct)).ToHttp();
+            })
             .AllowAnonymous()
             .RequireRateLimiting(Limites.Renovar);
 

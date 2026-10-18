@@ -1,5 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using ProfeApp.Infrastructure.Identity;
+using ProfeApp.Infrastructure.Persistence;
 using ProfeApp.IntegrationTests.Infrastructure;
 
 namespace ProfeApp.IntegrationTests;
@@ -78,8 +82,51 @@ public class AuthTests(ApiFixture fixture) : ApiTestBase(fixture)
                 .StatusCode.Should().Be(HttpStatusCode.Forbidden);
         var correcta = await anonimo.PostAsJsonAsync("/api/v1/auth/login", new { email, password = "Prueba1234!" });
 
+        var inexistente = await anonimo.PostAsJsonAsync("/api/v1/auth/login", new { email = $"nadie-{Guid.NewGuid():N}@prueba.hn", password = "otra-clave" });
+
+        // Bloqueada aunque acierte, y con la misma respuesta que un correo sin cuenta:
+        // ninguna de las dos confirma que el correo existe.
         correcta.StatusCode.Should().Be(HttpStatusCode.Forbidden);
-        (await correcta.Content.ReadAsStringAsync()).Should().Contain("locked_out");
+        inexistente.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var cuerpo = await correcta.Content.ReadAsStringAsync();
+        cuerpo.Should().Contain("invalid_credentials").And.NotContain("accessToken");
+        cuerpo.Should().Be(await inexistente.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Cerrar_sesion_anula_tambien_el_access_token_en_el_momento()
+    {
+        var client = await RegisterAsync();
+        var refresh = (await ReadAsync(await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = RefreshDe(client) })));
+        Autorizar(client, refresh);
+
+        (await client.PostAsJsonAsync("/api/v1/auth/logout", new { refreshToken = refresh.GetProperty("tokens").GetProperty("refreshToken").GetString() }))
+            .IsSuccessStatusCode.Should().BeTrue();
+
+        (await client.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+    }
+
+    [Fact]
+    public async Task Reusar_un_refresh_token_ya_rotado_cierra_todas_las_sesiones_del_usuario()
+    {
+        var client = await RegisterAsync();
+        var robado = RefreshDe(client);
+        var legitimo = (await ReadAsync(await client.PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = robado })))
+            .GetProperty("tokens").GetProperty("refreshToken").GetString();
+        // Pasado el margen de gracia de dos pestañas que renuevan a la vez.
+        using (var scope = Fixture.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var hash = TokenService.Hash(robado);
+            await db.RefreshTokens.Where(t => t.TokenHash == hash)
+                .ExecuteUpdateAsync(x => x.SetProperty(t => t.RevokedAt, DateTimeOffset.UtcNow.AddMinutes(-5)));
+        }
+
+        var reuso = await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = robado });
+        var despues = await Fixture.CreateClient().PostAsJsonAsync("/api/v1/auth/refresh", new { refreshToken = legitimo });
+
+        reuso.StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        despues.StatusCode.Should().Be(HttpStatusCode.Forbidden, "la cadena entera queda anulada");
     }
 
     [Fact]

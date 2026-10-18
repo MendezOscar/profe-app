@@ -222,6 +222,28 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors();
 app.UseAuthentication();
+// Con clave temporal sólo se puede ver el perfil, cambiarla, salir o borrar la cuenta. Lo hacía cumplir sólo la
+// app: con la clave que viajó por WhatsApp se podía usar la API sin cambiarla nunca.
+string[] conClaveTemporal = ["/api/v1/auth/me", "/api/v1/auth/change-password", "/api/v1/auth/logout", "/api/v1/auth/delete-account"];
+app.Use(async (http, next) =>
+{
+    if (http.User.Identity?.IsAuthenticated == true
+        && !conClaveTemporal.Any(r => http.Request.Path.StartsWithSegments(r))
+        && Guid.TryParse(http.User.FindFirstValue("sub") ?? http.User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+        && await http.RequestServices.GetRequiredService<ProfeApp.Infrastructure.Cobros.CobroService>().DebeCambiarClaveAsync(userId, http.RequestAborted))
+    {
+        http.Response.StatusCode = StatusCodes.Status403Forbidden;
+        await http.Response.WriteAsJsonAsync(new
+        {
+            status = 403,
+            title = "Primero cambia tu contraseña temporal.",
+            detail = "Primero cambia tu contraseña temporal.",
+            code = "debe_cambiar_clave",
+        });
+        return;
+    }
+    await next(http);
+});
 app.UseAuthorization();
 app.UseRateLimiter();
 

@@ -440,6 +440,7 @@ public sealed class AdminService(
         usuario.MustChangePassword = true;
         await users.UpdateAsync(usuario);
         await db.RefreshTokens.Where(t => t.UserId == usuario.Id).ExecuteDeleteAsync(ct);
+        cobros.OlvidarUsuario(usuario.Id);
         return new CuentaCreada(usuario.Id, usuario.Email!, usuario.FullName, clave);
     }
 

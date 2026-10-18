@@ -19,7 +19,7 @@ public sealed class CobroService(AppDbContext db, ICurrentUser currentUser, IMem
     private static readonly TimeSpan Vive = TimeSpan.FromMinutes(5);
 
     /// <summary>A quién le cobra un usuario. <c>CuentaId</c> null = no se le cobra (la plataforma).</summary>
-    internal sealed record CuentaDeUsuario(Guid? CuentaId, bool EsCentro, bool Activo = true);
+    internal sealed record CuentaDeUsuario(Guid? CuentaId, bool EsCentro, bool Activo = true, bool DebeCambiarClave = false);
 
     /// <summary>Lo que hace falta del plan, sin el resto de la fila.</summary>
     internal sealed record Plan(
@@ -68,6 +68,10 @@ public sealed class CobroService(AppDbContext db, ICurrentUser currentUser, IMem
     /// Sin esto, un access token ya emitido seguía sirviendo hasta 15 minutos después de
     /// desactivar o suspender. Sale de la misma caché que el cobro: casi nunca toca la base.
     /// </summary>
+    /// <summary>Con clave temporal, el servidor sólo deja cambiarla (no basta con que la app lo pida).</summary>
+    public async Task<bool> DebeCambiarClaveAsync(Guid userId, CancellationToken ct = default) =>
+        (await DeUsuarioAsync(userId, ct)).Cuenta.DebeCambiarClave;
+
     public async Task<bool> SesionVigenteAsync(Guid userId, CancellationToken ct = default)
     {
         var (cuenta, plan) = await DeUsuarioAsync(userId, ct);
@@ -81,10 +85,10 @@ public sealed class CobroService(AppDbContext db, ICurrentUser currentUser, IMem
         {
             e.AbsoluteExpirationRelativeToNow = Vive;
             var u = await db.Users.AsNoTracking().Where(x => x.Id == userId)
-                .Select(x => new { x.TenantId, x.InstitucionId, x.IsActive }).FirstOrDefaultAsync(ct);
+                .Select(x => new { x.TenantId, x.InstitucionId, x.IsActive, x.MustChangePassword }).FirstOrDefaultAsync(ct);
             if (u is null) return new CuentaDeUsuario(null, false, Activo: false);
-            return u.InstitucionId is { } centro ? new CuentaDeUsuario(centro, true, u.IsActive)
-                : new CuentaDeUsuario(u.TenantId, false, u.IsActive);
+            return u.InstitucionId is { } centro ? new CuentaDeUsuario(centro, true, u.IsActive, u.MustChangePassword)
+                : new CuentaDeUsuario(u.TenantId, false, u.IsActive, u.MustChangePassword);
         }) ?? new CuentaDeUsuario(null, false, Activo: false);
 
         if (cuenta.CuentaId is not { } id) return (cuenta, null);

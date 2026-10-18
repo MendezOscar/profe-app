@@ -1,11 +1,20 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/api_exception.dart';
 import '../config.dart';
+import '../local/local_db.dart';
 import '../models/cobro.dart';
 import '../models/session.dart';
+import '../providers.dart';
 import 'token_storage.dart';
+
+/// En web, de quién son los datos guardados en este navegador: se borran cuando ya nadie
+/// tiene sesión (cerró sesión, o cerró la pestaña sin "recordar"), para que el siguiente
+/// que use la computadora no encuentre notas ni alumnos ajenos.
+const _ultimoUsuarioWeb = 'profeapp.ultimo_usuario_web';
 
 class AuthState {
   const AuthState({this.session, this.isLoading = false, this.error, this.isRestoring = true});
@@ -47,6 +56,7 @@ class AuthController extends Notifier<AuthState> {
   Future<void> restore() async {
     final stored = await _storage.read();
     if (stored == null) {
+      await _borrarDatosWeb();
       state = const AuthState(isRestoring: false);
       return;
     }
@@ -61,17 +71,36 @@ class AuthController extends Notifier<AuthState> {
       state = AuthState(session: refreshed ?? stored, isRestoring: false);
       return;
     }
+    // Sesiones abiertas antes de esta versión: así también se borran al salir.
+    await _borrarDatosWeb(salvo: stored.userId);
     state = AuthState(session: stored, isRestoring: false);
   }
 
   /// Despierta la API mientras el docente escribe; si falla no importa.
   void despertarServidor() => _dio.get('${AppConfig.apiBaseUrl}/health/live').ignore();
 
-  Future<bool> login(String email, String password) => _authenticate('/auth/login', {
-        'email': email.trim(),
-        'password': password,
-        'deviceName': 'ProfeApp',
-      });
+  /// [recordar] sólo cuenta en web: sin marcarlo, la sesión muere al cerrar la pestaña.
+  Future<bool> login(String email, String password, {bool recordar = false}) {
+    _storage.recordar = recordar;
+    return _authenticate('/auth/login', {
+      'email': email.trim(),
+      'password': password,
+      'deviceName': 'ProfeApp',
+    });
+  }
+
+  /// Borra la base local que quedó en este navegador, salvo la de [salvo].
+  Future<void> _borrarDatosWeb({String? salvo}) async {
+    if (!kIsWeb) return;
+    final prefs = await SharedPreferences.getInstance();
+    final ultimo = prefs.getString(_ultimoUsuarioWeb);
+    if (ultimo != null && ultimo != salvo) await LocalDb.borrar(ultimo);
+    if (salvo == null) {
+      await prefs.remove(_ultimoUsuarioWeb);
+    } else {
+      await prefs.setString(_ultimoUsuarioWeb, salvo);
+    }
+  }
 
   Future<bool> _authenticate(String path, Map<String, dynamic> body) async {
     state = state.copyWith(isLoading: true, error: null);
@@ -79,6 +108,7 @@ class AuthController extends Notifier<AuthState> {
       final response = await _dio.post(path, data: body);
       final session = Session.fromAuthResponse(response.data as Map<String, dynamic>);
       await _storage.write(session);
+      await _borrarDatosWeb(salvo: session.userId);
       state = AuthState(session: session, isRestoring: false);
       return true;
     } on DioException catch (error) {
@@ -147,13 +177,26 @@ class AuthController extends Notifier<AuthState> {
     final current = state.session;
     if (current != null) {
       try {
-        await _dio.post('/auth/logout', data: {'refreshToken': current.refreshToken});
+        // Con el access token, el servidor lo anula ya y no a los 15 minutos.
+        await _dio.post('/auth/logout',
+            data: {'refreshToken': current.refreshToken},
+            options: Options(headers: {'Authorization': 'Bearer ${current.accessToken}'}));
       } catch (_) {
         // Cerrar sesión local es lo que importa.
+      }
+      // En web, la base se cierra antes de borrarla (en el teléfono se queda: es personal).
+      if (kIsWeb) {
+        try {
+          await (await ref.read(localDbProvider)).close();
+        } catch (_) {
+          // Ya estaba cerrada.
+        }
       }
     }
     await _storage.clear();
     state = const AuthState(isRestoring: false);
+    if (kIsWeb && current != null) await LocalDb.borrar(current.userId);
+    await _borrarDatosWeb();
   }
 }
 

@@ -44,7 +44,8 @@ public sealed class JwtBearerSetup(IOptions<JwtOptions> options) : IPostConfigur
             {
                 var sub = context.Principal?.FindFirstValue("sub") ?? context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
                 var cobros = context.HttpContext.RequestServices.GetRequiredService<CobroService>();
-                if (!Guid.TryParse(sub, out var userId)
+                var revocados = context.HttpContext.RequestServices.GetRequiredService<TokensRevocados>();
+                if (!Guid.TryParse(sub, out var userId) || revocados.Revocado(context.Principal)
                     || !await cobros.SesionVigenteAsync(userId, context.HttpContext.RequestAborted))
                     context.Fail("La sesión ya no es válida.");
             },

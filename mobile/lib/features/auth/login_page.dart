@@ -19,6 +19,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
+  bool _recordar = false;
   bool _tardando = false;
 
   @override
@@ -40,7 +41,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     final aviso = Future.delayed(const Duration(seconds: 5), () {
       if (mounted && ref.read(authControllerProvider).isLoading) setState(() => _tardando = true);
     });
-    await ref.read(authControllerProvider.notifier).login(_email.text, _password.text);
+    await ref.read(authControllerProvider.notifier).login(_email.text, _password.text, recordar: _recordar);
     aviso.ignore();
     if (mounted) setState(() => _tardando = false);
   }
@@ -103,6 +104,17 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                       child: const Text('¿Olvidaste tu contraseña?'),
                     ),
                   ),
+                  // En la web el panel suele abrirse en computadoras compartidas: sin marcarlo,
+                  // la sesión y lo guardado en el navegador se van al cerrar la pestaña.
+                  if (kIsWeb)
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: _recordar,
+                      onChanged: (v) => setState(() => _recordar = v ?? false),
+                      title: const Text('Recordarme en esta computadora'),
+                      subtitle: const Text('No lo marques en una computadora compartida.'),
+                    ),
                   if (auth.error != null) ...[
                     const SizedBox(height: Espacio.l),
                     Container(

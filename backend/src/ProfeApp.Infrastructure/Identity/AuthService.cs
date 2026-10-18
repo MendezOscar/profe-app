@@ -71,7 +71,10 @@ public sealed class AuthService(
 
     public async Task<Result<AuthResponse>> LoginAsync(LoginRequest request, string? ip, CancellationToken ct = default)
     {
-        var invalidas = Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "invalid_credentials", "Credenciales inválidas."));
+        // Un solo mensaje para correo inexistente, clave equivocada y cuenta bloqueada: ninguna
+        // respuesta confirma que un correo tiene cuenta.
+        var invalidas = Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "invalid_credentials",
+            "Correo o contraseña incorrectos. Tras 10 intentos fallidos la cuenta se bloquea 15 minutos."));
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrEmpty(request.Password)
             || request.Email.Length > 254 || request.Password.Length > 128)
             return invalidas;
@@ -90,8 +93,13 @@ public sealed class AuthService(
         }
 
         var user = await users.FindByEmailAsync(request.Email.Trim());
-        if (user is null || !user.IsActive) return invalidas;
-        if (await ClaveIncorrectaAsync(user, request.Password) is { } error) return Result<AuthResponse>.Fail(error);
+        if (user is null || !user.IsActive)
+        {
+            // Mismo trabajo que con un correo real: el tiempo de respuesta no lo delata.
+            users.PasswordHasher.VerifyHashedPassword(new AppUser(), HashFalso.Value, request.Password);
+            return invalidas;
+        }
+        if (await ClaveIncorrectaAsync(user, request.Password) is not null) return invalidas;
 
         // Aún no hay JWT: fijamos el tenant a mano para poder leer su espacio.
         tenant.SetTenant(user.TenantId, ignoreFilter: true);
@@ -100,6 +108,13 @@ public sealed class AuthService(
 
         return await IssueAsync(user, ip, request.DeviceName, ct);
     }
+
+    private static readonly Lazy<string> HashFalso = new(() => new PasswordHasher<AppUser>(
+        Microsoft.Extensions.Options.Options.Create(new PasswordHasherOptions { IterationCount = IteracionesHash }))
+        .HashPassword(new AppUser(), Guid.NewGuid().ToString()));
+
+    /// <summary>PBKDF2-SHA512: lo que recomienda OWASP. Las claves viejas se actualizan al entrar.</summary>
+    public const int IteracionesHash = 210_000;
 
     private static readonly Error Bloqueada = new(ErrorKind.Forbidden, "locked_out",
         "Demasiados intentos con la contraseña equivocada. Espera 15 minutos y vuelve a intentar.");
@@ -143,7 +158,15 @@ public sealed class AuthService(
             return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "invalid_refresh_token", "Sesión expirada, vuelve a iniciar sesión."));
         var existing = await tokens.FindAsync(request.RefreshToken, ct);
         if (existing is null || !existing.IsActive(clock.Now))
+        {
+            // Un token ya rotado que vuelve a usarse: alguien tiene una copia. Se cierran todas
+            // las sesiones del usuario, también la del que lo robó. Unos segundos de gracia por
+            // dos pestañas que renuevan a la vez.
+            if (existing is { RevokedAt: { } rotado, ReplacedByTokenId: not null } && clock.Now - rotado > TimeSpan.FromSeconds(30))
+                await db.RefreshTokens.Where(t => t.UserId == existing.UserId && t.RevokedAt == null)
+                    .ExecuteUpdateAsync(x => x.SetProperty(t => t.RevokedAt, clock.Now), ct);
             return Result<AuthResponse>.Fail(new Error(ErrorKind.Forbidden, "invalid_refresh_token", "Sesión expirada, vuelve a iniciar sesión."));
+        }
 
         var user = await users.FindByIdAsync(existing.UserId.ToString());
         if (user is null || !user.IsActive)
@@ -204,6 +227,7 @@ public sealed class AuthService(
         await db.RefreshTokens
             .Where(t => t.UserId == user.Id && t.RevokedAt == null && t.Id != actual)
             .ExecuteUpdateAsync(x => x.SetProperty(t => t.RevokedAt, clock.Now), ct);
+        cobros.OlvidarUsuario(user.Id);
         return Result.Success();
     }
 
