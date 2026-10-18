@@ -121,6 +121,7 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
     /// <summary>El cuadro original de una clase, para el dispositivo que todavía no lo tiene.</summary>
     public async Task<Result<ArchivoClase>> ArchivoAsync(string clave, CancellationToken ct = default)
     {
+        if (string.IsNullOrEmpty(clave) || clave.Length > 600) return Result<ArchivoClase>.Fail(Error.NotFound("La clase"));
         var archivo = await db.Clases.AsNoTracking()
             .Where(c => c.Clave == clave && c.EliminadaEn == null)
             .Select(c => c.Archivo.Contenido)
@@ -132,7 +133,7 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
 
     private async Task<Error?> AplicarAsync(ClaseSync entrante, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(entrante.Clave) || entrante.Valores is null)
+        if (entrante is null || string.IsNullOrWhiteSpace(entrante.Clave) || entrante.Valores is null)
             return Error.Validation("Clase incompleta.");
         if (entrante.Valores.Count > MaxValoresPorClase) return Error.Validation("Demasiadas celdas en una clase.");
 
@@ -163,6 +164,7 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
             catch (FormatException) { return Error.Validation("El archivo de la clase no llegó completo."); }
             if (archivo.Length > MaxArchivoBytes) return Error.Validation("El archivo de la clase es demasiado grande.");
         }
+        if (Validar(entrante, archivo) is { } invalida) return invalida;
 
         var plantillaNueva = clase is null
             || clase.EliminadaEn is not null
@@ -276,6 +278,47 @@ public sealed class SyncService(IAppDbContext db, IClock clock)
     }
 
     /// <summary>Por fila, gana el cambio más nuevo según la hora del teléfono.</summary>
+    private const int MaxColumnasPorClase = 200;
+    private const int MaxAlumnosPorClase = 500;
+
+    /// <summary>
+    /// Lo que llega del teléfono, contra los largos de las columnas de la base: un texto de más
+    /// o una clave repetida sería un 500 al guardar en vez de un 400 que la app sabe mostrar.
+    /// </summary>
+    private static Error? Validar(ClaseSync c, byte[]? archivo)
+    {
+        static bool Largo(string? s, int max, bool obligatorio = false) =>
+            s is null ? !obligatorio : s.Length <= max && (!obligatorio || s.Trim().Length > 0);
+
+        if (!Largo(c.Clave, 600, true) || !Largo(c.CodigoCentro, 40) || !Largo(c.Centro, 200)
+            || !Largo(c.Modalidad, 200) || !Largo(c.GradoSeccion, 120) || !Largo(c.Jornada, 60)
+            || !Largo(c.Asignatura, 160) || !Largo(c.Hoja, 100) || !Largo(c.ArchivoNombre, 255))
+            return Error.Validation("Datos de la clase fuera de rango.");
+
+        if (c.Columnas is { } columnas
+            && (columnas.Count > MaxColumnasPorClase
+                || columnas.Any(x => x is null || !Largo(x.Clave, 300, true) || !Largo(x.Grupo, 150, true)
+                    || !Largo(x.Nombre, 150, true) || !Largo(x.Tipo, 30, true) || x.Col < 0)
+                || columnas.Select(x => x.Clave).Distinct().Count() != columnas.Count))
+            return Error.Validation("Columnas inválidas o repetidas.");
+
+        if (c.Alumnos is { } alumnos
+            && (alumnos.Count > MaxAlumnosPorClase
+                || alumnos.Any(a => a is null || !Largo(a.Clave, 200, true) || !Largo(a.Identidad, 30, true)
+                    || !Largo(a.Documento, 20, true) || !Largo(a.Nombre, 200, true) || a.Fila < 0)
+                || alumnos.Select(a => a.Clave).Distinct().Count() != alumnos.Count))
+            return Error.Validation("Alumnos inválidos o repetidos.");
+
+        if (c.Valores.Any(v => v is null || !Largo(v.AlumnoClave, 200, true) || !Largo(v.ColumnaClave, 300, true)))
+            return Error.Validation("Celdas inválidas.");
+
+        // El mismo control que al exportar: sólo .xls (D0 CF) o .xlsx (50 4B, un zip).
+        if (archivo is not null
+            && !(archivo.Length >= 2 && ((archivo[0] == 0xD0 && archivo[1] == 0xCF) || (archivo[0] == 0x50 && archivo[1] == 0x4B))))
+            return Error.Validation("El archivo no es un cuadro de Excel.", "archivo_invalido");
+        return null;
+    }
+
     private async Task<Error?> AplicarRegistrosAsync(IReadOnlyList<RegistroSync> entrantes, CancellationToken ct)
     {
         if (entrantes.Count == 0) return null;

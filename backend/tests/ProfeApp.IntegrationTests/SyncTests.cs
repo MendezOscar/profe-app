@@ -53,6 +53,36 @@ public class SyncTests(ApiFixture fixture) : ApiTestBase(fixture)
         pull.GetProperty("clases").EnumerateArray().Single(c => c.GetProperty("clave").GetString() == clave);
 
     [Fact]
+    public async Task Una_clase_mal_formada_se_rechaza_con_400_y_no_rompe_el_servidor()
+    {
+        var telefono = await RegisterAsync();
+        var columna = new { clave = "PARCIAL I|NOTA TOTAL", grupo = "PARCIAL I", nombre = "NOTA TOTAL", tipo = "nota", col = 4, orden = 0 };
+        var alumno = new { clave = "0501200900001", identidad = "0501200900001", documento = "HND", nombre = "ANA", fila = 7, orden = 0, activo = true };
+        object Con(string clave, string archivoBase64, object[] columnas, object[] alumnos) => new
+        {
+            clave, centro = "INSTITUTO DE PRUEBA", hoja = "1", archivoNombre = "Q.xls", archivoBase64,
+            plantillaActualizadaEn = Importada, eliminada = false, columnas, alumnos, valores = Array.Empty<object>(),
+        };
+        var xls = Convert.ToBase64String([0xD0, 0xCF, 0x11, 0xE0]);
+
+        var malas = new[]
+        {
+            Con(new string('x', 601), xls, [columna], [alumno]),                       // clave más larga que la columna
+            Con("repetidas", xls, [columna, columna], [alumno]),                         // columnas repetidas
+            Con("alumnos", xls, [columna], [alumno, alumno]),                           // alumnos repetidos
+            Con("nombre", xls, [columna], [new { alumno.clave, alumno.identidad, alumno.documento, nombre = new string('A', 201), fila = 7, orden = 0, activo = true }]),
+            Con("no-excel", Convert.ToBase64String("<html>hola</html>"u8.ToArray()), [columna], [alumno]),
+        };
+
+        foreach (var clase in malas)
+        {
+            var response = await telefono.PostAsJsonAsync("/api/v1/sync/push", new { clases = new[] { clase } });
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+        }
+        (await telefono.GetAsync($"/api/v1/sync/archivo?clave={new string('x', 700)}")).StatusCode.Should().Be(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Lo_que_sube_un_telefono_lo_baja_otro_con_su_archivo()
     {
         var telefonoA = await RegisterAsync();
