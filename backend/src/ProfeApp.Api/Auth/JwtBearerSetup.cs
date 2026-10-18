@@ -3,6 +3,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using ProfeApp.Infrastructure.Cobros;
 using ProfeApp.Infrastructure.Identity;
 
 namespace ProfeApp.Api.Auth;
@@ -32,6 +33,21 @@ public sealed class JwtBearerSetup(IOptions<JwtOptions> options) : IPostConfigur
             ClockSkew = TimeSpan.FromSeconds(30),
             NameClaimType = "sub",
             RoleClaimType = ClaimTypes.Role
+        };
+
+        // Firma y vencimiento no bastan: un token emitido antes de desactivar o suspender la
+        // cuenta seguiría sirviendo hasta 15 minutos. Con 401 la app intenta renovar, y la
+        // renovación ya rechaza la cuenta con su motivo.
+        bearer.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var sub = context.Principal?.FindFirstValue("sub") ?? context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                var cobros = context.HttpContext.RequestServices.GetRequiredService<CobroService>();
+                if (!Guid.TryParse(sub, out var userId)
+                    || !await cobros.SesionVigenteAsync(userId, context.HttpContext.RequestAborted))
+                    context.Fail("La sesión ya no es válida.");
+            },
         };
     }
 }

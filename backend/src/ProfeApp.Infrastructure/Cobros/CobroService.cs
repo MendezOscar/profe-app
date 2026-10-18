@@ -19,7 +19,7 @@ public sealed class CobroService(AppDbContext db, ICurrentUser currentUser, IMem
     private static readonly TimeSpan Vive = TimeSpan.FromMinutes(5);
 
     /// <summary>A quién le cobra un usuario. <c>CuentaId</c> null = no se le cobra (la plataforma).</summary>
-    internal sealed record CuentaDeUsuario(Guid? CuentaId, bool EsCentro);
+    internal sealed record CuentaDeUsuario(Guid? CuentaId, bool EsCentro, bool Activo = true);
 
     /// <summary>Lo que hace falta del plan, sin el resto de la fila.</summary>
     internal sealed record Plan(
@@ -60,17 +60,32 @@ public sealed class CobroService(AppDbContext db, ICurrentUser currentUser, IMem
 
     public void Olvidar(Guid cuentaId) => cache.Remove(ClavePlan(cuentaId));
 
+    /// <summary>Tras desactivar o borrar un usuario: su próxima petición ya ve el cambio.</summary>
+    public void OlvidarUsuario(Guid userId) => cache.Remove(ClaveUsuario(userId));
+
+    /// <summary>
+    /// En cada petición autenticada: el usuario sigue activo y su cuenta no está suspendida.
+    /// Sin esto, un access token ya emitido seguía sirviendo hasta 15 minutos después de
+    /// desactivar o suspender. Sale de la misma caché que el cobro: casi nunca toca la base.
+    /// </summary>
+    public async Task<bool> SesionVigenteAsync(Guid userId, CancellationToken ct = default)
+    {
+        var (cuenta, plan) = await DeUsuarioAsync(userId, ct);
+        return cuenta.Activo && (cuenta.CuentaId is null || plan is { Activa: true });
+    }
+
     /// <summary>Para el login: suspendida, la cuenta no entra.</summary>
     internal async Task<(CuentaDeUsuario Cuenta, Plan? Plan)> DeUsuarioAsync(Guid userId, CancellationToken ct)
     {
-        var cuenta = await cache.GetOrCreateAsync($"cobro:usuario:{userId}", async e =>
+        var cuenta = await cache.GetOrCreateAsync(ClaveUsuario(userId), async e =>
         {
             e.AbsoluteExpirationRelativeToNow = Vive;
             var u = await db.Users.AsNoTracking().Where(x => x.Id == userId)
-                .Select(x => new { x.TenantId, x.InstitucionId }).FirstOrDefaultAsync(ct);
-            return u?.InstitucionId is { } centro ? new CuentaDeUsuario(centro, true)
-                : new CuentaDeUsuario(u?.TenantId, false);
-        }) ?? new CuentaDeUsuario(null, false);
+                .Select(x => new { x.TenantId, x.InstitucionId, x.IsActive }).FirstOrDefaultAsync(ct);
+            if (u is null) return new CuentaDeUsuario(null, false, Activo: false);
+            return u.InstitucionId is { } centro ? new CuentaDeUsuario(centro, true, u.IsActive)
+                : new CuentaDeUsuario(u.TenantId, false, u.IsActive);
+        }) ?? new CuentaDeUsuario(null, false, Activo: false);
 
         if (cuenta.CuentaId is not { } id) return (cuenta, null);
         var plan = await cache.GetOrCreateAsync(ClavePlan(id), async e =>
@@ -121,4 +136,5 @@ public sealed class CobroService(AppDbContext db, ICurrentUser currentUser, IMem
     }
 
     private static string ClavePlan(Guid cuentaId) => $"cobro:cuenta:{cuentaId}";
+    private static string ClaveUsuario(Guid userId) => $"cobro:usuario:{userId}";
 }

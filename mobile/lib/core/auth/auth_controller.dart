@@ -115,8 +115,11 @@ class AuthController extends Notifier<AuthState> {
       final status = error.response?.statusCode;
       if (status != 401 && status != 403) return null;
 
+      // El motivo del servidor (cuenta desactivada o suspendida) dice más que "expiró".
+      final datos = error.response?.data;
+      final motivo = datos is Map && datos['detail'] is String ? datos['detail'] as String : null;
       await _storage.clear();
-      state = const AuthState(isRestoring: false, error: 'Tu sesión expiró, vuelve a entrar.');
+      state = AuthState(isRestoring: false, error: motivo ?? 'Tu sesión expiró, vuelve a entrar.');
       return null;
     }
   }

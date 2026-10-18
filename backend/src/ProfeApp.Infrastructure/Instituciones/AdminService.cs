@@ -98,6 +98,7 @@ public sealed class AdminService(
 
         docente.IsActive = activo;
         await users.UpdateAsync(docente);
+        cobros.OlvidarUsuario(docente.Id);
         // Desactivado, se cierran sus sesiones en todos los dispositivos.
         if (!activo) await db.RefreshTokens.Where(t => t.UserId == docente.Id).ExecuteDeleteAsync(ct);
         return Result.Success();

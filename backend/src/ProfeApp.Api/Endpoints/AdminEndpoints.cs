@@ -9,7 +9,8 @@ public static class AdminEndpoints
 {
     public static void MapAdminEndpoints(this IEndpointRouteBuilder app)
     {
-        var centro = app.MapGroup("/api/v1/centro").WithTags("Centro").RequireAuthorization(Policies.CentroOnly);
+        var centro = app.MapGroup("/api/v1/centro").WithTags("Centro").RequireAuthorization(Policies.CentroOnly)
+            .RequireRateLimiting(Limites.Usuario);
 
         centro.MapGet("/", async (ICentroService s, CancellationToken ct) => (await s.ObtenerAsync(ct)).ToHttp())
             .WithSummary("El centro, su licencia y el avance de cada docente.");
@@ -23,7 +24,8 @@ public static class AdminEndpoints
         centro.MapPost("/docentes/{id:guid}/restablecer-clave", async (Guid id, ICentroService s, CancellationToken ct) =>
             (await s.RestablecerClaveAsync(id, ct)).ToHttp());
 
-        var plataforma = app.MapGroup("/api/v1/plataforma").WithTags("Plataforma").RequireAuthorization(Policies.PlatformOnly);
+        var plataforma = app.MapGroup("/api/v1/plataforma").WithTags("Plataforma").RequireAuthorization(Policies.PlatformOnly)
+            .RequireRateLimiting(Limites.Usuario);
 
         plataforma.MapGet("/instituciones", async (IPlataformaService s, CancellationToken ct) =>
             (await s.InstitucionesAsync(ct)).ToHttp());

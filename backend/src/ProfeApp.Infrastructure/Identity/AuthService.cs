@@ -222,6 +222,7 @@ public sealed class AuthService(
                 await db.Tenants.Where(t => t.Id == tenantId).ExecuteDeleteAsync(ct);
             await tx.CommitAsync(ct);
         });
+        cobros.OlvidarUsuario(user.Id);
         return Result.Success();
     }
 

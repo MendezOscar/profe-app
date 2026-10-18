@@ -171,6 +171,29 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task Desactivar_o_suspender_corta_al_instante_la_sesion_ya_abierta()
+    {
+        var (plataforma, centroId, email, clave) = await CentroConDocenteAsync();
+        var docente = await LoginAsync(email, clave);
+        var otro = await CentroConDocenteAsync();
+        var docenteOtro = await LoginAsync(otro.Email, otro.Clave);
+        (await docente.GetAsync("/api/v1/auth/me")).IsSuccessStatusCode.Should().BeTrue();
+        (await docenteOtro.GetAsync("/api/v1/auth/me")).IsSuccessStatusCode.Should().BeTrue();
+
+        // El mismo access token, que aún no vence: tras suspender el centro ya no sirve.
+        (await plataforma.PostAsync($"/api/v1/plataforma/instituciones/{centroId}/suspender", null)).IsSuccessStatusCode.Should().BeTrue();
+        var centroAdmin = await CentroAsync();
+        var nuevo = await ReadAsync(await centroAdmin.PostAsJsonAsync("/api/v1/centro/docentes", new { email = $"x-{Guid.NewGuid():N}@prueba.hn", nombre = "X" }));
+        var desactivado = await LoginAsync(nuevo.GetProperty("email").GetString()!, nuevo.GetProperty("claveTemporal").GetString()!);
+        (await centroAdmin.PostAsync($"/api/v1/centro/docentes/{nuevo.GetProperty("usuarioId").GetGuid()}/desactivar", null))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        (await docente.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await desactivado.GetAsync("/api/v1/auth/me")).StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+        (await docenteOtro.GetAsync("/api/v1/auth/me")).IsSuccessStatusCode.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Registrar_un_pago_corre_el_vencimiento_desde_el_que_tenia_y_vuelve_a_respaldar()
     {
         var plataforma = await PlataformaAsync();
