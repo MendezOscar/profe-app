@@ -27,7 +27,10 @@ services:
         value: "true"
       - key: App__CorsOrigins__0
         value: https://profeapphn.com
+      # La API trabaja con profeapp_app (sólo datos); migra con el dueño (avnadmin).
       - key: ConnectionStrings__Default
+        sync: false
+      - key: ConnectionStrings__Migraciones
         sync: false
       - key: Jwt__Key
         sync: false

@@ -260,8 +260,23 @@ app.MapAdminEndpoints();
 // Migraciones automáticas en desarrollo; en producción son opt-in (App:ApplyMigrationsOnStartup).
 if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("App:ApplyMigrationsOnStartup"))
 {
-    using var scope = app.Services.CreateScope();
-    await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+    // En producción la API trabaja con un usuario que sólo lee y escribe datos (no crea ni
+    // borra tablas). Las migraciones van con el dueño del esquema, en ConnectionStrings:Migraciones.
+    // Sin ella (desarrollo) se migra con la conexión de siempre.
+    var migraciones = app.Configuration.GetConnectionString("Migraciones");
+    if (string.IsNullOrWhiteSpace(migraciones))
+    {
+        using var scope = app.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.MigrateAsync();
+    }
+    else
+    {
+        var opciones = new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(migraciones).Options;
+        await using var dueno = new AppDbContext(opciones);
+        await dueno.Database.MigrateAsync();
+        // Las tablas nuevas de cada migración también quedan al alcance del usuario de la API.
+        await dueno.Database.ExecuteSqlRawAsync(PermisosDeLaApi.Sql);
+    }
 }
 
 using (var scope = app.Services.CreateScope())

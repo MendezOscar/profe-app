@@ -25,7 +25,32 @@ Host=pg-xxxx-proyecto.l.aivencloud.com;Port=12345;Database=defaultdb;Username=av
 
 Aiven exige SSL. `Trust Server Certificate=true` acepta su certificado sin instalar la CA. Para validarlo del todo, descargar el *CA certificate* del panel y usar `SSL Mode=VerifyFull;Root Certificate=/ruta/ca.pem` (en Render habría que agregar el archivo como *Secret File*).
 
-En *Overview → Allowed IP addresses* hay que dejar `0.0.0.0/0`, que es lo que viene por defecto: Render no tiene IP fija en el plan gratis, así que no se puede restringir a su IP. La protección queda en el SSL y en la contraseña.
+### Mínimo acceso (hacer una vez)
+
+La API **no** trabaja con `avnadmin`: usa `profeapp_app`, que sólo lee y escribe datos (no crea,
+altera ni borra tablas, y los pagos sólo se agregan). `avnadmin` queda para las migraciones.
+Los permisos de `profeapp_app` los aplica la propia API después de cada migración
+(`PermisosDeLaApi.cs`); a mano sólo se crea el usuario:
+
+1. Con `psql` y la cadena de `avnadmin` (no se comparte con nadie):
+   ```sql
+   CREATE ROLE profeapp_app LOGIN PASSWORD '<clave larga aleatoria>';
+   GRANT CONNECT ON DATABASE defaultdb TO profeapp_app;
+   ```
+2. En Render, dos variables:
+   - `ConnectionStrings__Migraciones` = la cadena con `avnadmin`.
+   - `ConnectionStrings__Default` = la misma cadena con `Username=profeapp_app;Password=<la del paso 1>`.
+3. *Manual Deploy*. Al arrancar migra con `avnadmin`, da los permisos y trabaja con `profeapp_app`.
+4. Cambiar la clave de `avnadmin` en Aiven (*Users*) y actualizarla sólo en `ConnectionStrings__Migraciones`.
+
+**Certificado:** descargar el *CA certificate* de *Overview*, subirlo en Render como *Secret File*
+`ca.pem` y cambiar en las dos cadenas `SSL Mode=Require;Trust Server Certificate=true` por
+`SSL Mode=VerifyFull;Root Certificate=/etc/secrets/ca.pem`. Así se comprueba que del otro lado está Aiven.
+
+**Red:** en *Overview → Allowed IP addresses*, cambiar `0.0.0.0/0` por los rangos de salida de
+Render (servicio → *Connect* → *Outbound*) más la IP de quien mantiene la base. Si Render no
+muestra rangos en el plan gratis, queda `0.0.0.0/0` y la protección es el SSL verificado, la
+clave larga y que `profeapp_app` no puede tocar tablas.
 
 Notas del plan gratis:
 - **Respaldos:** revisar en el panel qué respaldos trae el plan. Si no incluye, programar un `pg_dump` periódico: son datos de menores y no se deben perder.
