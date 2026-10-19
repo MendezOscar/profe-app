@@ -52,6 +52,11 @@ Render (servicio → *Connect* → *Outbound*) más la IP de quien mantiene la b
 muestra rangos en el plan gratis, queda `0.0.0.0/0` y la protección es el SSL verificado, la
 clave larga y que `profeapp_app` no puede tocar tablas.
 
+Estado (octubre de 2026): la lista permite sólo `74.220.49.0/24` y `74.220.57.0/24` (salida de
+Render en Virginia) y la IP de la Mac de mantenimiento (`/32`, cambia si cambia el proveedor de
+internet: revisarla en ifconfig.me). Sin `0.0.0.0/0` ni `::/0`. Respaldos de Aiven: diarios,
+14 días, en la misma región (`do-sfo2`).
+
 Notas del plan gratis:
 - **Respaldos:** revisar en el panel qué respaldos trae el plan. Si no incluye, programar un `pg_dump` periódico: son datos de menores y no se deben perder.
 - **Inactividad:** Aiven puede apagar un servicio gratis tras un periodo largo sin uso y avisa por correo antes. Con docentes sincronizando a diario no debería pasar. Si pasa, se enciende desde el panel sin perder datos.
