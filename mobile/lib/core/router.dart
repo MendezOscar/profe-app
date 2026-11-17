@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/admin/centro_page.dart';
 import '../features/admin/plataforma_page.dart';
+import '../features/alumno/alumno_page.dart';
 import '../features/asignatura/asignatura_page.dart';
 import '../features/asignatura/calificar_page.dart';
 import '../features/asignatura/calificar_varias_page.dart';
@@ -12,8 +13,10 @@ import '../features/auth/cambiar_clave_dialog.dart';
 import '../features/auth/login_page.dart';
 import '../features/bienvenida/bienvenida_page.dart';
 import '../features/bienvenida/splash_page.dart';
+import '../features/calendario/calendario_page.dart';
 import '../features/clases/clase_page.dart';
 import '../features/cuenta/cuenta_page.dart';
+import '../features/equipos/equipos_page.dart';
 import '../features/inicio/inicio_page.dart';
 import '../features/avisos/avisos_page.dart';
 import '../features/planes/plantillas_page.dart';
@@ -83,6 +86,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => const InicioPage(),
             routes: [
               GoRoute(path: 'avisos', builder: (context, state) => const AvisosPage()),
+              GoRoute(path: 'calendario', builder: (context, state) => const CalendarioPage()),
               GoRoute(
                 path: 'asignaturas/:id',
                 builder: (context, state) => AsignaturaPage(
@@ -94,6 +98,18 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(
                     path: 'cuadro',
                     builder: (context, state) => ClasePage(claseId: state.pathParameters['id']!),
+                  ),
+                  GoRoute(
+                    path: 'equipos',
+                    builder: (context, state) => EquiposPage(claseId: state.pathParameters['id']!),
+                  ),
+                  GoRoute(
+                    path: 'alumnos/:alumnoId',
+                    builder: (context, state) => AlumnoPage(
+                      claseId: state.pathParameters['id']!,
+                      alumnoId: state.pathParameters['alumnoId']!,
+                      parcial: state.uri.queryParameters['parcial'] ?? '',
+                    ),
                   ),
                   GoRoute(
                     path: 'calificar',

@@ -43,10 +43,10 @@ Uint8List xlsxDePrueba(Map<String, Object> celdas, {List<String> combinadas = co
 }
 
 /// Media, dos parciales, nivelación sólo en el Parcial I (captura del BTP en Contaduría).
-Uint8List cuadroMedia({bool conNivelacionParcial2 = false}) => xlsxDePrueba({
+Uint8List cuadroMedia({bool conNivelacionParcial2 = false, int seccion = 12}) => xlsxDePrueba({
       'A1': '080100642M02 | ESPANA JESUS MILLA SELVA',
       'A2': 'MODALIDAD: BACHILLERATO TÉCNICO PROFESIONAL EN CONTADURÍA Y FINANZAS',
-      'A3': 'ONCEAVO GRADO SECCIÓN 12',
+      'A3': 'ONCEAVO GRADO SECCIÓN $seccion',
       'A4': 'JORNADA VESPERTINA',
       'A5': 'LENGUA Y LITERATURA',
       'A6': 'DOCUMENTO', 'B6': 'IDENTIDAD', 'C6': 'NOMBRE',

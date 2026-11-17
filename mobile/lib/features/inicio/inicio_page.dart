@@ -33,6 +33,12 @@ class InicioPage extends ConsumerWidget {
       appBar: AppBar(
         title: Text('Hola, $nombre'),
         actions: [
+          if (hayClases)
+            IconButton(
+              tooltip: 'Calendario de la semana',
+              onPressed: () => context.go('/inicio/calendario'),
+              icon: const Icon(Icons.calendar_month_outlined),
+            ),
           if (hayClases) const BotonAvisos(),
           if (compacto) const IndicadorSync(),
           if (hayClases && !compacto)

@@ -170,6 +170,37 @@ void main() {
     expect(await syncB.registrosPendientes(), isEmpty, reason: 'lo bajado no se vuelve a subir');
   });
 
+  test('Los equipos y las observaciones pasan de un teléfono al otro por la clave del alumno', () async {
+    final planesA = PlanesRepository(Future.value(dbA), clasesA);
+    final planesB = PlanesRepository(Future.value(dbB), clasesB);
+    final claseA = (await clasesA.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final claseB = (await clasesB.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final alumnosA = (await clasesA.detalle(claseA)).alumnos;
+
+    final equipo = await planesA.guardarEquipo(claseA, nombre: 'Equipo 1', miembros: [alumnosA[0].id, alumnosA[1].id]);
+    final observacion = await planesA.guardarObservacion(claseA, alumnosA[0].id,
+        fecha: DateTime(2026, 3, 2), tipo: TipoObservacion.positiva, texto: 'Expuso muy bien');
+
+    final pendientes = await syncA.registrosPendientes();
+    expect(pendientes.map((r) => r.json['tipo']).toSet(), {'equipo', 'observacion'});
+    await syncB.aplicarRegistros([for (final r in pendientes) r.json]);
+
+    final alumnosB = (await clasesB.detalle(claseB)).alumnos;
+    final equipoB = (await planesB.equipos(claseB)).single;
+    expect(equipoB.id, equipo);
+    expect(equipoB.miembros, [alumnosB[0].id, alumnosB[1].id], reason: 'los ids locales son otros; la clave, la misma');
+    final observacionB = (await planesB.observaciones(alumnosB[0].id)).single;
+    expect(observacionB.id, observacion);
+    expect(observacionB.tipo, TipoObservacion.positiva);
+    expect(observacionB.texto, 'Expuso muy bien');
+    expect(await planesB.conteoObservaciones(claseB), {alumnosB[0].id: 1});
+
+    // Borrar viaja como lápida.
+    await planesA.eliminarObservacion(observacion);
+    await syncB.aplicarRegistros([for (final r in await syncA.registrosPendientes()) r.json]);
+    expect(await planesB.observaciones(alumnosB[0].id), isEmpty);
+  });
+
   test('Por registro gana el cambio más nuevo', () async {
     final planesA = PlanesRepository(Future.value(dbA), clasesA);
     final planesB = PlanesRepository(Future.value(dbB), clasesB);

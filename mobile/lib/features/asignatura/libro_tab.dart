@@ -151,16 +151,17 @@ class _Nota extends StatelessWidget {
   }
 }
 
-class _ListaAlumnos extends StatelessWidget {
+class _ListaAlumnos extends ConsumerWidget {
   const _ListaAlumnos({required this.plan, required this.resultado});
 
   final PlanParcial plan;
   final ResultadoParcial resultado;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
+    final observaciones = ref.watch(conteoObservacionesProvider(plan.claseId)).valueOrNull ?? const <String, int>{};
     return ListView.separated(
       padding: const EdgeInsets.only(bottom: Espacio.xxxl),
       itemCount: plan.alumnos.length,
@@ -175,73 +176,14 @@ class _ListaAlumnos extends StatelessWidget {
           subtitle: Text([
             if (nota.pendientes > 0) '${nota.pendientes} ${nota.pendientes == 1 ? 'pendiente' : 'pendientes'}',
             if (nota.inasistencias > 0) '${nota.inasistencias} ${nota.inasistencias == 1 ? 'falta' : 'faltas'}',
+            if (observaciones[alumno.id] case final n?) '$n ${n == 1 ? 'observación' : 'observaciones'}',
           ].join(' · ')),
           trailing: _Nota(nota),
-          onTap: () => showModalBottomSheet<void>(
-            context: context,
-            showDragHandle: true,
-            isScrollControlled: true,
-            shape: const RoundedRectangleBorder(),
-            builder: (_) => _Desglose(plan: plan, alumno: alumno, nota: nota),
-          ),
+          // La ficha: desglose, observaciones e informe para el padre.
+          onTap: () => context.go('/inicio/asignaturas/${plan.claseId}/alumnos/${alumno.id}'
+              '?parcial=${Uri.encodeComponent(plan.parcial.clave)}'),
         );
       },
-    );
-  }
-}
-
-class _Desglose extends StatelessWidget {
-  const _Desglose({required this.plan, required this.alumno, required this.nota});
-
-  final PlanParcial plan;
-  final AlumnoPlan alumno;
-  final NotaAlumno nota;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    return SafeArea(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.75),
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.l),
-          children: [
-            Row(
-              children: [
-                Expanded(child: Text(alumno.nombre, style: text.titleLarge)),
-                _Nota(nota),
-              ],
-            ),
-            Text('${formatoPuntos(nota.obtenidos)} pts obtenidos · ${nota.inasistencias} ${nota.inasistencias == 1 ? 'falta' : 'faltas'}',
-                style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant)),
-            const SizedBox(height: Espacio.m),
-            for (final rubro in plan.rubros) ...[
-              Padding(
-                padding: const EdgeInsets.only(top: Espacio.m, bottom: Espacio.xs),
-                child: Text(rubro.nombre.toUpperCase(), style: text.labelSmall),
-              ),
-              for (final a in plan.actividades.where((a) => a.rubroId == rubro.id))
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: Row(
-                    children: [
-                      Expanded(child: Text(a.titulo)),
-                      Text(
-                        switch (plan.calificaciones[a.id]?[alumno.id]) {
-                          final double v => '${formatoPuntos(v)} / ${formatoPuntos(a.puntos)}',
-                          null => 'pendiente / ${formatoPuntos(a.puntos)}',
-                        },
-                        style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                  ),
-                ),
-            ],
-          ],
-        ),
-      ),
     );
   }
 }
@@ -349,7 +291,24 @@ class _TablaState extends ConsumerState<_Tabla> {
                       child: Row(
                         children: [
                           celda(_anchoNumero, Text('${i + 1}'), align: Alignment.centerLeft),
-                          celda(_anchoAlumno, Text(alumno.nombre, overflow: TextOverflow.ellipsis), align: Alignment.centerLeft),
+                          // El nombre abre la ficha del alumno (observaciones e informe).
+                          celda(
+                            _anchoAlumno,
+                            InkWell(
+                              onTap: () => context.go('/inicio/asignaturas/${plan.claseId}/alumnos/${alumno.id}'
+                                  '?parcial=${Uri.encodeComponent(plan.parcial.clave)}'),
+                              child: SizedBox(
+                                height: _altoFila,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(alumno.nombre,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: scheme.primary, decoration: TextDecoration.underline)),
+                                ),
+                              ),
+                            ),
+                            align: Alignment.centerLeft,
+                          ),
                           celda(_anchoNota, _Nota(nota)),
                           celda(_anchoFaltas, Text('${nota.inasistencias}')),
                           for (final a in plan.actividades)

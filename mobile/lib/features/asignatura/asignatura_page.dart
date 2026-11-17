@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/informes/compartir.dart';
+import '../../core/informes/informes_pdf.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
@@ -81,8 +83,33 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
                 if (resumen != null)
                   PopupMenuButton<String>(
                     tooltip: 'Más opciones',
-                    onSelected: (_) => eliminarClase(context, ref, resumen),
-                    itemBuilder: (context) => const [PopupMenuItem(value: 'eliminar', child: Text('Eliminar asignatura'))],
+                    onSelected: (opcion) => switch (opcion) {
+                      'equipos' => context.go('/inicio/asignaturas/${widget.claseId}/equipos'),
+                      'libro' => _imprimir(context, actual, asistencia: false),
+                      'asistencia' => _imprimir(context, actual, asistencia: true),
+                      _ => eliminarClase(context, ref, resumen),
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'equipos',
+                        child: ListTile(leading: Icon(Icons.groups_outlined), title: Text('Equipos de trabajo')),
+                      ),
+                      if (actual != null) ...[
+                        const PopupMenuItem(
+                          value: 'libro',
+                          child: ListTile(leading: Icon(Icons.picture_as_pdf_outlined), title: Text('Libro de notas en PDF')),
+                        ),
+                        const PopupMenuItem(
+                          value: 'asistencia',
+                          child: ListTile(leading: Icon(Icons.picture_as_pdf_outlined), title: Text('Asistencia en PDF')),
+                        ),
+                      ],
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'eliminar',
+                        child: ListTile(leading: Icon(Icons.delete_outline), title: Text('Eliminar asignatura')),
+                      ),
+                    ],
                   ),
               ],
               bottom: actual == null
@@ -122,6 +149,29 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
         );
       },
     );
+  }
+
+  /// Libro de notas o lista de asistencia del parcial, en PDF para imprimir o compartir.
+  Future<void> _imprimir(BuildContext context, Parcial? parcial, {required bool asistencia}) async {
+    if (parcial == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final clase = await ref.read(claseProvider(widget.claseId).future);
+      final plan = await ref.read(planProvider((widget.claseId, parcial.clave)).future);
+      final docente = ref.read(sessionProvider)?.fullName ?? '';
+      final bytes = asistencia
+          ? await InformesPdf.listaAsistencia(clase: clase.resumen, docente: docente, plan: plan)
+          : await InformesPdf.libroDeNotas(clase: clase.resumen, docente: docente, plan: plan);
+      if (!context.mounted) return;
+      await compartirPdf(
+        context,
+        bytes,
+        nombreArchivo('${asistencia ? 'Asistencia' : 'Libro de notas'} ${clase.resumen.asignatura} '
+            '${clase.resumen.gradoSeccion} ${parcial.titulo}'),
+      );
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('No se pudo crear el PDF: $error')));
+    }
   }
 
   Parcial? _elegido(List<Parcial> lista) {

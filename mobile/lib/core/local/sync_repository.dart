@@ -290,7 +290,9 @@ class SyncRepository {
   // del alumno, como los valores del cuadro.
 
   /// Orden para aplicar: primero lo que otros registros necesitan que exista.
-  static const _tipos = ['plantilla', 'rubro', 'actividad', 'sesion', 'parcial', 'calificacion', 'asistencia'];
+  static const _tipos = [
+    'plantilla', 'rubro', 'actividad', 'sesion', 'parcial', 'calificacion', 'asistencia', 'equipo', 'observacion',
+  ];
 
   /// Filas del plan sin subir, cada una con lo necesario para marcarla subida después.
   Future<List<RegistroPendiente>> registrosPendientes() async {
@@ -355,6 +357,31 @@ class SyncRepository {
         JOIN alumnos a ON a.id = x.alumno_id JOIN clases c ON c.id = a.clase_id WHERE x.sucia = 1''')) {
       agregar('asistencias', {'sesion_id': r['sesion_id'], 'alumno_id': r['alumno_id']}, r, 'asistencia',
           r['clase_clave'] as String, '${r['sesion_id']}|${r['alumno_clave']}', {'estado': r['estado']}, r['estado'] == null);
+    }
+    // Los miembros viajan por la clave del alumno, que es la misma en todos los dispositivos.
+    final equipos = await db.rawQuery(
+        'SELECT x.*, c.clave AS clase_clave FROM equipos x JOIN clases c ON c.id = x.clase_id WHERE x.sucia = 1');
+    if (equipos.isNotEmpty) {
+      final claves = {
+        for (final a in await db.query('alumnos',
+            columns: ['id', 'clave'],
+            where: 'clase_id IN (${List.filled({for (final e in equipos) e['clase_id']}.length, '?').join(', ')})',
+            whereArgs: {for (final e in equipos) e['clase_id']}.toList()))
+          a['id'] as String: a['clave'] as String,
+      };
+      for (final r in equipos) {
+        final miembros = (jsonDecode(r['miembros'] as String) as List).cast<String>();
+        agregar('equipos', {'id': r['id']}, r, 'equipo', r['clase_clave'] as String, r['id'] as String,
+            {'nombre': r['nombre'], 'miembros': [for (final m in miembros) if (claves[m] case final c?) c]},
+            r['eliminado'] == 1);
+      }
+    }
+    for (final r in await db.rawQuery('''
+        SELECT x.*, a.clave AS alumno_clave, c.clave AS clase_clave FROM observaciones x
+        JOIN alumnos a ON a.id = x.alumno_id JOIN clases c ON c.id = x.clase_id WHERE x.sucia = 1''')) {
+      agregar('observaciones', {'id': r['id']}, r, 'observacion', r['clase_clave'] as String, r['id'] as String,
+          {'alumnoClave': r['alumno_clave'], 'fecha': r['fecha'], 'tipo': r['tipo'], 'texto': r['texto']},
+          r['eliminado'] == 1);
     }
     return pendientes;
   }
@@ -444,6 +471,28 @@ class SyncRepository {
             });
           case 'parcial':
             agregar('parciales', {'clase_id': clase, 'parcial': clave}, {'cerrado_en': datos['cerradoEn']});
+          case 'equipo':
+            final miembros = [
+              for (final m in (datos['miembros'] as List? ?? const []).cast<String>())
+                if (alumnos['$clase|$m'] case final id?) id,
+            ];
+            agregar('equipos', {'id': clave}, {
+              'clase_id': clase,
+              'nombre': datos['nombre'] ?? '',
+              'miembros': jsonEncode(miembros),
+              'eliminado': eliminado,
+            });
+          case 'observacion':
+            final alumno = alumnos['$clase|${datos['alumnoClave']}'];
+            if (alumno == null) continue;
+            agregar('observaciones', {'id': clave}, {
+              'clase_id': clase,
+              'alumno_id': alumno,
+              'fecha': datos['fecha'],
+              'tipo': datos['tipo'] ?? 'nota',
+              'texto': datos['texto'] ?? '',
+              'eliminado': eliminado,
+            });
           case 'calificacion' || 'asistencia':
             final corte = clave.indexOf('|');
             if (corte < 0) continue;

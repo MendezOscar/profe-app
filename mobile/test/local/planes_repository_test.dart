@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:profeapp/core/local/clases_repository.dart';
 import 'package:profeapp/core/local/local_db.dart';
@@ -90,6 +92,54 @@ void main() {
 
     await planes.restaurarActividad(tarea);
     expect((await planes.plan(claseId, parcial)).calificaciones[tarea]?[alumno.id], 9);
+  });
+
+  test('Una actividad se puede crear en otras secciones que tengan el mismo rubro', () async {
+    final a = (await clases.importar(cuadroMedia(seccion: 1), 'a.xlsx')).claseId;
+    final b = (await clases.importar(cuadroMedia(seccion: 2), 'b.xlsx')).claseId;
+    final c = (await clases.importar(cuadroMedia(seccion: 3), 'c.xlsx')).claseId;
+    await planes.guardarRubro(a, 'PARCIAL I', nombre: 'Tareas', puntos: 40);
+    final tareasB = await planes.guardarRubro(b, 'PARCIAL I', nombre: ' tareas ', puntos: 30);
+    await planes.guardarRubro(c, 'PARCIAL I', nombre: 'Exámenes', puntos: 40);
+    await planes.guardarRubro(c, 'PARCIAL II', nombre: 'Tareas', puntos: 40);
+
+    expect(await planes.rubrosIguales(a, 'PARCIAL I', 'Tareas'), {b: tareasB},
+        reason: 'sin mayúsculas ni espacios de más; ni otro rubro ni otro parcial');
+  });
+
+  test('El calendario junta las actividades de todas las clases y cuenta lo calificado', () async {
+    final a = (await clases.importar(cuadroMedia(seccion: 1), 'a.xlsx')).claseId;
+    final b = (await clases.importar(cuadroMedia(seccion: 2), 'b.xlsx')).claseId;
+    final ra = await planes.guardarRubro(a, 'PARCIAL I', nombre: 'Tareas', puntos: 40);
+    final rb = await planes.guardarRubro(b, 'PARCIAL I', nombre: 'Tareas', puntos: 40);
+    final t1 = await planes.guardarActividad(a, 'PARCIAL I', rubroId: ra, titulo: 'Tarea 1', fecha: DateTime(2026, 3, 3), puntos: 10);
+    await planes.guardarActividad(b, 'PARCIAL I', rubroId: rb, titulo: 'Tarea 1', fecha: DateTime(2026, 3, 5), puntos: 10);
+    await planes.guardarActividad(b, 'PARCIAL I', rubroId: rb, titulo: 'Fuera', fecha: DateTime(2026, 3, 12), puntos: 10);
+    final alumnos = (await clases.detalle(a)).alumnos;
+    for (final al in alumnos) {
+      await planes.calificar(t1, al.id, 8);
+    }
+
+    final semana = await planes.calendario(DateTime(2026, 3, 2), DateTime(2026, 3, 8));
+
+    expect(semana.map((x) => x.titulo), ['Tarea 1', 'Tarea 1']);
+    expect(semana.first.calificada, isTrue);
+    expect(semana.last.calificados, 0);
+  });
+
+  test('Una base v5 sube a v6 con equipos y observaciones', () async {
+    final ruta = '${Directory.systemTemp.createTempSync('v5').path}/v5.db';
+    final v5 = await databaseFactoryFfi.openDatabase(ruta, options: OpenDatabaseOptions(version: 5, onCreate: (db, _) async {
+      await db.execute('CREATE TABLE clases (id TEXT PRIMARY KEY)');
+      await db.execute('CREATE TABLE alumnos (id TEXT PRIMARY KEY)');
+    }));
+    await v5.close();
+
+    final v6 = await LocalDb.openAt(databaseFactoryFfi, ruta);
+    final tablas = (await v6.rawQuery("SELECT name FROM sqlite_master WHERE type = 'table'")).map((t) => t['name']);
+    await v6.close();
+
+    expect(tablas, containsAll(['equipos', 'observaciones']));
   });
 
   test('Una base v2 sube a v3 con las tablas del plan', () async {

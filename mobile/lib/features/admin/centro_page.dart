@@ -68,9 +68,20 @@ class CentroPage extends ConsumerWidget {
                           'Aquí verás cómo avanza cada uno con sus parciales.',
                     )
                   else ...[
-                    Text('DOCENTES', style: Theme.of(context).textTheme.labelSmall),
-                    const SizedBox(height: Espacio.s),
-                    for (final d in docentes) _Docente(docente: d),
+                    _Avance(docentes: docentes),
+                    const SizedBox(height: Espacio.xl),
+                    // Primero quien necesita atención: así la dirección lo ve sin buscar.
+                    if (docentes.any(atrasado)) ...[
+                      Text('NECESITAN ATENCIÓN', style: Theme.of(context).textTheme.labelSmall),
+                      const SizedBox(height: Espacio.s),
+                      for (final d in docentes.where(atrasado)) _Docente(docente: d),
+                      const SizedBox(height: Espacio.l),
+                    ],
+                    if (docentes.any((d) => !atrasado(d))) ...[
+                      Text(docentes.any(atrasado) ? 'AL DÍA' : 'DOCENTES', style: Theme.of(context).textTheme.labelSmall),
+                      const SizedBox(height: Espacio.s),
+                      for (final d in docentes.where((d) => !atrasado(d))) _Docente(docente: d),
+                    ],
                   ],
                 ],
               ),
@@ -86,6 +97,51 @@ class CentroPage extends ConsumerWidget {
     if (cuenta == null || !context.mounted) return;
     ref.invalidate(centroProvider);
     await mostrarCuentaCreada(context, cuenta, titulo: 'Docente agregado');
+  }
+}
+
+/// Días sin trabajo que vuelven "atrasado" a un docente: dos semanas sin respaldar nada.
+const _diasAtraso = 14;
+
+/// Días desde lo último que respaldó (nota, lista, actividad); null si nunca trabajó.
+int? diasSinTrabajo(Map<String, dynamic> docente) => switch (docente['ultimoTrabajo']) {
+      final String t => DateTime.now().difference(DateTime.parse(t)).inDays,
+      _ => null,
+    };
+
+/// Activo y sin trabajo en dos semanas, o sin haber empezado.
+bool atrasado(Map<String, dynamic> docente) {
+  if (docente['activo'] != true) return false;
+  final dias = diasSinTrabajo(docente);
+  return dias == null || dias >= _diasAtraso;
+}
+
+/// Resumen para la dirección: cuántos van al día, cuántos cerraron algún parcial y cuántos
+/// llevan dos semanas sin trabajar en la app.
+class _Avance extends StatelessWidget {
+  const _Avance({required this.docentes});
+
+  final List<Map<String, dynamic>> docentes;
+
+  @override
+  Widget build(BuildContext context) {
+    final activos = docentes.where((d) => d['activo'] == true).toList();
+    final atrasados = activos.where(atrasado).length;
+    final conCierre = activos.where((d) => (d['parcialesCerrados'] as int) > 0).length;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Espacio.l),
+        child: Wrap(
+          spacing: 32,
+          runSpacing: 16,
+          children: [
+            _Dato(etiqueta: 'Al día', valor: '${activos.length - atrasados} de ${activos.length}'),
+            _Dato(etiqueta: 'Con parcial cerrado', valor: '$conCierre de ${activos.length}'),
+            _Dato(etiqueta: 'Sin trabajo en 2 semanas', valor: '$atrasados', alerta: atrasados > 0),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -215,6 +271,18 @@ class _Docente extends ConsumerWidget {
                     ),
                     Text('${docente['email']} · último acceso: ${fechaCorta(docente['ultimoAcceso'] as String?)}',
                         style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                    Text(
+                      switch (diasSinTrabajo(docente)) {
+                        null => 'Todavía no ha trabajado en la app',
+                        0 => 'Trabajó hoy',
+                        1 => 'Trabajó ayer',
+                        final d => 'Último trabajo hace $d días',
+                      },
+                      style: text.bodySmall?.copyWith(
+                        color: atrasado(docente) ? scheme.error : scheme.onSurfaceVariant,
+                        fontWeight: atrasado(docente) ? FontWeight.w700 : null,
+                      ),
+                    ),
                     const SizedBox(height: Espacio.s),
                     Wrap(
                       spacing: 16,

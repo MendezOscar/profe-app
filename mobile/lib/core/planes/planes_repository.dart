@@ -279,6 +279,138 @@ class PlanesRepository {
     );
   }
 
+  // ── Equipos ───────────────────────────────────────────────────────────────
+
+  Future<List<Equipo>> equipos(String claseId) async {
+    final db = await _db;
+    final filas = await db.query('equipos', where: 'clase_id = ? AND eliminado = 0', whereArgs: [claseId], orderBy: 'nombre');
+    return [
+      for (final f in filas)
+        Equipo(
+          id: f['id'] as String,
+          nombre: f['nombre'] as String,
+          miembros: (jsonDecode(f['miembros'] as String) as List).cast<String>(),
+        ),
+    ];
+  }
+
+  Future<String> guardarEquipo(String claseId, {String? id, required String nombre, required List<String> miembros}) async {
+    final db = await _db;
+    final equipoId = id ?? _uuid.v4();
+    await _guardar(db, 'equipos', {
+      'id': equipoId,
+      'clase_id': claseId,
+      'nombre': nombre.trim(),
+      'miembros': jsonEncode(miembros),
+      'eliminado': 0,
+      ..._sucia(),
+    });
+    return equipoId;
+  }
+
+  Future<void> eliminarEquipo(String id) => _marcar('equipos', id, eliminado: true);
+
+  Future<void> restaurarEquipo(String id) => _marcar('equipos', id, eliminado: false);
+
+  // ── Observaciones ─────────────────────────────────────────────────────────
+
+  /// De un alumno, la más nueva primero.
+  Future<List<Observacion>> observaciones(String alumnoId) async {
+    final db = await _db;
+    final filas = await db.query('observaciones',
+        where: 'alumno_id = ? AND eliminado = 0', whereArgs: [alumnoId], orderBy: 'fecha DESC, actualizado_en DESC');
+    return [for (final f in filas) _observacion(f)];
+  }
+
+  /// Cuántas tiene cada alumno de la clase, para mostrarlo en la lista.
+  Future<Map<String, int>> conteoObservaciones(String claseId) async {
+    final db = await _db;
+    final filas = await db.rawQuery(
+        'SELECT alumno_id, COUNT(*) AS n FROM observaciones WHERE clase_id = ? AND eliminado = 0 GROUP BY alumno_id',
+        [claseId]);
+    return {for (final f in filas) f['alumno_id'] as String: f['n'] as int};
+  }
+
+  Future<String> guardarObservacion(
+    String claseId,
+    String alumnoId, {
+    String? id,
+    required DateTime fecha,
+    required TipoObservacion tipo,
+    required String texto,
+  }) async {
+    final db = await _db;
+    final observacionId = id ?? _uuid.v4();
+    await _guardar(db, 'observaciones', {
+      'id': observacionId,
+      'clase_id': claseId,
+      'alumno_id': alumnoId,
+      'fecha': _fecha(fecha),
+      'tipo': tipo.name,
+      'texto': texto.trim(),
+      'eliminado': 0,
+      ..._sucia(),
+    });
+    return observacionId;
+  }
+
+  Future<void> eliminarObservacion(String id) => _marcar('observaciones', id, eliminado: true);
+
+  Future<void> restaurarObservacion(String id) => _marcar('observaciones', id, eliminado: false);
+
+  static Observacion _observacion(Map<String, Object?> f) => Observacion(
+        id: f['id'] as String,
+        alumnoId: f['alumno_id'] as String,
+        fecha: DateTime.parse(f['fecha'] as String),
+        tipo: TipoObservacion.desde(f['tipo'] as String?),
+        texto: f['texto'] as String,
+      );
+
+  // ── En varias secciones ───────────────────────────────────────────────────
+
+  /// Otras clases donde se puede crear la misma actividad: las que tienen ese parcial y un
+  /// rubro con el mismo nombre en él. Devuelve, por clase, el id de ese rubro.
+  Future<Map<String, String>> rubrosIguales(String claseId, String parcial, String nombreRubro) async {
+    final db = await _db;
+    final filas = await db.rawQuery(
+        'SELECT r.clase_id, r.id FROM rubros r JOIN clases c ON c.id = r.clase_id '
+        'WHERE r.parcial = ? AND r.eliminado = 0 AND c.eliminada = 0 AND r.clase_id <> ? '
+        'AND lower(trim(r.nombre)) = lower(trim(?))',
+        [parcial, claseId, nombreRubro]);
+    return {for (final f in filas) f['clase_id'] as String: f['id'] as String};
+  }
+
+  // ── Calendario ────────────────────────────────────────────────────────────
+
+  /// Actividades de todas las clases entre dos fechas (incluidas), con su clase y si ya
+  /// están calificadas por completo. Para el calendario y el aviso de "mañana".
+  Future<List<ActividadCalendario>> calendario(DateTime desde, DateTime hasta) async {
+    final db = await _db;
+    final filas = await db.rawQuery('''
+      SELECT a.id, a.clase_id, a.parcial, a.titulo, a.fecha, a.puntos, c.asignatura, c.grado_seccion,
+        (SELECT COUNT(*) FROM alumnos al WHERE al.clase_id = a.clase_id AND al.activo = 1) AS alumnos,
+        (SELECT COUNT(*) FROM calificaciones x JOIN alumnos al ON al.id = x.alumno_id
+          WHERE x.actividad_id = a.id AND x.valor IS NOT NULL AND al.activo = 1) AS calificados
+      FROM actividades a JOIN clases c ON c.id = a.clase_id
+      WHERE a.eliminado = 0 AND c.eliminada = 0 AND a.fecha BETWEEN ? AND ?
+      ORDER BY a.fecha, c.asignatura, a.titulo''', [_fecha(desde), _fecha(hasta)]);
+    return [
+      for (final f in filas)
+        ActividadCalendario(
+          id: f['id'] as String,
+          claseId: f['clase_id'] as String,
+          parcial: f['parcial'] as String,
+          titulo: f['titulo'] as String,
+          fecha: DateTime.parse(f['fecha'] as String),
+          puntos: (f['puntos'] as num).toDouble(),
+          asignatura: (f['asignatura'] as String?) ?? '',
+          gradoSeccion: (f['grado_seccion'] as String?) ?? '',
+          alumnos: f['alumnos'] as int,
+          calificados: f['calificados'] as int,
+        ),
+    ];
+  }
+
   // ── Lectura ───────────────────────────────────────────────────────────────
 
   Future<PlanParcial> plan(String claseId, Parcial parcial) async => (await planes([(claseId, parcial)])).single;

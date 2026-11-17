@@ -144,3 +144,72 @@ class PlanParcial {
 
   bool get cerrado => cerradoEn != null;
 }
+
+/// Equipo de trabajo de una clase: se califica una vez y la nota pasa a cada integrante.
+class Equipo {
+  const Equipo({required this.id, required this.nombre, required this.miembros});
+
+  final String id;
+  final String nombre;
+
+  /// Ids de alumno.
+  final List<String> miembros;
+}
+
+enum TipoObservacion {
+  positiva('Positiva'),
+  mejora('A mejorar'),
+  nota('Nota');
+
+  const TipoObservacion(this.etiqueta);
+
+  final String etiqueta;
+
+  static TipoObservacion desde(String? nombre) => values.firstWhere((t) => t.name == nombre, orElse: () => nota);
+}
+
+/// Nota con fecha sobre un alumno: conducta, participación o un acuerdo con el padre.
+class Observacion {
+  const Observacion({
+    required this.id,
+    required this.alumnoId,
+    required this.fecha,
+    required this.tipo,
+    required this.texto,
+  });
+
+  final String id;
+  final String alumnoId;
+  final DateTime fecha;
+  final TipoObservacion tipo;
+  final String texto;
+}
+
+/// Una actividad en el calendario del docente, con la clase a la que pertenece.
+class ActividadCalendario {
+  const ActividadCalendario({
+    required this.id,
+    required this.claseId,
+    required this.parcial,
+    required this.titulo,
+    required this.fecha,
+    required this.puntos,
+    required this.asignatura,
+    required this.gradoSeccion,
+    required this.alumnos,
+    required this.calificados,
+  });
+
+  final String id;
+  final String claseId;
+  final String parcial;
+  final String titulo;
+  final DateTime fecha;
+  final double puntos;
+  final String asignatura;
+  final String gradoSeccion;
+  final int alumnos;
+  final int calificados;
+
+  bool get calificada => alumnos > 0 && calificados >= alumnos;
+}

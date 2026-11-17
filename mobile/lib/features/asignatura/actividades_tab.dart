@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/models/clase.dart';
 import '../../core/planes/calculo_parcial.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
@@ -302,10 +303,31 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
   late String _rubroId = widget.actividad?.rubroId ?? widget.plan.rubros.first.id;
   late DateTime _fecha = widget.actividad?.fecha ?? DateUtils.dateOnly(DateTime.now());
 
+  /// Otras secciones donde también se crea (sólo al crear): clase → su rubro del mismo nombre.
+  Map<String, String> _otras = const {};
+  final Set<String> _tambien = {};
+
   @override
   void initState() {
     super.initState();
-    if (widget.actividad == null) _sugerirPuntos();
+    if (widget.actividad == null) {
+      _sugerirPuntos();
+      _buscarOtras();
+    }
+  }
+
+  /// La misma tarea para Química en cuatro secciones: se crea una vez. Sólo donde el plan del
+  /// parcial tiene un rubro con el mismo nombre, para que la nota caiga en el mismo lugar.
+  Future<void> _buscarOtras() async {
+    final rubro = widget.plan.rubros.firstWhere((r) => r.id == _rubroId);
+    final otras = await ref
+        .read(planesRepositoryProvider)
+        .rubrosIguales(widget.plan.claseId, widget.plan.parcial.clave, rubro.nombre);
+    if (!mounted) return;
+    setState(() {
+      _otras = otras;
+      _tambien.removeWhere((c) => !otras.containsKey(c));
+    });
   }
 
   @override
@@ -358,10 +380,13 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
                     for (final r in widget.plan.rubros)
                       DropdownMenuItem(value: r.id, child: Text('${r.nombre} (${formatoPuntos(r.puntos)} pts)')),
                   ],
-                  onChanged: (id) => setState(() {
-                    _rubroId = id!;
-                    if (widget.actividad == null) _sugerirPuntos();
-                  }),
+                  onChanged: (id) {
+                    setState(() {
+                      _rubroId = id!;
+                      if (widget.actividad == null) _sugerirPuntos();
+                    });
+                    if (widget.actividad == null) _buscarOtras();
+                  },
                 ),
                 const SizedBox(height: Espacio.l),
                 Row(
@@ -403,6 +428,13 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
                   textCapitalization: TextCapitalization.sentences,
                   decoration: const InputDecoration(labelText: 'Descripción (opcional)'),
                 ),
+                if (widget.actividad == null) _OtrasSecciones(
+                  otras: _otras,
+                  elegidas: _tambien,
+                  rubro: widget.plan.rubros.firstWhere((r) => r.id == _rubroId).nombre,
+                  parcial: widget.plan.parcial.titulo,
+                  onCambio: (claseId, si) => setState(() => si ? _tambien.add(claseId) : _tambien.remove(claseId)),
+                ),
               ],
             ),
           ),
@@ -427,16 +459,78 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
 
   Future<void> _guardar() async {
     if (!_form.currentState!.validate()) return;
-    await ref.read(planesRepositoryProvider).guardarActividad(
-          widget.plan.claseId,
-          widget.plan.parcial.clave,
-          id: widget.actividad?.id,
-          rubroId: _rubroId,
-          titulo: _titulo.text,
-          fecha: _fecha,
-          puntos: leerPuntos(_puntos.text)!,
-          descripcion: _descripcion.text,
-        );
-    if (mounted) Navigator.pop(context, true);
+    final repo = ref.read(planesRepositoryProvider);
+    final parcial = widget.plan.parcial.clave;
+    for (final (claseId, rubroId) in [
+      (widget.plan.claseId, _rubroId),
+      for (final c in _tambien) if (_otras[c] case final r?) (c, r),
+    ]) {
+      await repo.guardarActividad(
+        claseId,
+        parcial,
+        id: claseId == widget.plan.claseId ? widget.actividad?.id : null,
+        rubroId: rubroId,
+        titulo: _titulo.text,
+        fecha: _fecha,
+        puntos: leerPuntos(_puntos.text)!,
+        descripcion: _descripcion.text,
+      );
+      if (claseId != widget.plan.claseId) planCambiado(ref, claseId, parcial);
+    }
+    if (!mounted) return;
+    if (_tambien.isNotEmpty) {
+      final n = _tambien.length + 1;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Actividad creada en $n secciones')));
+    }
+    Navigator.pop(context, true);
+  }
+}
+
+/// Las otras secciones donde se puede crear la misma actividad, para marcarlas.
+class _OtrasSecciones extends ConsumerWidget {
+  const _OtrasSecciones({
+    required this.otras,
+    required this.elegidas,
+    required this.rubro,
+    required this.parcial,
+    required this.onCambio,
+  });
+
+  final Map<String, String> otras;
+  final Set<String> elegidas;
+  final String rubro;
+  final String parcial;
+  final void Function(String claseId, bool si) onCambio;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final clases = {for (final c in ref.watch(clasesProvider).valueOrNull ?? const <ClaseResumen>[]) c.id: c};
+    final lista = [for (final id in otras.keys) if (clases[id] case final c?) c]
+      ..sort((a, b) => '${a.asignatura} ${a.gradoSeccion}'.compareTo('${b.asignatura} ${b.gradoSeccion}'));
+    return Padding(
+      padding: const EdgeInsets.only(top: Espacio.l),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('También en otras secciones', style: text.titleSmall),
+          const SizedBox(height: Espacio.xs),
+          if (lista.isEmpty)
+            Text('Ninguna otra sección tiene el rubro «$rubro» en $parcial. Aplica la misma rúbrica para poder '
+                'crearla en varias a la vez.', style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant))
+          else
+            for (final c in lista)
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: elegidas.contains(c.id),
+                onChanged: (v) => onCambio(c.id, v ?? false),
+                title: Text(c.asignatura, maxLines: 1, overflow: TextOverflow.ellipsis),
+                subtitle: Text(c.gradoSeccion, maxLines: 1, overflow: TextOverflow.ellipsis),
+              ),
+        ],
+      ),
+    );
   }
 }

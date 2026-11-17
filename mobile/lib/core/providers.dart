@@ -113,6 +113,21 @@ final progresoProvider = FutureProvider((ref) async {
   return ref.watch(planesRepositoryProvider).progreso();
 });
 
+final equiposProvider =
+    FutureProvider.family<List<Equipo>, String>((ref, claseId) => ref.watch(planesRepositoryProvider).equipos(claseId));
+
+final observacionesProvider = FutureProvider.family<List<Observacion>, String>(
+    (ref, alumnoId) => ref.watch(planesRepositoryProvider).observaciones(alumnoId));
+
+final conteoObservacionesProvider = FutureProvider.family<Map<String, int>, String>(
+    (ref, claseId) => ref.watch(planesRepositoryProvider).conteoObservaciones(claseId));
+
+/// Actividades de una semana (lunes a domingo) de todas las clases.
+final calendarioProvider = FutureProvider.family<List<ActividadCalendario>, DateTime>((ref, lunes) async {
+  await ref.watch(tableroProvider.future);
+  return ref.watch(planesRepositoryProvider).calendario(lunes, lunes.add(const Duration(days: 6)));
+});
+
 /// Tras un cambio en el plan de una clase: refresca lo que lo muestra y agenda el respaldo.
 void planCambiado(WidgetRef ref, String claseId, String parcial) {
   ref.invalidate(planProvider((claseId, parcial)));

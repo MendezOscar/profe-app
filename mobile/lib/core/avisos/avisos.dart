@@ -12,6 +12,7 @@ import 'recordatorio.dart';
 
 enum TipoAviso {
   calificar(Icons.edit_note),
+  manana(Icons.event_available_outlined),
   lista(Icons.fact_check_outlined),
   cierre(Icons.event_outlined),
   rubrica(Icons.rule),
@@ -87,6 +88,16 @@ List<Aviso> calcularAvisos({
     final alumnos = plan.alumnos.length;
 
     for (final a in plan.actividades) {
+      // El día antes: con el recordatorio de las 5 p. m. llega a tiempo para preparar.
+      if (DateUtils.dateOnly(a.fecha) == hoy.add(const Duration(days: 1))) {
+        avisos.add(Aviso(
+          id: 'manana:${a.id}',
+          tipo: TipoAviso.manana,
+          titulo: 'Mañana: «${a.titulo}»',
+          detalle: '$nombre · ${clase.gradoSeccion} · vale ${formatoPuntos(a.puntos)} pts',
+          ruta: '/inicio/calendario',
+        ));
+      }
       if (!DateUtils.dateOnly(a.fecha).isBefore(hoy)) continue;
       final faltan = plan.alumnos.where((al) => plan.calificaciones[a.id]?[al.id] == null).length;
       if (faltan == 0) continue;

@@ -25,7 +25,7 @@ class LocalDb {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 5,
+        version: 6,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) => _create(db),
         onUpgrade: (db, from, to) async {
@@ -33,6 +33,7 @@ class LocalDb {
           if (from < 3) await _planes(db);
           if (from < 4) await _celdasSucias(db);
           if (from < 5) await _indices(db);
+          if (from < 6) await _equiposYObservaciones(db);
         },
       ),
     );
@@ -94,6 +95,7 @@ class LocalDb {
     _crearSyncEstado(batch);
     _crearPlanes(batch);
     _crearIndices(batch);
+    _crearEquiposYObservaciones(batch);
     await batch.commit(noResult: true);
   }
 
@@ -158,6 +160,43 @@ class LocalDb {
     batch.execute('CREATE INDEX IF NOT EXISTS ix_alumnos_clase ON alumnos (clase_id, orden)');
     batch.execute('CREATE INDEX IF NOT EXISTS ix_columnas_clase ON columnas (clase_id, orden)');
     batch.execute('CREATE INDEX IF NOT EXISTS ix_rubros_clase ON rubros (clase_id, parcial)');
+  }
+
+  /// v5 → v6: equipos de trabajo y observaciones de alumnos.
+  static Future<void> _equiposYObservaciones(Database db) async {
+    final batch = db.batch();
+    _crearEquiposYObservaciones(batch);
+    await batch.commit(noResult: true);
+  }
+
+  /// Equipos de una clase, para calificar trabajos en grupo: miembros es la lista JSON de
+  /// ids de alumno. Observaciones: notas con fecha sobre un alumno (conducta, participación,
+  /// acuerdos con el padre). Se sincronizan como el plan: lápidas y marca sucia.
+  static void _crearEquiposYObservaciones(Batch batch) {
+    const sync = 'actualizado_en TEXT NOT NULL, sucia INTEGER NOT NULL DEFAULT 1';
+    batch.execute('''
+      CREATE TABLE IF NOT EXISTS equipos (
+        id TEXT PRIMARY KEY,
+        clase_id TEXT NOT NULL REFERENCES clases(id) ON DELETE CASCADE,
+        nombre TEXT NOT NULL,
+        miembros TEXT NOT NULL,
+        eliminado INTEGER NOT NULL DEFAULT 0,
+        $sync
+      )''');
+    // tipo: positiva, mejora o nota.
+    batch.execute('''
+      CREATE TABLE IF NOT EXISTS observaciones (
+        id TEXT PRIMARY KEY,
+        clase_id TEXT NOT NULL REFERENCES clases(id) ON DELETE CASCADE,
+        alumno_id TEXT NOT NULL REFERENCES alumnos(id) ON DELETE CASCADE,
+        fecha TEXT NOT NULL,
+        tipo TEXT NOT NULL,
+        texto TEXT NOT NULL,
+        eliminado INTEGER NOT NULL DEFAULT 0,
+        $sync
+      )''');
+    batch.execute('CREATE INDEX IF NOT EXISTS ix_equipos_clase ON equipos (clase_id)');
+    batch.execute('CREATE INDEX IF NOT EXISTS ix_observaciones_alumno ON observaciones (alumno_id, fecha)');
   }
 
   /// v2 → v3: planes de calificación y asistencia.

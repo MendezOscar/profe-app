@@ -156,6 +156,45 @@ class _CapturaState extends ConsumerState<_Captura> {
     ));
   }
 
+  /// Una nota por equipo que pasa a cada integrante. Después se puede ajustar a alguno en la
+  /// lista, como cualquier nota. Se puede deshacer.
+  Future<void> _porEquipo() async {
+    final equipos = ref.read(equiposProvider(_plan.claseId)).valueOrNull ?? const <Equipo>[];
+    final enClase = {for (final a in _plan.alumnos) a.id: a};
+    final notas = await showDialog<Map<String, double>>(
+      context: context,
+      builder: (_) => _NotasPorEquipo(equipos: equipos, maximo: _actividad.puntos),
+    );
+    if (notas == null || notas.isEmpty || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final antes = <AlumnoPlan, double?>{};
+    for (final e in equipos) {
+      final valor = notas[e.id];
+      if (valor == null) continue;
+      for (final m in e.miembros) {
+        final alumno = enClase[m];
+        if (alumno == null) continue;
+        antes[alumno] = _notas[m];
+        _controllers[m]!.text = _texto(valor);
+        await _guardar(alumno, _texto(valor));
+      }
+    }
+    messenger.showSnackBar(SnackBar(
+      content: Text('Nota puesta a ${antes.length} ${antes.length == 1 ? 'alumno' : 'alumnos'} de ${notas.length} '
+          '${notas.length == 1 ? 'equipo' : 'equipos'}'),
+      action: SnackBarAction(
+        label: 'Deshacer',
+        onPressed: () async {
+          for (final MapEntry(key: alumno, value: valor) in antes.entries) {
+            if (!mounted) return;
+            _controllers[alumno.id]!.text = _texto(valor);
+            await _guardar(alumno, _texto(valor));
+          }
+        },
+      ),
+    ));
+  }
+
   void _siguiente(List<AlumnoPlan> visibles, int i) {
     if (i + 1 < visibles.length) {
       _focus[visibles[i + 1].id]!.requestFocus();
@@ -195,6 +234,12 @@ class _CapturaState extends ConsumerState<_Captura> {
           ],
         ),
         actions: [
+          if (!_soloLectura && (ref.watch(equiposProvider(_plan.claseId)).valueOrNull?.isNotEmpty ?? false))
+            IconButton(
+              tooltip: 'Calificar por equipo',
+              icon: const Icon(Icons.groups_outlined),
+              onPressed: _porEquipo,
+            ),
           if (!_soloLectura)
             PopupMenuButton<double>(
               tooltip: 'Llenar los vacíos',
@@ -320,6 +365,83 @@ class _CapturaState extends ConsumerState<_Captura> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Un campo por equipo; devuelve las notas escritas (equipo → puntos).
+class _NotasPorEquipo extends StatefulWidget {
+  const _NotasPorEquipo({required this.equipos, required this.maximo});
+
+  final List<Equipo> equipos;
+  final double maximo;
+
+  @override
+  State<_NotasPorEquipo> createState() => _NotasPorEquipoState();
+}
+
+class _NotasPorEquipoState extends State<_NotasPorEquipo> {
+  final _form = GlobalKey<FormState>();
+  late final _campos = {for (final e in widget.equipos) e.id: TextEditingController()};
+
+  @override
+  void dispose() {
+    for (final c in _campos.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      shape: const RoundedRectangleBorder(),
+      title: const Text('Calificar por equipo'),
+      content: SizedBox(
+        width: 400,
+        child: Form(
+          key: _form,
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              Text('La nota pasa a cada integrante. Deja vacío un equipo para no tocarlo.',
+                  style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: Espacio.m),
+              for (final e in widget.equipos)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Espacio.s),
+                  child: TextFormField(
+                    controller: _campos[e.id],
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')), LengthLimitingTextInputFormatter(5)],
+                    decoration: InputDecoration(
+                      labelText: '${e.nombre} (${e.miembros.length})',
+                      suffixText: '/${formatoPuntos(widget.maximo)}',
+                    ),
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return null;
+                      final n = leerPuntos(v);
+                      return n == null || n < 0 || n > widget.maximo ? 'De 0 a ${formatoPuntos(widget.maximo)}' : null;
+                    },
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(
+          onPressed: () {
+            if (!_form.currentState!.validate()) return;
+            Navigator.pop(context, {
+              for (final MapEntry(key: id, value: c) in _campos.entries)
+                if (leerPuntos(c.text) case final n?) id: n,
+            });
+          },
+          child: const Text('Poner notas'),
+        ),
+      ],
     );
   }
 }
