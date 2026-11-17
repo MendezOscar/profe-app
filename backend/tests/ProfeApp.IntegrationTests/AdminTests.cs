@@ -104,6 +104,36 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task El_centro_ve_cuando_trabajo_cada_docente_y_los_equipos_y_observaciones_se_respaldan()
+    {
+        var centro = await CentroAsync();
+        async Task<JsonElement> Alta(string nombre) =>
+            await ReadAsync(await centro.PostAsJsonAsync("/api/v1/centro/docentes", new { email = $"p-{Guid.NewGuid():N}@prueba.hn", nombre }));
+        var activo = await Alta("Activa");
+        await Alta("Sin trabajo");
+        var cliente = await EntrarConTemporalAsync(activo.GetProperty("email").GetString()!, activo.GetProperty("claveTemporal").GetString()!);
+
+        var push = await cliente.PostAsJsonAsync("/api/v1/sync/push", new
+        {
+            clases = Array.Empty<object>(),
+            registros = new[]
+            {
+                new { tipo = "equipo", claseClave = "c1", clave = "e1", datos = "{\"nombre\":\"Equipo 1\",\"miembros\":[\"a1\"]}", eliminado = false, actualizadoEn = DateTimeOffset.UtcNow },
+                new { tipo = "observacion", claseClave = "c1", clave = "o1", datos = "{\"alumnoClave\":\"a1\",\"texto\":\"Participa\"}", eliminado = false, actualizadoEn = DateTimeOffset.UtcNow },
+            },
+        });
+        var pull = await ReadAsync(await cliente.GetAsync("/api/v1/sync/pull"));
+        var panel = await ReadAsync(await centro.GetAsync("/api/v1/centro"));
+
+        push.IsSuccessStatusCode.Should().BeTrue();
+        pull.GetProperty("registros").EnumerateArray().Select(r => r.GetProperty("tipo").GetString())
+            .Should().Contain(["equipo", "observacion"]);
+        var docentes = panel.GetProperty("docentes").EnumerateArray().ToDictionary(d => d.GetProperty("nombre").GetString()!);
+        docentes["Activa"].GetProperty("ultimoTrabajo").ValueKind.Should().Be(JsonValueKind.String);
+        docentes["Sin trabajo"].GetProperty("ultimoTrabajo").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
     public async Task El_cupo_de_la_licencia_no_se_puede_pasar()
     {
         var centro = await CentroAsync(cupo: 1);

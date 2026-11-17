@@ -4,7 +4,8 @@ namespace ProfeApp.Domain.Planes;
 
 /// <summary>
 /// Respaldo de una fila del plan de calificación del teléfono: plantilla, rubro, actividad,
-/// nota, lista de asistencia, marca de asistencia o estado del parcial. El servidor no
+/// nota, lista de asistencia, marca de asistencia, estado del parcial, equipo de trabajo u
+/// observación de un alumno. El servidor no
 /// interpreta <see cref="Datos"/>: sólo guarda y reparte, y entre dispositivos gana el
 /// cambio más nuevo por fila. Así el plan puede crecer en la app sin migrar la base.
 /// </summary>
@@ -14,7 +15,7 @@ public class Registro : TenantEntity
 
     public static readonly IReadOnlySet<string> Tipos = new HashSet<string>
     {
-        "plantilla", "rubro", "actividad", "calificacion", "sesion", "asistencia", "parcial",
+        "plantilla", "rubro", "actividad", "calificacion", "sesion", "asistencia", "parcial", "equipo", "observacion",
     };
 
     public string Tipo { get; set; } = null!;

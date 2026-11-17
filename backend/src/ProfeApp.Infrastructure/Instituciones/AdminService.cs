@@ -56,14 +56,20 @@ public sealed class AdminService(
                 .ToListAsync(ct))
             .ToDictionary(x => x.TenantId, x => x.N);
 
+        var ultimoTrabajo = await db.Registros.IgnoreQueryFilters()
+            .Where(r => tenants.Contains(r.TenantId))
+            .GroupBy(r => r.TenantId).Select(g => new { g.Key, Cuando = g.Max(r => r.ModificadoEn) })
+            .ToDictionaryAsync(x => x.Key, x => x.Cuando, ct);
+
         int De(Dictionary<Guid, int> d, Guid? t) => t is { } id && d.TryGetValue(id, out var n) ? n : 0;
+        DateTimeOffset? Ultimo(Guid? t) => t is { } id && ultimoTrabajo.TryGetValue(id, out var c) ? c : null;
 
         return new CentroDto(
             ADto(institucion, docentes.Count(d => d.IsActive)),
             docentes
                 .OrderBy(d => d.FullName)
                 .Select(d => new DocenteCentroDto(d.Id, d.FullName, d.Email!, d.IsActive, d.LastLoginAt,
-                    De(asignaturas, d.TenantId), De(actividades, d.TenantId), De(parciales, d.TenantId)))
+                    De(asignaturas, d.TenantId), De(actividades, d.TenantId), De(parciales, d.TenantId), Ultimo(d.TenantId)))
                 .ToList());
     }
 

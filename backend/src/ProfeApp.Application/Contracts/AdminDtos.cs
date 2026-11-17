@@ -46,9 +46,12 @@ public sealed record InstitucionCreada(InstitucionDto Institucion, CuentaCreada 
 
 public sealed record CrearDocenteRequest(string Email, string Nombre);
 
-/// <summary>Lo que el centro ve de cada docente: su avance, no sus notas.</summary>
+/// <summary>
+/// Lo que el centro ve de cada docente: su avance, no sus notas. <see cref="UltimoTrabajo"/>
+/// es el último cambio que respaldó (nota, lista, actividad): sirve para ver quién va atrasado.
+/// </summary>
 public sealed record DocenteCentroDto(
     Guid Id, string Nombre, string Email, bool Activo, DateTimeOffset? UltimoAcceso,
-    int Asignaturas, int Actividades, int ParcialesCerrados);
+    int Asignaturas, int Actividades, int ParcialesCerrados, DateTimeOffset? UltimoTrabajo);
 
 public sealed record CentroDto(InstitucionDto Institucion, IReadOnlyList<DocenteCentroDto> Docentes);
