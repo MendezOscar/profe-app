@@ -41,3 +41,4 @@ node_modules/
 /videos-ayuda/
 scripts/videos-ayuda/cuadros/
 scripts/videos-ayuda/node_modules/
+/.playwright-mcp/

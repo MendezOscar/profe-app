@@ -187,3 +187,39 @@ section.alterna .plan { background: var(--fondo); }
 }
 .wa-flotante:hover { background: #178F46; color: #fff; }
 @media (max-width: 560px) { .wa-flotante span { display: none; } .wa-flotante { padding: 0 15px; } }
+
+/* ---------- tiendas, capturas y video ---------- */
+a.tienda:hover { background: var(--marino); color: var(--blanco); }
+a.tienda:hover small { color: var(--azul-claro); }
+.vistazo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 40px; }
+.vistazo figure { margin: 0; }
+.vistazo img { display: block; width: 100%; height: auto; border: 2px solid var(--marino); }
+.vistazo figcaption { margin-top: 10px; font-weight: 600; font-size: 15px; }
+.vistazo .video { position: relative; display: block; align-self: start; border: 2px solid var(--marino); box-shadow: 8px 8px 0 var(--azul); text-decoration: none; color: var(--blanco); background: var(--marino); }
+.vistazo .video img { border: 0; aspect-ratio: 480 / 1043; object-fit: cover; opacity: .55; }
+.vistazo .reproducir { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 64px; height: 64px; background: var(--azul); }
+.vistazo .texto-video { position: absolute; left: 16px; right: 16px; bottom: 16px; font-weight: 800; font-size: 17px; line-height: 1.3; }
+.vistazo .video:hover .reproducir { background: var(--azul-oscuro); }
+.mas-videos { margin-top: 20px; }
+@media (max-width: 900px) { .vistazo { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .vistazo { gap: 12px; } .vistazo .texto-video { font-size: 15px; } }
+
+.fundador { margin-top: 24px; padding: 14px 18px; background: var(--azul-claro); border-left: 4px solid var(--azul); }
+.acciones.centradas { justify-content: center; }
+.btn.blanco-linea { background: transparent; color: var(--blanco); border-color: var(--blanco); }
+.btn.blanco-linea:hover { background: var(--blanco); color: var(--azul); }
+
+/* En el teléfono lo primero es instalar la app: su tienda pasa arriba como botón principal
+   y el panel web queda en segundo plano. site.js marca html.ios o html.android. */
+@media (max-width: 760px) {
+  .portada .texto { display: flex; flex-direction: column; align-items: flex-start; }
+  .portada .tiendas { order: 1; width: 100%; margin-top: 0; }
+  .portada .acciones { order: 2; width: 100%; margin-top: 12px; }
+  .portada .acciones .btn:first-child { background: transparent; color: var(--marino); border-color: var(--marino); }
+  html.ios .portada .tienda.android, html.android .portada .tienda.ios { display: none; }
+  html.ios .portada .tienda.ios, html.android .portada .tienda.android { flex: 1 1 100%; align-items: center; background: var(--azul); border-color: var(--azul); color: var(--blanco); }
+  html.ios .portada .tienda.ios small, html.android .portada .tienda.android small { color: var(--azul-claro); }
+}
+/* WhatsApp no tapa la portada en el teléfono: aparece al bajar. */
+.wa-flotante { transition: opacity .2s, visibility .2s; }
+.wa-flotante.oculto { opacity: 0; visibility: hidden; }

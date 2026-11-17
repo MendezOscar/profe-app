@@ -31,6 +31,6 @@ rm -rf build/panel
 mv build/web build/panel
 mkdir -p build/web
 mv build/panel build/web/app
-cp "${ROOT}"/site/* build/web/
+cp -R "${ROOT}"/site/. build/web/
 # El _redirects del bundle de Flutter no aplica: el enrutado lo hace _worker.js.
 rm -f build/web/app/_redirects
