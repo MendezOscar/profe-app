@@ -10,9 +10,9 @@ import 'actividades_tab.dart';
 import 'estadisticas_tab.dart';
 import 'libro_tab.dart';
 import 'plan_tab.dart';
-import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
 import '../../ui/estado_error.dart';
+import '../../ui/selector_parcial.dart';
 
 /// Una asignatura (un cuadro de SACE) trabajada por parcial: el plan de puntos, las
 /// actividades y el libro de notas. El cuadro original queda a un toque para exportar.
@@ -60,6 +60,8 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
                   if (resumen != null)
                     Text(
                       [resumen.gradoSeccion, resumen.jornada].where((t) => t.isNotEmpty).join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                 ],
@@ -78,6 +80,7 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
                 // onSelected y no onTap del ítem: el cierre del menú se llevaría el diálogo.
                 if (resumen != null)
                   PopupMenuButton<String>(
+                    tooltip: 'Más opciones',
                     onSelected: (_) => eliminarClase(context, ref, resumen),
                     itemBuilder: (context) => const [PopupMenuItem(value: 'eliminar', child: Text('Eliminar asignatura'))],
                   ),
@@ -85,10 +88,12 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
               bottom: actual == null
                   ? null
                   : PreferredSize(
-                      preferredSize: const Size.fromHeight(112),
+                      // Crece con la letra del sistema: con alto fijo se cortaban los parciales.
+                      preferredSize: Size.fromHeight(
+                          SelectorParcial.alto(context) + 48 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0)),
                       child: Column(
                         children: [
-                          _SelectorParcial(
+                          SelectorParcial(
                             parciales: lista,
                             actual: actual,
                             onCambio: (p) => setState(() => _parcial = p.clave),
@@ -123,36 +128,6 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
     if (lista.isEmpty) return null;
     final clave = _parcial ?? widget.parcial;
     return lista.where((p) => p.clave == clave).firstOrNull ?? lista.first;
-  }
-}
-
-class _SelectorParcial extends StatelessWidget {
-  const _SelectorParcial({required this.parciales, required this.actual, required this.onCambio});
-
-  final List<Parcial> parciales;
-  final Parcial actual;
-  final ValueChanged<Parcial> onCambio;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 64,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Espacio.l, vertical: Espacio.m),
-        children: [
-          for (final p in parciales)
-            Padding(
-              padding: const EdgeInsets.only(right: Espacio.s),
-              child: ChoiceChip(
-                label: Text(p.titulo),
-                selected: p.clave == actual.clave,
-                onSelected: (_) => onCambio(p),
-              ),
-            ),
-        ],
-      ),
-    );
   }
 }
 

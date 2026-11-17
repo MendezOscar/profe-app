@@ -403,6 +403,8 @@ class _CeldaNotaState extends ConsumerState<_CeldaNota> {
   late final _texto = TextEditingController(text: _formato(_valor));
   var _error = false;
   var _cambio = false;
+  /// Lo que hay guardado de esta celda mientras se escribe (el plan llega al salir).
+  late double? _guardado = _valor;
 
   double? get _valor => widget.plan.calificaciones[widget.actividad.id]?[widget.alumno.id];
 
@@ -433,7 +435,17 @@ class _CeldaNotaState extends ConsumerState<_CeldaNota> {
   }
 
   void _alSalir() {
-    if (widget.foco.hasFocus || !_cambio) return;
+    if (widget.foco.hasFocus) return;
+    // Un valor fuera de rango no se guardó: se vacía la celda y se dice por qué.
+    if (_error) {
+      _texto.clear();
+      setState(() => _error = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('La nota de ${widget.alumno.nombre} en "${widget.actividad.titulo}" debe ser de 0 a '
+            '${formatoPuntos(widget.actividad.puntos)}. No se guardó.'),
+      ));
+    }
+    if (!_cambio) return;
     _cambio = false;
     planCambiado(ref, widget.plan.claseId, widget.plan.parcial.clave);
   }
@@ -443,9 +455,12 @@ class _CeldaNotaState extends ConsumerState<_CeldaNota> {
     final valor = limpio.isEmpty ? null : leerPuntos(limpio);
     final invalido = limpio.isNotEmpty && (valor == null || valor < 0 || valor > widget.actividad.puntos);
     setState(() => _error = invalido);
-    if (invalido) return;
+    // Al teclear "15" en una de 10 ya se había guardado el "1": se quita.
+    final nuevo = invalido ? null : valor;
+    if (nuevo == _guardado) return;
+    _guardado = nuevo;
     _cambio = true;
-    await ref.read(planesRepositoryProvider).calificar(widget.actividad.id, widget.alumno.id, valor);
+    await ref.read(planesRepositoryProvider).calificar(widget.actividad.id, widget.alumno.id, nuevo);
   }
 
   @override
@@ -471,7 +486,9 @@ class _CeldaNotaState extends ConsumerState<_CeldaNota> {
           decoration: InputDecoration(
             isDense: true,
             hintText: '—',
-            contentPadding: const EdgeInsets.symmetric(vertical: Espacio.s),
+            // 48 de alto: se toca bien con el dedo.
+            constraints: const BoxConstraints(minHeight: 48),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.zero,
               borderSide: BorderSide(color: _error ? scheme.error : scheme.outlineVariant, width: _error ? 2 : 1),

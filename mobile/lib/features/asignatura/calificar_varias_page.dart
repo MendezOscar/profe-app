@@ -114,8 +114,18 @@ class _CapturaState extends ConsumerState<_Captura> {
             text: _texto(actividadId == null ? _combinadaDe(alumnoId) : _notas[actividadId]![alumnoId])),
       );
 
-  FocusNode _foco(String alumnoId, String? actividadId) =>
-      _focos.putIfAbsent(_clave(alumnoId, actividadId), FocusNode.new);
+  FocusNode _foco(String alumnoId, String? actividadId) => _focos.putIfAbsent(_clave(alumnoId, actividadId), () {
+        final clave = _clave(alumnoId, actividadId);
+        final foco = FocusNode();
+        // Al salir de un campo con un valor fuera de rango se vacía: lo que se ve es lo guardado.
+        foco.addListener(() {
+          if (!foco.hasFocus && _errores.contains(clave)) {
+            _campos[clave]?.clear();
+            setState(() => _errores.remove(clave));
+          }
+        });
+        return foco;
+      });
 
   /// Al cambiar de modo, los campos del otro modo se rehacen con lo ya capturado.
   void _cambiarModo(bool combinada) {
@@ -151,6 +161,10 @@ class _CapturaState extends ConsumerState<_Captura> {
     final clave = _clave(alumno.id, actividad?.id);
     if (limpio.isNotEmpty && (valor == null || valor < 0 || valor > maximo)) {
       setState(() => _errores.add(clave));
+      // Al teclear "15" en una de 10 ya se había guardado el "1": se quita.
+      for (final a in actividad == null ? _actividades : [actividad]) {
+        if (_notas[a.id]![alumno.id] != null) await _guardar(alumno, a, null);
+      }
       return;
     }
     setState(() => _errores.remove(clave));
@@ -168,17 +182,37 @@ class _CapturaState extends ConsumerState<_Captura> {
   }
 
   /// Llena lo vacío con el máximo o con 0 en todas las actividades elegidas.
+  /// Se puede deshacer: llena de golpe a toda la sección.
   Future<void> _llenarVacios(bool maximo) async {
+    final llenados = <(AlumnoPlan, Actividad)>[];
+    final messenger = ScaffoldMessenger.of(context);
     for (final alumno in _plan.alumnos) {
       for (final a in _actividades) {
         if (_notas[a.id]![alumno.id] != null) continue;
         final valor = maximo ? a.puntos : 0.0;
         _campos[_clave(alumno.id, a.id)]?.text = _texto(valor);
         await _guardar(alumno, a, valor);
+        llenados.add((alumno, a));
       }
       _campos[_clave(alumno.id, null)]?.text = _texto(_combinadaDe(alumno.id));
     }
+    if (llenados.isEmpty) return;
     setState(() {});
+    messenger.showSnackBar(SnackBar(
+      content: Text('${llenados.length} ${llenados.length == 1 ? 'nota puesta' : 'notas puestas'}'),
+      action: SnackBarAction(
+        label: 'Deshacer',
+        onPressed: () async {
+          for (final (alumno, a) in llenados) {
+            if (!mounted) return;
+            _campos[_clave(alumno.id, a.id)]?.clear();
+            await _guardar(alumno, a, null);
+            _campos[_clave(alumno.id, null)]?.text = _texto(_combinadaDe(alumno.id));
+          }
+          if (mounted) setState(() {});
+        },
+      ),
+    ));
   }
 
   /// Orden de "Siguiente": por alumno y, dentro de él, por actividad; como se lee la fila.
@@ -256,9 +290,11 @@ class _CapturaState extends ConsumerState<_Captura> {
               padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.l, Espacio.xs),
               child: SegmentedButton<bool>(
                 style: SegmentedButton.styleFrom(shape: const RoundedRectangleBorder()),
+                // Sin íconos y con textos cortos: en un teléfono de 360 px se cortaban.
+                showSelectedIcon: false,
                 segments: const [
-                  ButtonSegment(value: false, icon: Icon(Icons.view_column_outlined), label: Text('Nota por actividad')),
-                  ButtonSegment(value: true, icon: Icon(Icons.functions), label: Text('Una nota para todas')),
+                  ButtonSegment(value: false, label: Text('Por actividad')),
+                  ButtonSegment(value: true, label: Text('Una para todas')),
                 ],
                 selected: {_combinada},
                 onSelectionChanged: (s) => _cambiarModo(s.first),
@@ -321,7 +357,9 @@ class _CapturaState extends ConsumerState<_Captura> {
             isDense: true,
             hintText: '—',
             suffixText: '/${formatoPuntos(maximo)}',
-            errorText: _errores.contains(_clave(alumno.id, actividad?.id)) ? '0–${formatoPuntos(maximo)}' : null,
+            // Borde rojo sin texto: el mensaje va bajo el nombre del alumno.
+            errorText: _errores.contains(_clave(alumno.id, actividad?.id)) ? '' : null,
+            errorStyle: const TextStyle(height: 0, fontSize: 0),
             contentPadding: const EdgeInsets.symmetric(horizontal: Espacio.s, vertical: 10),
           ),
           onChanged: (v) => _escribir(alumno, actividad, v),
@@ -356,7 +394,17 @@ class _CapturaState extends ConsumerState<_Captura> {
           width: 28,
           child: Text('${i + 1}', style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
         ),
-        Expanded(child: Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis)),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis),
+              if (_errores.any((k) => k.startsWith('${alumno.id}|')))
+                Text('Hay una nota fuera de rango. No se guardó.',
+                    style: text.bodySmall?.copyWith(color: scheme.error)),
+            ],
+          ),
+        ),
       ],
     );
     final campos = _combinada

@@ -10,6 +10,7 @@ import '../../ui/shell.dart';
 import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
 import '../../ui/estado_error.dart';
+import '../../ui/selector_parcial.dart';
 
 /// Elegir la asignatura para pasar lista.
 class AsistenciaPage extends ConsumerWidget {
@@ -192,23 +193,10 @@ class _Lista extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (parciales.length > 1)
-          SizedBox(
-            height: 56,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.l, 0),
-              children: [
-                for (final p in parciales)
-                  Padding(
-                    padding: const EdgeInsets.only(right: Espacio.s),
-                    child: ChoiceChip(
-                      label: Text(p.titulo),
-                      selected: p.clave == plan.parcial.clave,
-                      onSelected: (_) => onParcial(p),
-                    ),
-                  ),
-              ],
-            ),
+          SelectorParcial(
+            parciales: parciales,
+            actual: parciales.firstWhere((p) => p.clave == plan.parcial.clave, orElse: () => plan.parcial),
+            onCambio: onParcial,
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(Espacio.s, Espacio.s, Espacio.s, 0),
@@ -254,16 +242,28 @@ class _Lista extends ConsumerWidget {
             ],
           ),
         ),
+        // Sin lista ese día no hay nada que contar: mostrar "Presente: 26" contradecía el aviso.
         Padding(
           padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.xs, Espacio.l, Espacio.m),
-          child: Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final e in EstadoAsistencia.values)
-                _ChipConteo(estado: e, cantidad: conteo[e]!),
-            ],
-          ),
+          child: sesion == null
+              ? Text('Sin lista para este día.', style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final e in EstadoAsistencia.values) _ChipConteo(estado: e, cantidad: conteo[e]!),
+                      ],
+                    ),
+                    if (!plan.cerrado) ...[
+                      const SizedBox(height: Espacio.s),
+                      Text('Toca un alumno para marcar ausente. Toca su estado para Tarde o Justificada.',
+                          style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                    ],
+                  ],
+                ),
         ),
         const Divider(height: 2),
         if (sesion == null && !plan.cerrado)
@@ -294,17 +294,11 @@ class _Lista extends ConsumerWidget {
             itemBuilder: (context, i) {
               final alumno = plan.alumnos[i];
               final estado = estados[alumno.id] ?? EstadoAsistencia.presente;
-              return Semantics(
-                onTapHint: 'marcar ${estado.siguiente.etiqueta.toLowerCase()}',
-                onLongPressHint: 'elegir el estado',
-                child: ListTile(
-                enabled: !plan.cerrado,
-                leading: Text('${i + 1}', style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
-                minLeadingWidth: 24,
-                title: Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis),
-                trailing: _ChipEstado(estado: estado),
-                onTap: () => marcar(alumno, estado.siguiente),
-                onLongPress: () async {
+              // Tocar alterna sólo Presente/Ausente, lo de todos los días: recorrer los cuatro
+              // estados dejaba a un ausente como "Tarde" con un toque de más.
+              final alTocar =
+                  estado == EstadoAsistencia.presente ? EstadoAsistencia.ausente : EstadoAsistencia.presente;
+              Future<void> elegir() async {
                   final elegido = await showModalBottomSheet<EstadoAsistencia>(
                     context: context,
                     showDragHandle: true,
@@ -325,8 +319,26 @@ class _Lista extends ConsumerWidget {
                     ),
                   );
                   if (elegido != null) await marcar(alumno, elegido);
-                },
-              ),
+              }
+
+              return Semantics(
+                onTapHint: 'marcar ${alTocar.etiqueta.toLowerCase()}',
+                onLongPressHint: 'elegir el estado',
+                child: ListTile(
+                  enabled: !plan.cerrado,
+                  leading: Text('${i + 1}', style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
+                  minLeadingWidth: 24,
+                  title: Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  trailing: InkWell(
+                    onTap: plan.cerrado ? null : elegir,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 48),
+                      child: Center(widthFactor: 1, child: _ChipEstado(estado: estado)),
+                    ),
+                  ),
+                  onTap: () => marcar(alumno, alTocar),
+                  onLongPress: elegir,
+                ),
               );
             },
           ),
@@ -362,9 +374,21 @@ class _Lista extends ConsumerWidget {
                           tooltip: 'Borrar esta lista',
                           icon: const Icon(Icons.delete_outline),
                           onPressed: () async {
-                            await ref.read(planesRepositoryProvider).eliminarSesion(s.id);
+                            final messenger = ScaffoldMessenger.of(context);
+                            final repo = ref.read(planesRepositoryProvider);
+                            await repo.eliminarSesion(s.id);
                             planCambiado(ref, plan.claseId, plan.parcial.clave);
                             if (context.mounted) Navigator.pop(context);
+                            messenger.showSnackBar(SnackBar(
+                              content: Text('Lista del ${DateFormat.MMMMd('es').format(s.fecha)} borrada'),
+                              action: SnackBarAction(
+                                label: 'Deshacer',
+                                onPressed: () async {
+                                  await repo.restaurarSesion(s.id);
+                                  planCambiado(ref, plan.claseId, plan.parcial.clave);
+                                },
+                              ),
+                            ));
                           },
                         ),
                   onTap: () => Navigator.pop(context, s.fecha),

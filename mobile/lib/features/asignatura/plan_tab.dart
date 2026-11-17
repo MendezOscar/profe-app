@@ -82,8 +82,10 @@ class PlanTab extends ConsumerWidget {
                           ReorderableDragStartListener(
                             index: i,
                             enabled: !plan.cerrado,
-                            child: const Padding(
-                              padding: EdgeInsets.all(Espacio.s),
+                            // 48 × 48: se agarra bien con el dedo.
+                            child: const SizedBox(
+                              width: 48,
+                              height: 48,
                               child: Icon(Icons.drag_indicator, semanticLabel: 'Arrastrar para ordenar'),
                             ),
                           ),
@@ -236,7 +238,7 @@ Future<void> editarRubro(BuildContext context, WidgetRef ref, PlanParcial plan, 
               ),
               validator: (v) {
                 final n = leerPuntos(v);
-                return n == null || n <= 0 || n > 100 ? 'Entre 0 y 100' : null;
+                return n == null || n <= 0 || n > 100 ? 'Más de 0 y hasta 100' : null;
               },
             ),
           ],
@@ -245,6 +247,7 @@ Future<void> editarRubro(BuildContext context, WidgetRef ref, PlanParcial plan, 
       actions: [
         if (rubro != null)
           TextButton(
+            style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.error),
             onPressed: tieneActividades ? null : () => Navigator.pop(context, 'eliminar'),
             child: Text(tieneActividades ? 'Tiene actividades' : 'Eliminar'),
           ),
@@ -265,6 +268,18 @@ Future<void> editarRubro(BuildContext context, WidgetRef ref, PlanParcial plan, 
         id: rubro?.id, nombre: nombre.text, puntos: leerPuntos(puntos.text)!, orden: rubro?.orden);
   } else if (accion == 'eliminar') {
     await repo.eliminarRubro(rubro!.id);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('"${rubro.nombre}" eliminado'),
+        action: SnackBarAction(
+          label: 'Deshacer',
+          onPressed: () async {
+            await repo.restaurarRubro(rubro.id);
+            planCambiado(ref, plan.claseId, plan.parcial.clave);
+          },
+        ),
+      ));
+    }
   } else {
     return;
   }

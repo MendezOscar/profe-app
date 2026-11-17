@@ -19,7 +19,8 @@ class EstadisticasTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final e = calcularEstadisticas(plan);
-    final evol = ref.watch(evolucionProvider(plan.claseId)).valueOrNull ?? const <PuntoEvolucion>[];
+    final evolucion = ref.watch(evolucionProvider(plan.claseId));
+    final evol = evolucion.valueOrNull ?? const <PuntoEvolucion>[];
 
     if (e.conNota.isEmpty && e.sesiones == 0) {
       return const EstadoVacio(
@@ -37,6 +38,10 @@ class EstadisticasTab extends ConsumerWidget {
       if (e.entregas.any((x) => x.noEntregadas > 0 || x.sinNota > 0)) _Entregas(e: e, alumnos: plan.alumnos.length),
       if (e.sesiones > 0) _Asistencia(e: e),
       if (evol.length > 1) _Evolucion(puntos: evol, alumnos: plan.alumnos),
+      // Sin esto, un fallo al leer los otros parciales se veía como "no hay evolución".
+      if (evolucion.hasError)
+        Text('No se pudo cargar la evolución entre parciales.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.error)),
     ];
 
     return ContenidoCentrado(
@@ -153,6 +158,7 @@ class _Barra extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final text = Theme.of(context).textTheme;
+    final escala = MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.6);
     return Semantics(
       label: '$etiqueta: $texto',
       excludeSemantics: true,
@@ -160,7 +166,12 @@ class _Barra extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: Espacio.xs),
         child: Row(
           children: [
-            SizedBox(width: 120, child: Text(etiqueta, style: text.bodyMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+            // Dos renglones y ancho según la letra: "PARCIAL I (en curso)" se cortaba.
+            SizedBox(
+              width: 120 * escala,
+              child: Text(etiqueta, style: text.bodyMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ),
+            const SizedBox(width: Espacio.s),
             Expanded(
               child: LinearProgressIndicator(
                 value: maximo <= 0 ? 0 : (valor / maximo).clamp(0.0, 1.0),
@@ -171,7 +182,7 @@ class _Barra extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width: 56,
+              width: 56 * escala,
               child: Text(texto, textAlign: TextAlign.end, style: text.labelLarge?.copyWith(fontWeight: FontWeight.w700)),
             ),
           ],

@@ -75,6 +75,15 @@ class _CapturaState extends ConsumerState<_Captura> {
   void initState() {
     super.initState();
     _contenedor = ProviderScope.containerOf(context, listen: false);
+    // Al salir de un campo con un valor fuera de rango se vacía: lo que se ve es lo guardado.
+    for (final a in _plan.alumnos) {
+      _focus[a.id]!.addListener(() {
+        if (!_focus[a.id]!.hasFocus && _errores.containsKey(a.id)) {
+          _controllers[a.id]!.clear();
+          setState(() => _errores.remove(a.id));
+        }
+      });
+    }
   }
 
   @override
@@ -100,7 +109,14 @@ class _CapturaState extends ConsumerState<_Captura> {
     final limpio = texto.trim();
     final valor = limpio.isEmpty ? null : leerPuntos(limpio);
     if (limpio.isNotEmpty && (valor == null || valor < 0 || valor > _actividad.puntos)) {
+      // Al teclear "15" en una de 10 ya se había guardado el "1": se quita para que no
+      // quede una nota que el docente no quiso poner.
+      final habia = _notas.remove(alumno.id) != null;
       setState(() => _errores[alumno.id] = '0–${formatoPuntos(_actividad.puntos)}');
+      if (habia) {
+        _cambios = true;
+        await ref.read(planesRepositoryProvider).calificar(_actividad.id, alumno.id, null);
+      }
       return;
     }
     setState(() {
@@ -116,11 +132,28 @@ class _CapturaState extends ConsumerState<_Captura> {
   }
 
   /// "Todos entregaron completo" o "los que faltan no entregaron": llena sólo lo vacío.
+  /// Se puede deshacer: llena de golpe a toda la sección.
   Future<void> _llenarVacios(double valor) async {
-    for (final a in _plan.alumnos.where((a) => _notas[a.id] == null)) {
+    final vacios = _plan.alumnos.where((a) => _notas[a.id] == null).toList();
+    if (vacios.isEmpty) return;
+    final messenger = ScaffoldMessenger.of(context);
+    for (final a in vacios) {
       _controllers[a.id]!.text = _texto(valor);
       await _guardar(a, _texto(valor));
     }
+    messenger.showSnackBar(SnackBar(
+      content: Text('${formatoPuntos(valor)} puesto a ${vacios.length} ${vacios.length == 1 ? 'alumno' : 'alumnos'}'),
+      action: SnackBarAction(
+        label: 'Deshacer',
+        onPressed: () async {
+          for (final a in vacios) {
+            if (!mounted) return;
+            _controllers[a.id]!.clear();
+            await _guardar(a, '');
+          }
+        },
+      ),
+    ));
   }
 
   void _siguiente(List<AlumnoPlan> visibles, int i) {
@@ -247,6 +280,11 @@ class _CapturaState extends ConsumerState<_Captura> {
                     leading: Text('$numero', style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
                     minLeadingWidth: 24,
                     title: Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    // El aviso va bajo el nombre: dentro de la caja angosta no se leía.
+                    subtitle: _errores[alumno.id] == null
+                        ? null
+                        : Text('Debe ser de 0 a ${formatoPuntos(_actividad.puntos)}. No se guardó.',
+                            style: text.bodySmall?.copyWith(color: scheme.error)),
                     trailing: SizedBox(
                       width: 88,
                       child: Semantics(
@@ -265,7 +303,9 @@ class _CapturaState extends ConsumerState<_Captura> {
                         decoration: InputDecoration(
                           isDense: true,
                           hintText: '—',
-                          errorText: _errores[alumno.id],
+                          // Borde rojo sin texto: el mensaje está en el subtítulo.
+                          errorText: _errores[alumno.id] == null ? null : '',
+                          errorStyle: const TextStyle(height: 0, fontSize: 0),
                           contentPadding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                         onChanged: (v) => _guardar(alumno, v),

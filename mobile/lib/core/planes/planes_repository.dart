@@ -97,6 +97,9 @@ class PlanesRepository {
     await db.update('plantillas', {'eliminado': 1, ..._sucia()}, where: 'id = ?', whereArgs: [id]);
   }
 
+  /// Deshace [eliminarPlantilla].
+  Future<void> restaurarPlantilla(String id) => _marcar('plantillas', id, eliminado: false);
+
   // ── Plan de la clase ──────────────────────────────────────────────────────
 
   /// Copia los rubros a la clase en esos parciales. Sólo en los que todavía no tienen
@@ -189,6 +192,9 @@ class PlanesRepository {
     return true;
   }
 
+  /// Deshace [eliminarRubro].
+  Future<void> restaurarRubro(String id) => _marcar('rubros', id, eliminado: false);
+
   // ── Actividades y notas ───────────────────────────────────────────────────
 
   Future<String> guardarActividad(
@@ -252,6 +258,17 @@ class PlanesRepository {
   }
 
   Future<void> eliminarSesion(String id) => _marcar('sesiones', id, eliminado: true);
+
+  /// Deshace [eliminarSesion]: las marcas de ese día no se borraron. Si mientras tanto se
+  /// pasó otra lista ese día, se queda la nueva: no puede haber dos el mismo día.
+  Future<void> restaurarSesion(String id) async {
+    final db = await _db;
+    final otra = await db.rawQuery(
+        'SELECT 1 FROM sesiones o JOIN sesiones s ON s.id = ? '
+        'WHERE o.clase_id = s.clase_id AND o.fecha = s.fecha AND o.eliminado = 0 AND o.id <> s.id LIMIT 1',
+        [id]);
+    if (otra.isEmpty) await _marcar('sesiones', id, eliminado: false);
+  }
 
   Future<void> marcarAsistencia(String sesionId, String alumnoId, EstadoAsistencia estado) async {
     final db = await _db;

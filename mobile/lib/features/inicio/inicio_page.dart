@@ -79,9 +79,10 @@ class InicioPage extends ConsumerWidget {
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.l, Espacio.bajoBotonFlotante),
                       sliver: SliverGrid.builder(
-                        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 440,
-                          mainAxisExtent: 252,
+                          // Crece con la letra del sistema: con alto fijo la tarjeta se desbordaba.
+                          mainAxisExtent: 252 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
                           crossAxisSpacing: 12,
                           mainAxisSpacing: 12,
                         ),

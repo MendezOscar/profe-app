@@ -104,9 +104,25 @@ class _TarjetaPlantilla extends ConsumerWidget {
                   IconButton(
                     tooltip: 'Eliminar',
                     onPressed: () async {
-                      await ref.read(planesRepositoryProvider).eliminarPlantilla(plantilla.id);
-                      ref.invalidate(plantillasProvider);
-                      ref.read(syncControllerProvider.notifier).programar();
+                      final messenger = ScaffoldMessenger.of(context);
+                      final repo = ref.read(planesRepositoryProvider);
+                      void refrescar() {
+                        ref.invalidate(plantillasProvider);
+                        ref.read(syncControllerProvider.notifier).programar();
+                      }
+
+                      await repo.eliminarPlantilla(plantilla.id);
+                      refrescar();
+                      messenger.showSnackBar(SnackBar(
+                        content: Text('"${plantilla.nombre}" eliminada'),
+                        action: SnackBarAction(
+                          label: 'Deshacer',
+                          onPressed: () async {
+                            await repo.restaurarPlantilla(plantilla.id);
+                            refrescar();
+                          },
+                        ),
+                      ));
                     },
                     icon: const Icon(Icons.delete_outline),
                   ),

@@ -379,7 +379,7 @@ class _FormActividadState extends ConsumerState<_FormActividad> {
                         ),
                         validator: (v) {
                           final n = leerPuntos(v);
-                          return n == null || n <= 0 || n > 100 ? 'Entre 0 y 100' : null;
+                          return n == null || n <= 0 || n > 100 ? 'Más de 0 y hasta 100' : null;
                         },
                       ),
                     ),

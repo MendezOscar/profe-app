@@ -31,8 +31,26 @@ class ParcialCerrado extends ConsumerWidget {
           TextButton(
             style: TextButton.styleFrom(foregroundColor: scheme.onSecondary),
             onPressed: () async {
+              final reabrir = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  shape: const RoundedRectangleBorder(),
+                  title: Text('¿Reabrir ${plan.parcial.titulo}?'),
+                  content: const Text('Podrás cambiar notas y asistencia. El cuadro de SACE conserva lo que ya tiene '
+                      'hasta que vuelvas a cerrar el parcial; si ya lo exportaste, tendrás que exportarlo otra vez.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+                    FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Reabrir')),
+                  ],
+                ),
+              );
+              if (reabrir != true) return;
               await ref.read(planesRepositoryProvider).reabrir(plan.claseId, plan.parcial.clave);
               planCambiado(ref, plan.claseId, plan.parcial.clave);
+              if (context.mounted) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text('${plan.parcial.titulo} reabierto')));
+              }
             },
             child: const Text('Reabrir'),
           ),

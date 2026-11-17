@@ -97,9 +97,6 @@ enum EstadoAsistencia {
 
   static EstadoAsistencia desde(String? codigo) =>
       values.firstWhere((e) => e.codigo == codigo, orElse: () => presente);
-
-  /// El orden en que cambia al tocar al alumno al pasar lista.
-  EstadoAsistencia get siguiente => values[(index + 1) % values.length];
 }
 
 class Sesion {

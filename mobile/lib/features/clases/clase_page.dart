@@ -58,6 +58,7 @@ class _CapturaState extends ConsumerState<_Captura> {
   List<TextEditingController> _controllers = [];
   List<FocusNode> _focus = [];
   final Map<(int, int), FocusNode> _focosTabla = {};
+  final _fichaActual = GlobalKey();
 
   ClaseDetalle get _clase => widget.detalle;
 
@@ -94,6 +95,15 @@ class _CapturaState extends ConsumerState<_Captura> {
       for (final a in _clase.alumnos) TextEditingController(text: _valores[a.id]?[clave]?.toString() ?? ''),
     ];
     _focus = [for (final _ in _clase.alumnos) FocusNode()];
+    // Al salir de un campo con un valor fuera de rango se vacía: lo que se ve es lo guardado.
+    for (final (i, a) in _clase.alumnos.indexed) {
+      _focus[i].addListener(() {
+        if (!_focus[i].hasFocus && _errores.containsKey(a.id)) {
+          _controllers[i].clear();
+          setState(() => _errores.remove(a.id));
+        }
+      });
+    }
   }
 
   Future<void> _guardar(Alumno alumno, String texto) => _guardarEn(alumno, _clase.columnas[_columna], texto);
@@ -103,7 +113,8 @@ class _CapturaState extends ConsumerState<_Captura> {
     final limpio = texto.trim();
     final valor = limpio.isEmpty ? null : int.tryParse(limpio);
     if (limpio.isNotEmpty && (valor == null || valor < columna.tipo.minimo || valor > columna.tipo.maximo)) {
-      return '${columna.tipo.minimo}–${columna.tipo.maximo}';
+      await _quitarParcial(alumno, columna);
+      return 'Debe ser de ${columna.tipo.minimo} a ${columna.tipo.maximo}. No se guardó.';
     }
     setState(() {
       if (valor == null) {
@@ -120,12 +131,22 @@ class _CapturaState extends ConsumerState<_Captura> {
 
   FocusNode _focoTabla(int fila, int columna) => _focosTabla.putIfAbsent((fila, columna), FocusNode.new);
 
+  /// Al teclear "150" en una de 0–100 ya se había guardado el "15": se quita.
+  Future<void> _quitarParcial(Alumno alumno, Columna columna) async {
+    if (_valores[alumno.id]?.remove(columna.clave) == null) return;
+    setState(() {});
+    await ref.read(clasesRepositoryProvider).guardarValor(alumno.id, columna.clave, null);
+    ref.invalidate(claseProvider(_clase.resumen.id));
+    ref.read(syncControllerProvider.notifier).programar();
+  }
+
   Future<void> _guardarEn(Alumno alumno, Columna columna, String texto) async {
     final limpio = texto.trim();
     final valor = limpio.isEmpty ? null : int.tryParse(limpio);
 
     if (limpio.isNotEmpty && (valor == null || valor < columna.tipo.minimo || valor > columna.tipo.maximo)) {
-      setState(() => _errores[alumno.id] = '${columna.tipo.minimo}–${columna.tipo.maximo}');
+      setState(() => _errores[alumno.id] = 'Debe ser de ${columna.tipo.minimo} a ${columna.tipo.maximo}. No se guardó.');
+      await _quitarParcial(alumno, columna);
       return;
     }
 
@@ -210,9 +231,11 @@ class _CapturaState extends ConsumerState<_Captura> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(resumen.asignatura),
+            Text(resumen.asignatura, maxLines: 1, overflow: TextOverflow.ellipsis),
             Text(
               [resumen.gradoSeccion, resumen.jornada].where((t) => t.isNotEmpty).join(' · '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
           ],
@@ -228,6 +251,7 @@ class _CapturaState extends ConsumerState<_Captura> {
           // onSelected y no onTap del ítem: onTap corre antes de cerrar el menú y el
           // cierre se llevaría por delante el diálogo de confirmación.
           PopupMenuButton<String>(
+            tooltip: 'Más opciones',
             onSelected: (_) => _eliminar(),
             itemBuilder: (context) => const [PopupMenuItem(value: 'eliminar', child: Text('Eliminar clase'))],
           ),
@@ -252,25 +276,42 @@ class _CapturaState extends ConsumerState<_Captura> {
   Widget _porColumna(TextTheme text, ColorScheme scheme) => Column(
               children: [
                 SizedBox(
-                  height: 56,
+                  // Crece con la letra del sistema: con alto fijo las fichas se cortaban.
+                  height: 56 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 2.0),
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: Espacio.m, vertical: 6),
                     children: [
                       for (final (i, columna) in _clase.columnas.indexed)
                         Padding(
+                          key: i == _columna ? _fichaActual : null,
                           padding: const EdgeInsets.only(right: Espacio.s),
                           child: ChoiceChip(
                             selected: i == _columna,
                             label: Text('${columna.titulo}  ${_capturados(columna.clave)}/${_clase.alumnos.length}'),
-                            onSelected: (_) => setState(() {
-                              _columna = i;
-                              _prepararColumna();
-                            }),
+                            onSelected: (_) {
+                              setState(() {
+                                _columna = i;
+                                _prepararColumna();
+                              });
+                              // La columna elegida queda a la vista, aunque esté al final.
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                final ficha = _fichaActual.currentContext;
+                                if (ficha != null) {
+                                  Scrollable.ensureVisible(ficha,
+                                      alignment: 0.5, duration: const Duration(milliseconds: 200));
+                                }
+                              });
+                            },
                           ),
                         ),
                     ],
                   ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.xs),
+                  child: Text('Columna ${_columna + 1} de ${_clase.columnas.length} · desliza para ver las demás',
+                      style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
                 ),
                 const Divider(height: 1),
                 Expanded(
@@ -286,7 +327,10 @@ class _CapturaState extends ConsumerState<_Captura> {
                         leading: Text('${i + 1}', style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
                         minLeadingWidth: 24,
                         title: Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis),
-                        subtitle: Text(alumno.identidad, style: text.bodySmall),
+                        // El aviso va bajo el nombre: dentro de la caja angosta no se leía.
+                        subtitle: _errores[alumno.id] == null
+                            ? Text(alumno.identidad, style: text.bodySmall)
+                            : Text(_errores[alumno.id]!, style: text.bodySmall?.copyWith(color: scheme.error)),
                         trailing: SizedBox(
                           width: 76,
                           child: Semantics(
@@ -300,7 +344,8 @@ class _CapturaState extends ConsumerState<_Captura> {
                             textInputAction: ultimo ? TextInputAction.done : TextInputAction.next,
                             decoration: InputDecoration(
                               isDense: true,
-                              errorText: _errores[alumno.id],
+                              errorText: _errores[alumno.id] == null ? null : '',
+                              errorStyle: const TextStyle(height: 0, fontSize: 0),
                               contentPadding: const EdgeInsets.symmetric(vertical: 10),
                             ),
                             onChanged: (value) => _guardar(alumno, value),
@@ -495,6 +540,21 @@ class _CeldaState extends State<_Celda> {
   String? _error;
 
   @override
+  void initState() {
+    super.initState();
+    widget.foco.addListener(_alSalir);
+  }
+
+  /// Un valor fuera de rango no se guardó: al salir se vacía la celda y se dice por qué.
+  void _alSalir() {
+    if (widget.foco.hasFocus || _error == null) return;
+    final mensaje = '${widget.etiqueta}: $_error';
+    _texto.clear();
+    setState(() => _error = null);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(mensaje)));
+  }
+
+  @override
   void didUpdateWidget(covariant _Celda anterior) {
     super.didUpdateWidget(anterior);
     final nuevo = widget.valor?.toString() ?? '';
@@ -503,6 +563,7 @@ class _CeldaState extends State<_Celda> {
 
   @override
   void dispose() {
+    widget.foco.removeListener(_alSalir);
     _texto.dispose();
     super.dispose();
   }
@@ -522,7 +583,8 @@ class _CeldaState extends State<_Celda> {
           decoration: InputDecoration(
             isDense: true,
             hintText: '—',
-            contentPadding: const EdgeInsets.symmetric(vertical: 6),
+            constraints: const BoxConstraints(minHeight: 48),
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
             enabledBorder: _error == null
                 ? null
                 : OutlineInputBorder(borderSide: BorderSide(color: Theme.of(context).colorScheme.error, width: 2)),
