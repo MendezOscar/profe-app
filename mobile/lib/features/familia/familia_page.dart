@@ -329,20 +329,26 @@ class HijoPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final resumen = ref.watch(resumenHijoProvider(alumnoId));
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: Text(nombre),
           bottom: const TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            tabs: [Tab(text: 'Notas'), Tab(text: 'Asistencia'), Tab(text: 'Próximas'), Tab(text: 'Horario')],
+            tabs: [
+              Tab(text: 'Notas'),
+              Tab(text: 'Asistencia'),
+              Tab(text: 'Próximas'),
+              Tab(text: 'Horario'),
+              Tab(text: 'Incidencias'),
+            ],
           ),
         ),
         body: resumen.when(
           loading: () => const EsqueletoLista(filas: 4, conTarjeta: true),
           error: (e, _) => EstadoError(error: e, reintentar: () => ref.invalidate(resumenHijoProvider(alumnoId))),
-          data: (r) => TabBarView(children: [_Notas(r), _Asistencia(r), _Proximas(r), _Horario(r)]),
+          data: (r) => TabBarView(children: [_Notas(r), _Asistencia(r), _Proximas(r), _Horario(r), _Incidencias(r)]),
         ),
       ),
     );
@@ -434,6 +440,61 @@ class _Notas extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+/// Faltas disciplinarias del año que registró un catedrático o el centro.
+class _Incidencias extends StatelessWidget {
+  const _Incidencias(this.r);
+
+  final Map<String, dynamic> r;
+
+  @override
+  Widget build(BuildContext context) {
+    final lista = ((r['incidencias'] as List?) ?? const []).cast<Map<String, dynamic>>();
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    if (lista.isEmpty) {
+      return const EstadoVacio(
+        icono: Icons.verified_outlined,
+        titulo: 'Sin incidencias',
+        mensaje: 'Si un catedrático o el centro registra una falta disciplinaria, aparecerá aquí y te llegará un aviso.',
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(Espacio.l),
+      children: [
+        for (final i in lista)
+          Card(
+            margin: const EdgeInsets.only(bottom: Espacio.s),
+            child: Padding(
+              padding: const EdgeInsets.all(Espacio.l),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Falta ${switch (i['gravedad']) { 'leve' => 'leve', 'grave' => 'grave', _ => 'muy grave' }}',
+                    style: text.titleSmall?.copyWith(color: i['gravedad'] == 'leve' ? scheme.tertiary : scheme.error),
+                  ),
+                  Text(_fecha(i['fecha'] as String), style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                  const SizedBox(height: Espacio.s),
+                  Text('${i['descripcion']}'),
+                  if (i['medida'] != null) ...[
+                    const SizedBox(height: Espacio.xs),
+                    Text('Medida: ${i['medida']}', style: text.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        Text('Para más detalles, comunícate con el centro.', style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+      ],
+    );
+  }
+
+  static String _fecha(String iso) {
+    final d = DateTime.parse(iso);
+    return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
   }
 }
 

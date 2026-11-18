@@ -249,3 +249,21 @@ public class ExcusaConfig : IEntityTypeConfiguration<Excusa>
         b.HasIndex(x => new { x.InstitucionId, x.Hasta });
     }
 }
+
+public class IncidenciaConfig : IEntityTypeConfiguration<Incidencia>
+{
+    public void Configure(EntityTypeBuilder<Incidencia> b)
+    {
+        b.ToTable("incidencias");
+        b.Property(x => x.Gravedad).HasMaxLength(10).IsRequired();
+        b.Property(x => x.Descripcion).HasMaxLength(1000).IsRequired();
+        b.Property(x => x.Medida).HasMaxLength(500);
+        b.Property(x => x.Seguimiento).HasMaxLength(1000);
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<Seccion>().WithMany().HasForeignKey(x => x.SeccionId).OnDelete(DeleteBehavior.SetNull);
+        b.HasIndex(x => new { x.InstitucionId, x.Fecha });
+        b.HasIndex(x => new { x.AlumnoId, x.Fecha });
+        b.HasIndex(x => x.SeccionId);
+        b.HasIndex(x => x.RegistradaPor);
+    }
+}

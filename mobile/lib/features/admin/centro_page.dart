@@ -35,7 +35,7 @@ class CentroPage extends ConsumerStatefulWidget {
 }
 
 class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProviderStateMixin {
-  late final _tabs = TabController(length: 12, vsync: this)..addListener(() => setState(() {}));
+  late final _tabs = TabController(length: 13, vsync: this)..addListener(() => setState(() {}));
 
   @override
   void dispose() {
@@ -63,6 +63,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
               ref.invalidate(comunicadosCentroProvider);
               ref.invalidate(reportesProvider);
               ref.invalidate(excusasCentroProvider);
+              ref.invalidate(incidenciasCentroProvider);
             },
             icon: const Icon(Icons.refresh),
           ),
@@ -80,6 +81,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
             Tab(text: 'Horario'),
             Tab(text: 'Asistencia'),
             Tab(text: 'Excusas'),
+            Tab(text: 'Incidencias'),
             Tab(text: 'Alumnos'),
             Tab(text: 'Comunicados'),
             Tab(text: 'Reportes'),
@@ -106,6 +108,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
           const HorarioTab(),
           const AsistenciaDiaTab(),
           ExcusasTab(puedeEditar: puedeEditar),
+          IncidenciasTab(puedeEditar: puedeEditar),
           const AlumnosTab(),
           ComunicadosTab(puedeEditar: puedeEditar),
           const ReportesTab(),

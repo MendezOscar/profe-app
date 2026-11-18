@@ -47,4 +47,4 @@ public sealed record ResumenHijoDto(
     Guid AlumnoId, string Nombre, string Centro, string? Seccion,
     IReadOnlyList<AsignaturaHijoDto> Asignaturas, AsistenciaHijoDto Asistencia, IReadOnlyList<EntregaDto> Proximas,
     AsistenciaHijoDto? AsistenciaDiaria = null, IReadOnlyList<ClaseHorarioDto>? Horario = null,
-    IReadOnlyList<string?>? Conducta = null);
+    IReadOnlyList<string?>? Conducta = null, IReadOnlyList<IncidenciaFamiliaDto>? Incidencias = null);

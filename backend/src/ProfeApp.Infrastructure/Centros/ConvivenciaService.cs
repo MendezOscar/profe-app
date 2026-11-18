@@ -7,12 +7,13 @@ using ProfeApp.Infrastructure.Persistence;
 
 namespace ProfeApp.Infrastructure.Centros;
 
-/// <summary>Excusas y permisos que registra el centro y que ve quien pasa lista.</summary>
+/// <summary>Excusas y permisos que registra el centro y que ve quien pasa lista; incidencias disciplinarias.</summary>
 public sealed class ConvivenciaService(
     AppDbContext db,
     EstructuraCentroService centro,
     ICurrentUser currentUser,
-    IClock clock) : IConvivenciaService
+    IClock clock,
+    IAvisosPush avisos) : IConvivenciaService
 {
     private const int ExcusasVisibles = 300;
     private const int DiasMaximos = 180;
@@ -78,12 +79,7 @@ public sealed class ConvivenciaService(
         var yo = currentUser.RequireUserId();
         var institucionId = await db.Users.Where(u => u.Id == yo).Select(u => u.InstitucionId).FirstOrDefaultAsync(ct);
         if (institucionId is not { } centroId) return [];
-        var anio = await db.AniosLectivos.Where(a => a.InstitucionId == centroId && a.Actual).Select(a => (Guid?)a.Id).FirstOrDefaultAsync(ct);
-        if (anio is null) return [];
-
-        var secciones = db.Secciones.Where(s => s.AnioLectivoId == anio
-            && (s.MaestroGuiaId == yo || db.CargasDocentes.Any(c => c.SeccionId == s.Id && c.DocenteId == yo)))
-            .Select(s => s.Id);
+        var secciones = SeccionesDelDocente(centroId, yo);
         return await (from e in db.Excusas.AsNoTracking()
                       join a in db.Alumnos.AsNoTracking() on e.AlumnoId equals a.Id
                       where e.InstitucionId == centroId && e.Desde <= fecha && e.Hasta >= fecha
@@ -92,6 +88,143 @@ public sealed class ConvivenciaService(
                       select new ExcusaDocenteDto(a.Identidad, a.Nombre, e.Tipo, e.Desde, e.Hasta, e.Motivo))
             .ToListAsync(ct);
     }
+
+    // ── Incidencias ──────────────────────────────────────────────────────────
+
+    private const int IncidenciasVisibles = 300;
+
+    public async Task<Result<IReadOnlyList<IncidenciaDto>>> IncidenciasAsync(Guid? alumnoId, bool soloAbiertas, CancellationToken ct = default)
+    {
+        var (institucion, _) = await centro.ContextoAsync(ct);
+        if (institucion is null) return Result<IReadOnlyList<IncidenciaDto>>.Fail(Error.Forbidden(EstructuraCentroService.SinCentro));
+        var inicio = await InicioDelAnioAsync(institucion.Id, ct);
+        return await ListarIncidenciasAsync(db.Incidencias.Where(i => i.InstitucionId == institucion.Id && i.Fecha >= inicio
+            && (alumnoId == null || i.AlumnoId == alumnoId) && (!soloAbiertas || !i.Cerrada)), ct);
+    }
+
+    public async Task<Result<IncidenciaDto>> RegistrarIncidenciaAsync(IncidenciaRequest r, CancellationToken ct = default)
+    {
+        var (institucion, error) = await centro.EditorAsync(ct);
+        if (institucion is null) return Result<IncidenciaDto>.Fail(error!);
+        if (!await db.Alumnos.AnyAsync(a => a.Id == r.AlumnoId && a.InstitucionId == institucion.Id, ct))
+            return Result<IncidenciaDto>.Fail(Error.NotFound("El alumno"));
+        var seccion = await db.Matriculas.Where(m => m.AlumnoId == r.AlumnoId && m.Estado == EstadosMatricula.Activa)
+            .Join(db.Secciones, m => m.SeccionId, s => s.Id, (m, s) => new { s.Id, s.AnioLectivoId })
+            .Join(db.AniosLectivos.Where(a => a.Actual), x => x.AnioLectivoId, a => a.Id, (x, _) => (Guid?)x.Id)
+            .FirstOrDefaultAsync(ct);
+        return await GuardarIncidenciaAsync(institucion.Id, r.AlumnoId, seccion, r.Fecha, r.Gravedad, r.Descripcion, r.Medida, ct);
+    }
+
+    public async Task<Result<IncidenciaDto>> RegistrarIncidenciaDocenteAsync(IncidenciaDocenteRequest r, CancellationToken ct = default)
+    {
+        var yo = currentUser.RequireUserId();
+        var institucionId = await db.Users.Where(u => u.Id == yo).Select(u => u.InstitucionId).FirstOrDefaultAsync(ct);
+        if (institucionId is not { } centroId) return Result<IncidenciaDto>.Fail(Error.Forbidden("Tu cuenta no es de un centro."));
+        if (!await SeccionesDelDocente(centroId, yo).AnyAsync(s => s == r.SeccionId, ct))
+            return Result<IncidenciaDto>.Fail(Error.NotFound("La sección"));
+        var identidad = MatriculaService.Normalizar(r.Identidad);
+        var alumno = await (from m in db.Matriculas
+                            join a in db.Alumnos on m.AlumnoId equals a.Id
+                            where m.SeccionId == r.SeccionId && m.Estado == EstadosMatricula.Activa && a.Identidad == identidad
+                            select (Guid?)a.Id).FirstOrDefaultAsync(ct);
+        if (alumno is null) return Result<IncidenciaDto>.Fail(Error.Validation("Ese alumno no está matriculado en la sección."));
+        return await GuardarIncidenciaAsync(centroId, alumno.Value, r.SeccionId, r.Fecha, r.Gravedad, r.Descripcion, r.Medida, ct);
+    }
+
+    public async Task<Result<IncidenciaDto>> SeguimientoAsync(Guid id, SeguimientoIncidenciaRequest r, CancellationToken ct = default)
+    {
+        var (institucion, error) = await centro.EditorAsync(ct);
+        if (institucion is null) return Result<IncidenciaDto>.Fail(error!);
+        var incidencia = await db.Incidencias.FirstOrDefaultAsync(i => i.Id == id && i.InstitucionId == institucion.Id, ct);
+        if (incidencia is null) return Result<IncidenciaDto>.Fail(Error.NotFound("La incidencia"));
+        var medida = Opcional(r.Medida);
+        var seguimiento = Opcional(r.Seguimiento);
+        if (medida?.Length > 500) return Result<IncidenciaDto>.Fail(Error.Validation("La medida va hasta 500 caracteres."));
+        if (seguimiento?.Length > 1000) return Result<IncidenciaDto>.Fail(Error.Validation("El seguimiento va hasta 1000 caracteres."));
+        incidencia.Medida = medida;
+        incidencia.Seguimiento = seguimiento;
+        incidencia.Cerrada = r.Cerrada;
+        await db.SaveChangesAsync(ct);
+        return (await ListarIncidenciasAsync(db.Incidencias.Where(i => i.Id == id), ct)).Single();
+    }
+
+    public async Task<Result> EliminarIncidenciaAsync(Guid id, CancellationToken ct = default)
+    {
+        var (institucion, error) = await centro.EditorAsync(ct);
+        if (institucion is null) return Result.Fail(error!);
+        var borradas = await db.Incidencias.Where(i => i.Id == id && i.InstitucionId == institucion.Id).ExecuteDeleteAsync(ct);
+        return borradas == 0 ? Result.Fail(Error.NotFound("La incidencia")) : Result.Success();
+    }
+
+    public async Task<IReadOnlyList<IncidenciaDto>> IncidenciasDelDocenteAsync(CancellationToken ct = default)
+    {
+        var yo = currentUser.RequireUserId();
+        var institucionId = await db.Users.Where(u => u.Id == yo).Select(u => u.InstitucionId).FirstOrDefaultAsync(ct);
+        if (institucionId is not { } centroId) return [];
+        var inicio = await InicioDelAnioAsync(centroId, ct);
+        var lista = await ListarIncidenciasAsync(db.Incidencias.Where(i => i.InstitucionId == centroId && i.RegistradaPor == yo && i.Fecha >= inicio), ct);
+        // El seguimiento es del centro.
+        return lista.Select(i => i with { Seguimiento = null }).ToList();
+    }
+
+    private async Task<Result<IncidenciaDto>> GuardarIncidenciaAsync(
+        Guid institucionId, Guid alumnoId, Guid? seccionId, DateOnly fecha, string? gravedad, string? descripcion, string? medida, CancellationToken ct)
+    {
+        var g = (gravedad ?? "").Trim().ToLowerInvariant();
+        var texto = (descripcion ?? "").Trim();
+        var tomada = Opcional(medida);
+        if (!GravedadesIncidencia.Todas.Contains(g)) return Result<IncidenciaDto>.Fail(Error.Validation("Elige si la falta es leve, grave o muy grave."));
+        if (texto.Length is 0 or > 1000) return Result<IncidenciaDto>.Fail(Error.Validation("Describe lo que pasó (hasta 1000 caracteres)."));
+        if (tomada?.Length > 500) return Result<IncidenciaDto>.Fail(Error.Validation("La medida va hasta 500 caracteres."));
+        if (fecha > clock.Today) return Result<IncidenciaDto>.Fail(Error.Validation("La fecha no puede ser futura."));
+        if (fecha < clock.Today.AddDays(-60)) return Result<IncidenciaDto>.Fail(Error.Validation("Solo se registran incidencias de los últimos 60 días."));
+
+        var incidencia = new Incidencia
+        {
+            InstitucionId = institucionId, AlumnoId = alumnoId, SeccionId = seccionId, Fecha = fecha,
+            Gravedad = g, Descripcion = texto, Medida = tomada, RegistradaPor = currentUser.RequireUserId(),
+        };
+        db.Incidencias.Add(incidencia);
+        await db.SaveChangesAsync(ct);
+
+        var familias = await db.VinculosFamiliares.AsNoTracking().Where(v => v.AlumnoId == alumnoId).Select(v => v.UsuarioId).ToListAsync(ct);
+        var dto = (await ListarIncidenciasAsync(db.Incidencias.Where(i => i.Id == incidencia.Id), ct)).Single();
+        if (familias.Count > 0)
+            avisos.Encolar(new AvisoPush(familias, $"Incidencia de {dto.Alumno}: falta {GravedadesIncidencia.Nombre(g)}",
+                texto.Length > 140 ? texto[..137] + "…" : texto, "/familia"));
+        return dto;
+    }
+
+    private async Task<List<IncidenciaDto>> ListarIncidenciasAsync(IQueryable<Incidencia> consulta, CancellationToken ct)
+    {
+        var filas = await (from i in consulta.AsNoTracking()
+                           join a in db.Alumnos.AsNoTracking() on i.AlumnoId equals a.Id
+                           join s in db.Secciones.AsNoTracking() on i.SeccionId equals s.Id into ss
+                           from s in ss.DefaultIfEmpty()
+                           join g in db.Grados.AsNoTracking() on s.GradoId equals g.Id into gg
+                           from g in gg.DefaultIfEmpty()
+                           join u in db.Users.AsNoTracking() on i.RegistradaPor equals u.Id into autores
+                           from u in autores.DefaultIfEmpty()
+                           orderby i.Fecha descending, i.CreatedAt descending
+                           select new { i, Alumno = a.Nombre, Seccion = g == null ? null : g.Nombre + " " + s.Nombre, Autor = u == null ? null : u.FullName })
+            .Take(IncidenciasVisibles).ToListAsync(ct);
+        return filas.Select(f => new IncidenciaDto(f.i.Id, f.i.AlumnoId, f.Alumno, f.Seccion, f.i.Fecha, f.i.Gravedad, f.i.Descripcion,
+            f.i.Medida, f.i.Seguimiento, f.i.Cerrada, f.Autor, f.i.CreatedAt)).ToList();
+    }
+
+    private async Task<DateOnly> InicioDelAnioAsync(Guid institucionId, CancellationToken ct) =>
+        await db.AniosLectivos.Where(a => a.InstitucionId == institucionId && a.Actual).Select(a => (DateOnly?)a.Inicio).FirstOrDefaultAsync(ct)
+        ?? clock.Today.AddDays(-365);
+
+    /// <summary>Secciones del año actual donde el docente da clase o es guía.</summary>
+    private IQueryable<Guid> SeccionesDelDocente(Guid institucionId, Guid docente) =>
+        from s in db.Secciones
+        join a in db.AniosLectivos on s.AnioLectivoId equals a.Id
+        where a.InstitucionId == institucionId && a.Actual
+              && (s.MaestroGuiaId == docente || db.CargasDocentes.Any(c => c.SeccionId == s.Id && c.DocenteId == docente))
+        select s.Id;
+
+    private static string? Opcional(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
 
     /// <summary>Motivo de la excusa de cada alumno que la tenga ese día.</summary>
     internal static async Task<Dictionary<Guid, string>> DelDiaAsync(AppDbContext db, IReadOnlyCollection<Guid> alumnos, DateOnly fecha, CancellationToken ct) =>

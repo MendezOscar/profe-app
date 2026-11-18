@@ -6,6 +6,7 @@ import '../../core/providers.dart';
 import '../../theme/tokens.dart';
 import '../clases/importar_cuadros.dart';
 import 'conducta_page.dart';
+import 'incidencia_docente.dart';
 import 'lista_diaria_page.dart';
 
 final _identidadesProvider = FutureProvider<Map<String, Set<String>>>((ref) async {
@@ -78,6 +79,14 @@ class TarjetaCargaCentro extends ConsumerWidget {
                     label: const Text('Conducta por parcial'),
                   ),
                 ),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => reportarIncidencia(context, ref, s),
+                  icon: const Icon(Icons.report_outlined),
+                  label: const Text('Reportar incidencia'),
+                ),
+              ),
               for (final a in s.asignaturas)
                 Padding(
                   padding: const EdgeInsets.only(top: Espacio.xxs),

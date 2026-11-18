@@ -136,6 +136,16 @@ public static class AdminEndpoints
         centro.MapDelete("/excusas/{id:guid}", async (Guid id, IConvivenciaService s, CancellationToken ct) =>
             (await s.EliminarExcusaAsync(id, ct)).ToHttp());
 
+        // Incidencias disciplinarias: las registra el centro o un catedrático; la familia las ve.
+        centro.MapGet("/incidencias", async (Guid? alumnoId, bool? abiertas, IConvivenciaService s, CancellationToken ct) =>
+            (await s.IncidenciasAsync(alumnoId, abiertas ?? false, ct)).ToHttp());
+        centro.MapPost("/incidencias", async (IncidenciaRequest r, IConvivenciaService s, CancellationToken ct) =>
+            (await s.RegistrarIncidenciaAsync(r, ct)).ToHttp());
+        centro.MapPut("/incidencias/{id:guid}", async (Guid id, SeguimientoIncidenciaRequest r, IConvivenciaService s, CancellationToken ct) =>
+            (await s.SeguimientoAsync(id, r, ct)).ToHttp());
+        centro.MapDelete("/incidencias/{id:guid}", async (Guid id, IConvivenciaService s, CancellationToken ct) =>
+            (await s.EliminarIncidenciaAsync(id, ct)).ToHttp());
+
         centro.MapGet("/reportes", async (IReportesService s, CancellationToken ct) => (await s.ResumenAsync(ct)).ToHttp())
             .WithSummary("Matrícula, rendimiento, alumnos en riesgo y asistencia del año actual.");
 
@@ -177,6 +187,14 @@ public static class AdminEndpoints
         // Excusas del día de los alumnos del docente, para marcarlos al pasar lista.
         app.MapGet("/api/v1/mi-centro/excusas", async (DateOnly? fecha, IConvivenciaService s, IClock clock, CancellationToken ct) =>
                 Results.Ok(await s.ExcusasDelDocenteAsync(fecha ?? clock.Today, ct)))
+            .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
+
+        // Incidencias que registra el catedrático en sus secciones.
+        app.MapGet("/api/v1/mi-centro/incidencias", async (IConvivenciaService s, CancellationToken ct) =>
+                Results.Ok(await s.IncidenciasDelDocenteAsync(ct)))
+            .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
+        app.MapPost("/api/v1/mi-centro/incidencias", async (IncidenciaDocenteRequest r, IConvivenciaService s, CancellationToken ct) =>
+                (await s.RegistrarIncidenciaDocenteAsync(r, ct)).ToHttp())
             .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
 
         // El docente ve lo que su centro le asignó.

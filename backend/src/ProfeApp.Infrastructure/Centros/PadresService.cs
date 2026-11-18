@@ -157,8 +157,13 @@ public sealed class PadresService(AppDbContext db, ICurrentUser currentUser, ICl
         AsistenciaHijoDto? diaria = null;
         IReadOnlyList<ClaseHorarioDto>? horarioSeccion = null;
         IReadOnlyList<string?>? conducta = null;
+        IReadOnlyList<IncidenciaFamiliaDto>? incidencias = null;
         if (actual is not null)
         {
+            var inicio = await db.AniosLectivos.Where(a => a.Id == actual.AnioLectivoId).Select(a => a.Inicio).FirstAsync(ct);
+            incidencias = await db.Incidencias.AsNoTracking().Where(i => i.AlumnoId == alumnoId && i.Fecha >= inicio)
+                .OrderByDescending(i => i.Fecha).ThenByDescending(i => i.CreatedAt).Take(FaltasRecientes)
+                .Select(i => new IncidenciaFamiliaDto(i.Fecha, i.Gravedad, i.Descripcion, i.Medida)).ToListAsync(ct);
             var dias = await db.TomasAsistenciaDiaria.CountAsync(t => t.SeccionId == actual.SeccionId, ct);
             var marcas = await (from m in db.MarcasAsistenciaDiaria.AsNoTracking()
                                 join t in db.TomasAsistenciaDiaria.AsNoTracking() on m.TomaId equals t.Id
@@ -180,7 +185,7 @@ public sealed class PadresService(AppDbContext db, ICurrentUser currentUser, ICl
             hijo.AlumnoId, hijo.Nombre, hijo.Centro, hijo.Seccion, asignaturas,
             new AsistenciaHijoDto(sesionesTotal, ausencias, tardes, justificadas,
                 faltas.OrderByDescending(f => f.Fecha).Take(FaltasRecientes).ToList()),
-            proximas.OrderBy(p => p.Fecha).ToList(), diaria, horarioSeccion, conducta);
+            proximas.OrderBy(p => p.Fecha).ToList(), diaria, horarioSeccion, conducta, incidencias);
     }
 
     public async Task<IReadOnlyList<ComunicadoPadreDto>> ComunicadosAsync(CancellationToken ct = default)

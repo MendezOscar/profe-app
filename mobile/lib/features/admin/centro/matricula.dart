@@ -750,14 +750,20 @@ class _FormFichaState extends ConsumerState<_FormFicha> {
             const SizedBox(height: Espacio.s),
             AccesoFamilia(alumnoId: d['id'] as String, nombre: d['nombre'] as String, editar: _editar),
             const SizedBox(height: Espacio.xl),
-            Row(
+            Text('MATRÍCULAS', style: text.labelSmall),
+            Wrap(
               children: [
-                Expanded(child: Text('MATRÍCULAS', style: text.labelSmall)),
                 if (_editar && matriculas.any((m) => m['estado'] == 'activa'))
                   TextButton.icon(
                     onPressed: () => registrarExcusa(context, ref, alumno: {'id': d['id'], 'nombre': d['nombre']}),
                     icon: const Icon(Icons.event_busy_outlined),
                     label: const Text('Registrar excusa'),
+                  ),
+                if (_editar && matriculas.any((m) => m['estado'] == 'activa'))
+                  TextButton.icon(
+                    onPressed: () => registrarIncidencia(context, ref, alumno: {'id': d['id'], 'nombre': d['nombre']}),
+                    icon: const Icon(Icons.report_outlined),
+                    label: const Text('Incidencia'),
                   ),
                 if (matriculas.any((m) => m['estado'] == 'activa'))
                   TextButton.icon(

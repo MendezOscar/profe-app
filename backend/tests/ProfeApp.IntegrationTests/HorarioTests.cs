@@ -242,6 +242,51 @@ public class HorarioTests(ApiFixture fixture) : ApiTestBase(fixture)
             .GetProperty("alumnos")[0].GetProperty("nota").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
+    [Fact]
+    public async Task El_catedratico_registra_una_incidencia_el_centro_le_da_seguimiento_y_la_familia_la_ve()
+    {
+        var e = await EscenarioAsync();
+        var c = e.Centro;
+        var ana = (await ReadAsync(await c.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos",
+            new { identidad = "0801201400401", nombre = "Ana Incidencia", tipo = "nuevo_ingreso" }))).GetProperty("alumnoId").GetGuid();
+        var codigo = (await ReadAsync(await c.PostAsync($"/api/v1/centro/alumnos/{ana}/familia/codigo", null))).GetProperty("codigo").GetString();
+        var padre = Fixture.CreateClient();
+        Autorizar(padre, await ReadAsync(await padre.PostAsJsonAsync("/api/v1/auth/registro-padre", new
+        {
+            codigo, email = $"padre-{Guid.NewGuid():N}@prueba.hn", password = "Familia-1234", fullName = "Papá Incidencia",
+        })));
+        var token = $"token-{Guid.NewGuid():N}";
+        await padre.PostAsJsonAsync("/api/v1/dispositivos", new { token, plataforma = "android" });
+        var hoy = DateTime.Today.ToString("yyyy-MM-dd");
+
+        object Incidencia(Guid seccion, string identidad, string gravedad = "grave") =>
+            new { seccionId = seccion, identidad, fecha = hoy, gravedad, descripcion = "Pelea en el recreo", medida = "Citación a la familia" };
+        (await e.Docente.PostAsJsonAsync("/api/v1/mi-centro/incidencias", Incidencia(e.C, "0801201400401")))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound, "no da clase en la C");
+        (await e.Docente.PostAsJsonAsync("/api/v1/mi-centro/incidencias", Incidencia(e.A, "0801201400401", "media")))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var creada = await ReadAsync(await e.Docente.PostAsJsonAsync("/api/v1/mi-centro/incidencias", Incidencia(e.A, "0801-2014-00401")));
+        creada.GetProperty("seccion").GetString().Should().Be("7.º grado A");
+        creada.GetProperty("registradaPor").GetString().Should().Be("Profe Español");
+        (await AvisosDeAsync(token, 1)).Should().ContainSingle().Which.Should().Be("Incidencia de Ana Incidencia: falta grave");
+
+        var id = creada.GetProperty("id").GetGuid();
+        (await c.PutAsJsonAsync($"/api/v1/centro/incidencias/{id}", new { medida = "Suspensión de un día", seguimiento = "Firmó acta", cerrada = true }))
+            .StatusCode.Should().Be(HttpStatusCode.OK);
+        (await ReadAsync(await c.GetAsync("/api/v1/centro/incidencias?abiertas=true"))).GetArrayLength().Should().Be(0);
+        (await ReadAsync(await c.GetAsync($"/api/v1/centro/incidencias?alumnoId={ana}")))[0].GetProperty("cerrada").GetBoolean().Should().BeTrue();
+
+        var delDocente = await ReadAsync(await e.Docente.GetAsync("/api/v1/mi-centro/incidencias"));
+        delDocente[0].GetProperty("seguimiento").ValueKind.Should().Be(JsonValueKind.Null, "el seguimiento es del centro");
+
+        var familia = (await ReadAsync(await padre.GetAsync($"/api/v1/padres/hijos/{ana}"))).GetProperty("incidencias");
+        familia.GetArrayLength().Should().Be(1);
+        familia[0].GetProperty("medida").GetString().Should().Be("Suspensión de un día");
+        familia[0].TryGetProperty("seguimiento", out _).Should().BeFalse();
+
+        (await c.DeleteAsync($"/api/v1/centro/incidencias/{id}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+    }
+
     private static async Task<List<string>> AvisosDeAsync(string token, int esperados)
     {
         for (var i = 0; i < 50; i++)
