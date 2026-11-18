@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/centro/mi_carga.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
@@ -177,15 +178,28 @@ class _Lista extends ConsumerWidget {
       conteo[e] = conteo[e]! + 1;
     }
     void cambiado() => planCambiado(ref, plan.claseId, plan.parcial.clave);
+    // Excusas y permisos que registró el centro para ese día (docentes de un centro).
+    final excusas = ref.watch(excusasDelDiaProvider(DateFormat('yyyy-MM-dd').format(fecha))).valueOrNull ?? const {};
+    String? excusaDe(AlumnoPlan a) => excusas[identidadComparable(a.identidad)];
+    final excusados = plan.alumnos.where((a) => excusaDe(a) != null).toList();
+
+    /// Al abrir la lista del día, los que traen excusa quedan como justificada.
+    Future<String> abrirSesion() async {
+      final id = await repo.sesion(plan.claseId, plan.parcial.clave, fecha);
+      for (final a in excusados) {
+        await repo.marcarAsistencia(id, a.id, EstadoAsistencia.justificada);
+      }
+      return id;
+    }
 
     Future<void> marcar(AlumnoPlan alumno, EstadoAsistencia estado) async {
-      final id = sesion?.id ?? await repo.sesion(plan.claseId, plan.parcial.clave, fecha);
+      final id = sesion?.id ?? await abrirSesion();
       await repo.marcarAsistencia(id, alumno.id, estado);
       cambiado();
     }
 
     Future<void> tomarLista() async {
-      await repo.sesion(plan.claseId, plan.parcial.clave, fecha);
+      await abrirSesion();
       cambiado();
     }
 
@@ -273,7 +287,9 @@ class _Lista extends ConsumerWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text('Todavía no pasas lista este día. Marca solo a los que faltan.',
+                  child: Text(
+                      'Todavía no pasas lista este día. Marca solo a los que faltan.'
+                      '${excusados.isEmpty ? '' : ' ${excusados.length == 1 ? 'Un alumno tiene excusa del centro: queda' : '${excusados.length} alumnos tienen excusa del centro: quedan'} como justificada.'}',
                       style: TextStyle(color: scheme.onPrimaryContainer)),
                 ),
                 const SizedBox(width: Espacio.s),
@@ -329,6 +345,10 @@ class _Lista extends ConsumerWidget {
                   leading: Text('${i + 1}', style: text.labelMedium?.copyWith(color: scheme.onSurfaceVariant)),
                   minLeadingWidth: 24,
                   title: Text(alumno.nombre, maxLines: 2, overflow: TextOverflow.ellipsis),
+                  subtitle: excusaDe(alumno) == null
+                      ? null
+                      : Text(excusaDe(alumno)!, maxLines: 2, overflow: TextOverflow.ellipsis,
+                          style: text.bodySmall?.copyWith(color: scheme.secondary)),
                   trailing: InkWell(
                     onTap: plan.cerrado ? null : elegir,
                     child: ConstrainedBox(

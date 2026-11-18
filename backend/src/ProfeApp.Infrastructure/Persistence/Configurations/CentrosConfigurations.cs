@@ -236,3 +236,16 @@ public class ConductaParcialConfig : IEntityTypeConfiguration<ConductaParcial>
         b.HasIndex(x => new { x.SeccionId, x.AlumnoId, x.Parcial }).IsUnique();
     }
 }
+
+public class ExcusaConfig : IEntityTypeConfiguration<Excusa>
+{
+    public void Configure(EntityTypeBuilder<Excusa> b)
+    {
+        b.ToTable("excusas");
+        b.Property(x => x.Tipo).HasMaxLength(10).IsRequired();
+        b.Property(x => x.Motivo).HasMaxLength(300).IsRequired();
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.AlumnoId, x.Hasta });
+        b.HasIndex(x => new { x.InstitucionId, x.Hasta });
+    }
+}

@@ -9,6 +9,7 @@ import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
 import 'admin_comun.dart';
 import 'centro/comun_centro.dart';
+import 'centro/convivencia_tab.dart';
 import 'centro/estructura_tabs.dart';
 import 'centro/familias_centro.dart';
 import 'centro/horario_tab.dart';
@@ -34,7 +35,7 @@ class CentroPage extends ConsumerStatefulWidget {
 }
 
 class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProviderStateMixin {
-  late final _tabs = TabController(length: 11, vsync: this)..addListener(() => setState(() {}));
+  late final _tabs = TabController(length: 12, vsync: this)..addListener(() => setState(() {}));
 
   @override
   void dispose() {
@@ -61,6 +62,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
               ref.invalidate(personalProvider);
               ref.invalidate(comunicadosCentroProvider);
               ref.invalidate(reportesProvider);
+              ref.invalidate(excusasCentroProvider);
             },
             icon: const Icon(Icons.refresh),
           ),
@@ -77,6 +79,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
             Tab(text: 'Secciones'),
             Tab(text: 'Horario'),
             Tab(text: 'Asistencia'),
+            Tab(text: 'Excusas'),
             Tab(text: 'Alumnos'),
             Tab(text: 'Comunicados'),
             Tab(text: 'Reportes'),
@@ -102,6 +105,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
           const SeccionesTab(),
           const HorarioTab(),
           const AsistenciaDiaTab(),
+          ExcusasTab(puedeEditar: puedeEditar),
           const AlumnosTab(),
           ComunicadosTab(puedeEditar: puedeEditar),
           const ReportesTab(),

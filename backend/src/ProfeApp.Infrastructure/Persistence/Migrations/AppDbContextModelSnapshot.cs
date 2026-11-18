@@ -747,6 +747,72 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.ToTable("encargados", (string)null);
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Centros.Excusa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AlumnoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("alumno_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("Desde")
+                        .HasColumnType("date")
+                        .HasColumnName("desde");
+
+                    b.Property<DateOnly>("Hasta")
+                        .HasColumnType("date")
+                        .HasColumnName("hasta");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Motivo")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("motivo");
+
+                    b.Property<Guid>("RegistradaPor")
+                        .HasColumnType("uuid")
+                        .HasColumnName("registrada_por");
+
+                    b.Property<string>("Tipo")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("tipo");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_excusas");
+
+                    b.HasIndex("AlumnoId", "Hasta")
+                        .HasDatabaseName("ix_excusas_alumno_id_hasta");
+
+                    b.HasIndex("InstitucionId", "Hasta")
+                        .HasDatabaseName("ix_excusas_institucion_id_hasta");
+
+                    b.ToTable("excusas", (string)null);
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Centros.Grado", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2268,6 +2334,16 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_encargados_alumnos_alumno_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.Excusa", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Centros.Alumno", null)
+                        .WithMany()
+                        .HasForeignKey("AlumnoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_excusas_alumnos_alumno_id");
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Centros.Grado", b =>

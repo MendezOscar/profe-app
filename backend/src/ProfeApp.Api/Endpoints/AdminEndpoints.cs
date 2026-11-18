@@ -128,6 +128,14 @@ public static class AdminEndpoints
             .RequireRateLimiting(Limites.Exportar)
             .WithSummary("Los cuadros de SACE de la sección, llenos con lo que capturó cada docente, en un .zip.");
 
+        // Excusas y permisos: quien pasa lista ve al alumno como falta justificada.
+        centro.MapGet("/excusas", async (DateOnly? desde, Guid? alumnoId, IConvivenciaService s, CancellationToken ct) =>
+            (await s.ExcusasAsync(desde, alumnoId, ct)).ToHttp());
+        centro.MapPost("/excusas", async (ExcusaRequest r, IConvivenciaService s, CancellationToken ct) =>
+            (await s.RegistrarExcusaAsync(r, ct)).ToHttp());
+        centro.MapDelete("/excusas/{id:guid}", async (Guid id, IConvivenciaService s, CancellationToken ct) =>
+            (await s.EliminarExcusaAsync(id, ct)).ToHttp());
+
         centro.MapGet("/reportes", async (IReportesService s, CancellationToken ct) => (await s.ResumenAsync(ct)).ToHttp())
             .WithSummary("Matrícula, rendimiento, alumnos en riesgo y asistencia del año actual.");
 
@@ -164,6 +172,11 @@ public static class AdminEndpoints
             .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
         app.MapPut("/api/v1/mi-centro/secciones/{id:guid}/conducta", async (Guid id, ConductaRequest r, IHorarioService s, CancellationToken ct) =>
                 (await s.GuardarConductaAsync(id, r, ct)).ToHttp())
+            .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
+
+        // Excusas del día de los alumnos del docente, para marcarlos al pasar lista.
+        app.MapGet("/api/v1/mi-centro/excusas", async (DateOnly? fecha, IConvivenciaService s, IClock clock, CancellationToken ct) =>
+                Results.Ok(await s.ExcusasDelDocenteAsync(fecha ?? clock.Today, ct)))
             .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
 
         // El docente ve lo que su centro le asignó.

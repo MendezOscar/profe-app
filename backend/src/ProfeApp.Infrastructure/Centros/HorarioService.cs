@@ -442,8 +442,13 @@ public sealed class HorarioService(
                              orderby a.Nombre
                              select new { a.Id, a.Nombre })
             .ToListAsync(ct);
+        // Con excusa del centro y sin lista todavía, el alumno aparece ya como justificado.
+        var excusas = await ConvivenciaService.DelDiaAsync(db, alumnos.Select(a => a.Id).ToList(), fecha, ct);
         return new ListaDiariaDto(seccion.Id, await NombreSeccionAsync(seccion, ct), fecha, toma is not null,
-            alumnos.Select(a => new AlumnoDiaDto(a.Id, a.Nombre, marcas.GetValueOrDefault(a.Id))).ToList());
+            alumnos.Select(a => new AlumnoDiaDto(a.Id, a.Nombre,
+                    toma is null ? (excusas.ContainsKey(a.Id) ? "J" : null) : marcas.GetValueOrDefault(a.Id),
+                    excusas.GetValueOrDefault(a.Id)))
+                .ToList());
     }
 
     private static BloqueDto ADto(BloqueHorario b) => new(b.Id, b.Jornada, b.Orden, b.Inicio, b.Fin, b.EsReceso);

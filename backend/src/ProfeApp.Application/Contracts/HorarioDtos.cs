@@ -20,7 +20,8 @@ public sealed record ClaseHorarioDto(int Dia, TimeOnly Inicio, TimeOnly Fin, str
 // ── Asistencia diaria del maestro guía ───────────────────────────────────────
 
 /// <summary><c>Estado</c>: A (ausente), T (tarde), J (justificada) o null (presente).</summary>
-public sealed record AlumnoDiaDto(Guid AlumnoId, string Nombre, string? Estado);
+/// <c>Excusa</c>: motivo de la excusa o permiso del centro para ese día, si lo hay.
+public sealed record AlumnoDiaDto(Guid AlumnoId, string Nombre, string? Estado, string? Excusa = null);
 
 public sealed record ListaDiariaDto(Guid SeccionId, string Seccion, DateOnly Fecha, bool Tomada, IReadOnlyList<AlumnoDiaDto> Alumnos);
 

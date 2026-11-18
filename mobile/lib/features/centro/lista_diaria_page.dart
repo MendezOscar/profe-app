@@ -137,6 +137,9 @@ class _ListaDiariaPageState extends ConsumerState<ListaDiariaPage> {
                             ListTile(
                               minTileHeight: Medida.tactil,
                               title: Text('${a['nombre']}'),
+                              subtitle: a['excusa'] == null
+                                  ? null
+                                  : Text('${a['excusa']}', style: text.bodySmall?.copyWith(color: scheme.tertiary)),
                               onTap: () => setState(() {
                                 final id = a['alumnoId'] as String;
                                 _marcas[id] = _marcas[id] == null ? 'A' : null;

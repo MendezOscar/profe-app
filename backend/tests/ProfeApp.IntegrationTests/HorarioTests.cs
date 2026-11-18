@@ -176,6 +176,41 @@ public class HorarioTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task La_excusa_del_centro_la_ve_quien_pasa_lista_como_justificada()
+    {
+        var e = await EscenarioAsync();
+        var c = e.Centro;
+        var ana = (await ReadAsync(await c.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos",
+            new { identidad = "0801201400201", nombre = "Ana Excusa", tipo = "nuevo_ingreso" }))).GetProperty("alumnoId").GetGuid();
+        await c.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos", new { identidad = "0801201400202", nombre = "Beto Excusa", tipo = "nuevo_ingreso" });
+        var hoy = DateTime.Today;
+
+        (await c.PostAsJsonAsync("/api/v1/centro/excusas", new
+        {
+            alumnoId = ana, tipo = "excusa", desde = hoy.ToString("yyyy-MM-dd"), hasta = hoy.AddDays(-1).ToString("yyyy-MM-dd"), motivo = "Gripe",
+        })).StatusCode.Should().Be(HttpStatusCode.BadRequest, "termina antes de empezar");
+        var excusa = await ReadAsync(await c.PostAsJsonAsync("/api/v1/centro/excusas", new
+        {
+            alumnoId = ana, tipo = "excusa", desde = hoy.AddDays(-1).ToString("yyyy-MM-dd"), hasta = hoy.AddDays(1).ToString("yyyy-MM-dd"), motivo = "Gripe",
+        }));
+        excusa.GetProperty("seccion").GetString().Should().Be("7.º grado A");
+
+        var delDocente = await ReadAsync(await e.Docente.GetAsync($"/api/v1/mi-centro/excusas?fecha={hoy:yyyy-MM-dd}"));
+        delDocente.GetArrayLength().Should().Be(1);
+        delDocente[0].GetProperty("identidad").GetString().Should().Be("0801201400201");
+        (await ReadAsync(await e.Docente.GetAsync($"/api/v1/mi-centro/excusas?fecha={hoy.AddDays(5):yyyy-MM-dd}"))).GetArrayLength().Should().Be(0);
+
+        var lista = await ReadAsync(await e.Docente.GetAsync($"/api/v1/mi-centro/secciones/{e.A}/asistencia?fecha={hoy:yyyy-MM-dd}"));
+        var deAna = lista.GetProperty("alumnos").EnumerateArray().Single(x => x.GetProperty("alumnoId").GetGuid() == ana);
+        deAna.GetProperty("estado").GetString().Should().Be("J");
+        deAna.GetProperty("excusa").GetString().Should().Be("Excusa: Gripe");
+
+        (await ReadAsync(await c.GetAsync("/api/v1/centro/excusas"))).GetArrayLength().Should().Be(1);
+        (await c.DeleteAsync($"/api/v1/centro/excusas/{excusa.GetProperty("id").GetGuid()}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await ReadAsync(await e.Docente.GetAsync($"/api/v1/mi-centro/excusas?fecha={hoy:yyyy-MM-dd}"))).GetArrayLength().Should().Be(0);
+    }
+
+    [Fact]
     public async Task El_maestro_guia_pone_la_conducta_por_parcial_y_sale_en_el_consolidado()
     {
         var e = await EscenarioAsync();

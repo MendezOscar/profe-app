@@ -20,7 +20,7 @@ public static class PermisosDeLaApi
               alumnos, encargados, matriculas,
               codigos_familia, vinculos_familiares, comunicados, lecturas_comunicados,
               bloques_horario, horarios_clase, tomas_asistencia_diaria, marcas_asistencia_diaria,
-              conductas, dispositivos_push
+              conductas, dispositivos_push, excusas
               TO profeapp_app;
             -- Roles: la API los siembra si faltan (base nueva) pero nunca los cambia ni borra.
             GRANT SELECT, INSERT ON asp_net_roles TO profeapp_app;

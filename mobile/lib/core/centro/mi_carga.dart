@@ -177,3 +177,22 @@ bool tieneCuadro(SeccionCentro seccion, String asignatura, List<ClaseResumen> cl
     return seccionDe(identidades[c.id] ?? const {}, [seccion]) != null;
   });
 }
+
+/// Excusas y permisos del centro para un día ("2026-11-18"), por identidad comparable:
+/// "Excusa: Gripe". Vacío sin centro o sin internet: la lista se pasa igual.
+final excusasDelDiaProvider = FutureProvider.autoDispose.family<Map<String, String>, String>((ref, fecha) async {
+  if (await ref.watch(miCargaProvider.future) == null) return const {};
+  try {
+    final lista = await ref.watch(apiClientProvider).get('/mi-centro/excusas',
+        query: {'fecha': fecha}, parse: (d) => (d as List).cast<Map<String, dynamic>>());
+    final excusas = <String, String>{};
+    for (final e in lista) {
+      final clave = identidadComparable(e['identidad'] as String);
+      final texto = '${e['tipo'] == 'permiso' ? 'Permiso' : 'Excusa'}: ${e['motivo']}';
+      excusas[clave] = excusas.containsKey(clave) ? '${excusas[clave]}; $texto' : texto;
+    }
+    return excusas;
+  } catch (_) {
+    return const {};
+  }
+});

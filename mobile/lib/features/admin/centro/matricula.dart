@@ -13,6 +13,7 @@ import '../../../ui/esqueleto.dart';
 import '../../../ui/estado_error.dart';
 import '../../../ui/estado_vacio.dart';
 import 'comun_centro.dart';
+import 'convivencia_tab.dart';
 import 'familias_centro.dart';
 
 const tiposMatricula = {
@@ -752,6 +753,12 @@ class _FormFichaState extends ConsumerState<_FormFicha> {
             Row(
               children: [
                 Expanded(child: Text('MATRÍCULAS', style: text.labelSmall)),
+                if (_editar && matriculas.any((m) => m['estado'] == 'activa'))
+                  TextButton.icon(
+                    onPressed: () => registrarExcusa(context, ref, alumno: {'id': d['id'], 'nombre': d['nombre']}),
+                    icon: const Icon(Icons.event_busy_outlined),
+                    label: const Text('Registrar excusa'),
+                  ),
                 if (matriculas.any((m) => m['estado'] == 'activa'))
                   TextButton.icon(
                     onPressed: () => _constancia(matriculas.firstWhere((m) => m['estado'] == 'activa')),
