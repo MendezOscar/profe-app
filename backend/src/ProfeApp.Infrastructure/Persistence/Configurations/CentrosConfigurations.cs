@@ -129,3 +129,50 @@ public class MatriculaConfig : IEntityTypeConfiguration<Matricula>
         b.HasIndex(x => new { x.SeccionId, x.Estado });
     }
 }
+
+public class CodigoFamiliaConfig : IEntityTypeConfiguration<CodigoFamilia>
+{
+    public void Configure(EntityTypeBuilder<CodigoFamilia> b)
+    {
+        b.ToTable("codigos_familia");
+        b.Property(x => x.Codigo).HasMaxLength(12).IsRequired();
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => x.Codigo).IsUnique();
+        b.HasIndex(x => x.AlumnoId).IsUnique();
+    }
+}
+
+public class VinculoFamiliarConfig : IEntityTypeConfiguration<VinculoFamiliar>
+{
+    public void Configure(EntityTypeBuilder<VinculoFamiliar> b)
+    {
+        b.ToTable("vinculos_familiares");
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.AlumnoId, x.UsuarioId }).IsUnique();
+        b.HasIndex(x => x.UsuarioId);
+    }
+}
+
+public class ComunicadoConfig : IEntityTypeConfiguration<Comunicado>
+{
+    public void Configure(EntityTypeBuilder<Comunicado> b)
+    {
+        b.ToTable("comunicados");
+        b.Property(x => x.Titulo).HasMaxLength(160).IsRequired();
+        b.Property(x => x.Cuerpo).HasMaxLength(4000).IsRequired();
+        b.HasOne<Institucion>().WithMany().HasForeignKey(x => x.InstitucionId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.InstitucionId, x.PublicadoEn });
+    }
+}
+
+public class LecturaComunicadoConfig : IEntityTypeConfiguration<LecturaComunicado>
+{
+    public void Configure(EntityTypeBuilder<LecturaComunicado> b)
+    {
+        b.ToTable("lecturas_comunicados");
+        b.HasOne<Comunicado>().WithMany().HasForeignKey(x => x.ComunicadoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.ComunicadoId, x.UsuarioId }).IsUnique();
+    }
+}

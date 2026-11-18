@@ -11,6 +11,7 @@ import '../../../ui/esqueleto.dart';
 import '../../../ui/estado_error.dart';
 import '../../../ui/estado_vacio.dart';
 import 'comun_centro.dart';
+import 'familias_centro.dart';
 
 const tiposMatricula = {
   'nuevo_ingreso': 'Nuevo ingreso',
@@ -720,6 +721,10 @@ class _FormFichaState extends ConsumerState<_FormFicha> {
               const SizedBox(height: Espacio.s),
               FilledButton(onPressed: _guardando ? null : _guardar, child: const Text('Guardar ficha')),
             ],
+            const SizedBox(height: Espacio.xl),
+            Text('ACCESO DE LA FAMILIA', style: text.labelSmall),
+            const SizedBox(height: Espacio.s),
+            AccesoFamilia(alumnoId: d['id'] as String, nombre: d['nombre'] as String, editar: _editar),
             const SizedBox(height: Espacio.xl),
             Text('MATRÍCULAS', style: text.labelSmall),
             const SizedBox(height: Espacio.s),

@@ -11,7 +11,10 @@ public static class Roles
     public const string Docente = "Docente";
     public const string AdminCentro = "AdminCentro";
 
-    public static readonly string[] All = [PlatformAdmin, Docente, AdminCentro];
+    /// <summary>Padre, madre o encargado: ve a sus hijos vinculados y los comunicados del centro.</summary>
+    public const string Padre = "Padre";
+
+    public static readonly string[] All = [PlatformAdmin, Docente, AdminCentro, Padre];
 }
 
 public static class Policies
@@ -19,4 +22,5 @@ public static class Policies
     public const string DocenteOnly = "docente-only";
     public const string PlatformOnly = "platform-only";
     public const string CentroOnly = "centro-only";
+    public const string PadreOnly = "padre-only";
 }

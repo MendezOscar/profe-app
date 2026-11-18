@@ -41,7 +41,8 @@ builder.Services.AddSingleton<IPostConfigureOptions<JwtBearerOptions>, JwtBearer
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Policies.DocenteOnly, policy => policy.RequireRole(Roles.Docente))
     .AddPolicy(Policies.PlatformOnly, policy => policy.RequireRole(Roles.PlatformAdmin))
-    .AddPolicy(Policies.CentroOnly, policy => policy.RequireRole(Roles.AdminCentro));
+    .AddPolicy(Policies.CentroOnly, policy => policy.RequireRole(Roles.AdminCentro))
+    .AddPolicy(Policies.PadreOnly, policy => policy.RequireRole(Roles.Padre));
 
 builder.Services.AddProblemDetails();
 builder.Services.AddEndpointsApiExplorer();

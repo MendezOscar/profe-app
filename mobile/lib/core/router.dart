@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../features/admin/centro_page.dart';
 import '../features/admin/plataforma_page.dart';
+import '../features/familia/familia_page.dart';
+import '../features/familia/registro_familia_page.dart';
 import '../features/alumno/alumno_page.dart';
 import '../features/asignatura/asignatura_page.dart';
 import '../features/asignatura/calificar_page.dart';
@@ -47,9 +49,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!auth.isAuthenticated) {
         // En la web la landing ya presenta la app; la introducción es para los teléfonos.
         if (!kIsWeb && !ref.read(banderaProvider(Bandera.introVista))) {
-          return path == '/bienvenida' ? null : '/bienvenida';
+          return path == '/bienvenida' || path == '/registro-familia' ? null : '/bienvenida';
         }
-        return path == '/login' || path == '/bienvenida' ? null : '/login';
+        return path == '/login' || path == '/bienvenida' || path == '/registro-familia' ? null : '/login';
       }
       // Con contraseña temporal, lo primero es crear la propia.
       if (auth.session!.mustChangePassword) return path == '/cambiar-clave' ? null : '/cambiar-clave';
@@ -58,14 +60,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       final casa = switch (auth.session!.role) {
         'AdminCentro' => '/centro',
         'PlatformAdmin' => '/plataforma',
+        'Padre' => '/familia',
         _ => '/inicio',
       };
-      final esPanel = path.startsWith('/centro') || path.startsWith('/plataforma');
+      final esPanel = path.startsWith('/centro') || path.startsWith('/plataforma') || path.startsWith('/familia');
       if (casa != '/inicio' && !path.startsWith(casa)) return casa;
       if (casa == '/inicio' && (esPanel || path == '/cambiar-clave')) return casa;
 
       // La introducción se puede volver a ver desde Cuenta.
-      if (path == '/splash' || path == '/login' || path == '/' || path.startsWith('/clases')) {
+      if (path == '/splash' || path == '/login' || path == '/registro-familia' || path == '/' || path.startsWith('/clases')) {
         return desde != null && desde.startsWith('/') && !desde.startsWith('/splash') ? desde : casa;
       }
       return null;
@@ -77,6 +80,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/cambiar-clave', builder: (context, state) => const CambiarClaveObligatoriaPage()),
       GoRoute(path: '/centro', builder: (context, state) => const CentroPage()),
       GoRoute(path: '/plataforma', builder: (context, state) => const PlataformaPage()),
+      GoRoute(path: '/familia', builder: (context, state) => const FamiliaPage()),
+      GoRoute(path: '/registro-familia', builder: (context, state) => const RegistroFamiliaPage()),
       // Rutas anidadas: el detalle se apila sobre su lista y "atrás" vuelve a ella.
       ShellRoute(
         builder: (context, state, child) => ShellAdaptativo(ubicacion: state.uri.path, child: child),

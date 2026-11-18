@@ -38,6 +38,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<Alumno> Alumnos => Set<Alumno>();
     public DbSet<Encargado> Encargados => Set<Encargado>();
     public DbSet<Matricula> Matriculas => Set<Matricula>();
+    public DbSet<CodigoFamilia> CodigosFamilia => Set<CodigoFamilia>();
+    public DbSet<VinculoFamiliar> VinculosFamiliares => Set<VinculoFamiliar>();
+    public DbSet<Comunicado> Comunicados => Set<Comunicado>();
+    public DbSet<LecturaComunicado> LecturasComunicados => Set<LecturaComunicado>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

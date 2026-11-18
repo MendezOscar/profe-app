@@ -20,6 +20,13 @@ public static class AuthEndpoints
             .RequireRateLimiting(Limites.Login)
             .WithSummary("Inicia sesión y devuelve el par access/refresh token.");
 
+        // La única alta pública: padre o madre con el código que le dio su centro.
+        group.MapPost("/registro-padre", async (RegistroPadreRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>
+                (await auth.RegistrarPadreAsync(request, IpCliente.De(http), ct)).ToHttp())
+            .AllowAnonymous()
+            .RequireRateLimiting(Limites.Login)
+            .WithSummary("Crea la cuenta de padre o madre con el código de familia del centro.");
+
         group.MapPost("/refresh", async (RefreshRequest request, IAuthService auth, HttpContext http, CancellationToken ct) =>
                 (await auth.RefreshAsync(request, IpCliente.De(http), ct)).ToHttp())
             .AllowAnonymous()

@@ -89,6 +89,18 @@ class AuthController extends Notifier<AuthState> {
     });
   }
 
+  /// Padre o madre: crea su cuenta con el código de familia que le dio el centro.
+  Future<bool> registrarPadre({required String codigo, required String email, required String password, required String nombre}) {
+    _storage.recordar = true;
+    return _authenticate('/auth/registro-padre', {
+      'codigo': codigo.trim(),
+      'email': email.trim(),
+      'password': password,
+      'fullName': nombre.trim(),
+      'deviceName': 'ProfeApp',
+    });
+  }
+
   /// Borra la base local que quedó en este navegador, salvo la de [salvo].
   Future<void> _borrarDatosWeb({String? salvo}) async {
     if (!kIsWeb) return;

@@ -86,6 +86,20 @@ public static class AdminEndpoints
         centro.MapPut("/matriculas/{id:guid}/seccion", async (Guid id, CambioSeccionRequest r, IMatriculaService s, CancellationToken ct) =>
             (await s.CambiarSeccionAsync(id, r, ct)).ToHttp());
 
+        // Familias: código para que el padre cree su cuenta, cuentas vinculadas y comunicados.
+        centro.MapGet("/alumnos/{id:guid}/familia", async (Guid id, IFamiliasCentroService s, CancellationToken ct) =>
+            (await s.FamiliaAsync(id, ct)).ToHttp());
+        centro.MapPost("/alumnos/{id:guid}/familia/codigo", async (Guid id, IFamiliasCentroService s, CancellationToken ct) =>
+                (await s.GenerarCodigoAsync(id, ct)).ToHttp())
+            .WithSummary("Código nuevo para la familia (30 días); anula el anterior.");
+        centro.MapDelete("/alumnos/{id:guid}/familia/{usuarioId:guid}", async (Guid id, Guid usuarioId, IFamiliasCentroService s, CancellationToken ct) =>
+            (await s.QuitarAccesoAsync(id, usuarioId, ct)).ToHttp());
+        centro.MapGet("/comunicados", async (IFamiliasCentroService s, CancellationToken ct) => (await s.ComunicadosAsync(ct)).ToHttp());
+        centro.MapPost("/comunicados", async (ComunicadoRequest r, IFamiliasCentroService s, CancellationToken ct) =>
+            (await s.PublicarAsync(r, ct)).ToHttp());
+        centro.MapDelete("/comunicados/{id:guid}", async (Guid id, IFamiliasCentroService s, CancellationToken ct) =>
+            (await s.EliminarComunicadoAsync(id, ct)).ToHttp());
+
         // Personal: dirección, subdirección, secretaría y orientación.
         centro.MapGet("/personal", async (IEstructuraCentroService s, CancellationToken ct) => (await s.PersonalAsync(ct)).ToHttp());
         centro.MapPost("/personal", async (CrearPersonalRequest r, IEstructuraCentroService s, CancellationToken ct) =>
@@ -104,6 +118,19 @@ public static class AdminEndpoints
         app.MapGet("/api/v1/mi-centro/carga", async (IMiCargaService s, CancellationToken ct) => Results.Ok(await s.ObtenerAsync(ct)))
             .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario)
             .WithSummary("Secciones del año actual donde el docente da clase o es guía, con su lista de matrícula.");
+
+        // Padres: sus hijos vinculados, su avance y los comunicados del centro.
+        var padres = app.MapGroup("/api/v1/padres").WithTags("Padres").RequireAuthorization(Policies.PadreOnly)
+            .RequireRateLimiting(Limites.Usuario);
+        padres.MapGet("/hijos", async (IPadresService s, CancellationToken ct) => Results.Ok(await s.HijosAsync(ct)));
+        padres.MapPost("/vincular", async (CodigoRequest r, IPadresService s, CancellationToken ct) => (await s.VincularAsync(r, ct)).ToHttp())
+            .RequireRateLimiting(Limites.Sensible)
+            .WithSummary("Agrega otro hijo con el código que dio el centro.");
+        padres.MapGet("/hijos/{id:guid}", async (Guid id, IPadresService s, CancellationToken ct) => (await s.ResumenAsync(id, ct)).ToHttp())
+            .WithSummary("Notas por asignatura y parcial, asistencia y próximas entregas del hijo.");
+        padres.MapGet("/comunicados", async (IPadresService s, CancellationToken ct) => Results.Ok(await s.ComunicadosAsync(ct)));
+        padres.MapPost("/comunicados/{id:guid}/leido", async (Guid id, IPadresService s, CancellationToken ct) =>
+            (await s.MarcarLeidoAsync(id, ct)).ToHttp());
 
         var plataforma = app.MapGroup("/api/v1/plataforma").WithTags("Plataforma").RequireAuthorization(Policies.PlatformOnly)
             .RequireRateLimiting(Limites.Usuario);

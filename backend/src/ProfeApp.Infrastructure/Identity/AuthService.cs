@@ -5,6 +5,7 @@ using Microsoft.Extensions.Caching.Memory;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
+using ProfeApp.Domain.Centros;
 using ProfeApp.Domain.Common;
 using ProfeApp.Domain.Tenants;
 using ProfeApp.Infrastructure.Cobros;
@@ -66,6 +67,43 @@ public sealed class AuthService(
         });
         if (failure is not null) return Result<AuthResponse>.Fail(Error.Validation(failure));
 
+        return await IssueAsync(user, ip, request.DeviceName, ct);
+    }
+
+    public async Task<Result<AuthResponse>> RegistrarPadreAsync(RegistroPadreRequest request, string? ip, CancellationToken ct = default)
+    {
+        var email = (request.Email ?? "").Trim().ToLowerInvariant();
+        if (!CorreoValido(email)) return Result<AuthResponse>.Fail(Error.Validation("El correo no es válido."));
+        if (string.IsNullOrWhiteSpace(request.FullName) || request.FullName.Length > 120)
+            return Result<AuthResponse>.Fail(Error.Validation("El nombre es obligatorio (hasta 120 caracteres)."));
+
+        var codigo = Centros.CodigosFamilia.Normalizar(request.Codigo);
+        var vigente = await db.CodigosFamilia.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Codigo == codigo && c.ExpiraEn > clock.Now, ct);
+        if (vigente is null || !await db.Instituciones.AnyAsync(i => i.Id == vigente.InstitucionId && i.Activa, ct))
+            return Result<AuthResponse>.Fail(Error.Validation("El código no es válido o ya venció. Pide uno nuevo en el centro.", "codigo_invalido"));
+        if (await db.VinculosFamiliares.CountAsync(v => v.AlumnoId == vigente.AlumnoId, ct) >= Centros.CodigosFamilia.MaxCuentasPorAlumno)
+            return Result<AuthResponse>.Fail(Error.Conflict("Este alumno ya tiene el máximo de cuentas de familia. Habla con el centro."));
+        if (await users.FindByEmailAsync(email) is not null)
+            return Result<AuthResponse>.Fail(Error.Conflict(
+                "Ya existe una cuenta con ese correo. Entra con ella y agrega el código desde tu cuenta.", "email_taken"));
+
+        var user = new AppUser { Id = Guid.NewGuid(), UserName = email, Email = email, FullName = request.FullName.Trim(), CreatedAt = clock.Now };
+        var failure = await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
+        {
+            await using var transaction = await db.Database.BeginTransactionAsync(ct);
+            var created = await users.CreateAsync(user, request.Password);
+            if (!created.Succeeded) return string.Join(" ", created.Errors.Select(e => e.Description));
+            await users.AddToRoleAsync(user, Roles.Padre);
+            db.VinculosFamiliares.Add(new VinculoFamiliar
+            {
+                InstitucionId = vigente.InstitucionId, AlumnoId = vigente.AlumnoId, UsuarioId = user.Id, CreatedAt = clock.Now,
+            });
+            await db.SaveChangesAsync(ct);
+            await transaction.CommitAsync(ct);
+            return null;
+        });
+        if (failure is not null) return Result<AuthResponse>.Fail(Error.Validation(failure));
         return await IssueAsync(user, ip, request.DeviceName, ct);
     }
 
@@ -290,7 +328,7 @@ public sealed class AuthService(
     {
         var (cuenta, plan) = await cobros.DeUsuarioAsync(user.Id, ct);
         return new(user.Id, user.Email!, user.FullName, role, user.TenantId, user.MustChangePassword,
-            role == Roles.PlatformAdmin ? null : cobros.Describir(cuenta, plan));
+            role is Roles.PlatformAdmin or Roles.Padre ? null : cobros.Describir(cuenta, plan));
     }
 
     /// <summary>Formato de correo razonable y dentro del largo que admite la base.</summary>

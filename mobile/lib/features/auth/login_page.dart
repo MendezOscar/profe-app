@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/auth_controller.dart';
@@ -148,6 +149,12 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         textAlign: TextAlign.center,
                       ),
                     ),
+                  const SizedBox(height: Espacio.m),
+                  OutlinedButton.icon(
+                    onPressed: auth.isLoading ? null : () => context.go('/registro-familia'),
+                    icon: const Icon(Icons.family_restroom_outlined),
+                    label: const Text('Soy padre o madre'),
+                  ),
                   const SizedBox(height: Espacio.xl),
                   Wrap(
                     alignment: WrapAlignment.center,
