@@ -10,6 +10,7 @@ import '../../ui/shell.dart';
 import 'admin_comun.dart';
 import 'centro/comun_centro.dart';
 import 'centro/estructura_tabs.dart';
+import 'centro/matricula.dart';
 import 'centro/personal_tab.dart';
 import 'centro/secciones_tab.dart';
 import '../../theme/tokens.dart';
@@ -30,7 +31,7 @@ class CentroPage extends ConsumerStatefulWidget {
 }
 
 class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProviderStateMixin {
-  late final _tabs = TabController(length: 6, vsync: this)..addListener(() => setState(() {}));
+  late final _tabs = TabController(length: 7, vsync: this)..addListener(() => setState(() {}));
 
   @override
   void dispose() {
@@ -69,6 +70,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
             Tab(text: 'Año lectivo'),
             Tab(text: 'Grados'),
             Tab(text: 'Secciones'),
+            Tab(text: 'Alumnos'),
             Tab(text: 'Aulas'),
             Tab(text: 'Personal'),
           ],
@@ -89,6 +91,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
           const AniosTab(),
           const GradosTab(),
           const SeccionesTab(),
+          const AlumnosTab(),
           const AulasTab(),
           PersonalTab(puedeEditar: puedeEditar),
         ],

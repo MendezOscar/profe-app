@@ -6,6 +6,7 @@ import '../../../theme/tokens.dart';
 import '../../../ui/estado_vacio.dart';
 import 'comun_centro.dart';
 import 'estructura_tabs.dart';
+import 'matricula.dart';
 
 /// Secciones del año elegido: grado, jornada, aula, maestro guía y qué docente da cada asignatura.
 class SeccionesTab extends ConsumerWidget {
@@ -94,7 +95,7 @@ class _Seccion extends ConsumerWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: Espacio.s),
       child: InkWell(
-        onTap: () => _carga(context, ref, seccion, grado, datos, editar),
+        onTap: () => _alumnos(context, seccion, grado, editar),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.m, Espacio.xs, Espacio.m),
           child: Row(
@@ -111,7 +112,7 @@ class _Seccion extends ConsumerWidget {
                       [
                         'Aula: ${aulas[seccion['aulaId']] ?? 'sin asignar'}',
                         'Guía: ${docentes[seccion['maestroGuiaId']] ?? 'sin asignar'}',
-                        if (seccion['cupo'] != null) 'Cupo: ${seccion['cupo']}',
+                        'Alumnos: ${seccion['matriculados']}${seccion['cupo'] == null ? '' : ' de ${seccion['cupo']}'}',
                       ].join(' · '),
                       style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
                     ),
@@ -125,39 +126,41 @@ class _Seccion extends ConsumerWidget {
                   ],
                 ),
               ),
-              if (editar)
-                PopupMenuButton<String>(
-                  tooltip: 'Más opciones',
-                  onSelected: (o) async {
-                    switch (o) {
-                      case 'carga':
-                        await _carga(context, ref, seccion, grado, datos, editar);
-                      case 'editar':
-                        await _editarSeccion(context, ref, datos, seccion);
-                      case 'eliminar':
-                        if (await confirmar(
-                              context,
-                              titulo: 'Eliminar ${grado['nombre']} ${seccion['nombre']}',
-                              mensaje: 'Se elimina la sección con su carga docente.',
-                            ) &&
-                            context.mounted) {
-                          await accionCentro(
+              PopupMenuButton<String>(
+                tooltip: 'Más opciones',
+                onSelected: (o) async {
+                  switch (o) {
+                    case 'alumnos':
+                      _alumnos(context, seccion, grado, editar);
+                    case 'carga':
+                      await _carga(context, ref, seccion, grado, datos, editar);
+                    case 'editar':
+                      await _editarSeccion(context, ref, datos, seccion);
+                    case 'eliminar':
+                      if (await confirmar(
                             context,
-                            ref,
-                            (api) => api.delete('/centro/secciones/${seccion['id']}'),
-                            listo: 'Sección eliminada.',
-                          );
-                        }
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(value: 'carga', child: Text('Carga docente')),
+                            titulo: 'Eliminar ${grado['nombre']} ${seccion['nombre']}',
+                            mensaje: 'Se elimina la sección con su carga docente.',
+                          ) &&
+                          context.mounted) {
+                        await accionCentro(
+                          context,
+                          ref,
+                          (api) => api.delete('/centro/secciones/${seccion['id']}'),
+                          listo: 'Sección eliminada.',
+                        );
+                      }
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'alumnos', child: Text('Alumnos')),
+                  const PopupMenuItem(value: 'carga', child: Text('Carga docente')),
+                  if (editar) ...const [
                     PopupMenuItem(value: 'editar', child: Text('Editar sección')),
                     PopupMenuItem(value: 'eliminar', child: Text('Eliminar')),
                   ],
-                )
-              else
-                const Icon(Icons.chevron_right),
+                ],
+              ),
             ],
           ),
         ),
@@ -165,6 +168,17 @@ class _Seccion extends ConsumerWidget {
     );
   }
 }
+
+void _alumnos(BuildContext context, Map<String, dynamic> seccion, Map<String, dynamic> grado, bool editar) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => AlumnosSeccionPage(
+          seccion: seccion,
+          titulo: '${grado['nombre']} ${seccion['nombre']} · ${jornadas[seccion['jornada']]}',
+          editar: editar,
+        ),
+      ),
+    );
 
 /// Docentes activos para elegir, más el ya asignado aunque esté inactivo (para no perderlo de vista).
 List<DropdownMenuItem<String?>> _opcionesDocente(Map<String, dynamic> datos, String? actual, String vacio) => [

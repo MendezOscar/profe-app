@@ -64,6 +64,28 @@ public static class AdminEndpoints
                 (await s.GuardarCargaAsync(id, r, ct)).ToHttp())
             .WithSummary("Reemplaza qué docente da cada asignatura en la sección.");
 
+        // Matrícula y fichas: la lista de cada sección se importa del archivo de SACE.
+        centro.MapGet("/secciones/{id:guid}/alumnos", async (Guid id, IMatriculaService s, CancellationToken ct) =>
+            (await s.AlumnosDeSeccionAsync(id, ct)).ToHttp());
+        centro.MapPost("/secciones/{id:guid}/importar", async (Guid id, ImportarAlumnosRequest r, IMatriculaService s, CancellationToken ct) =>
+                (await s.ImportarAsync(id, r, ct)).ToHttp())
+            .WithSummary("Matricula en la sección a los alumnos leídos del archivo de SACE.");
+        centro.MapPost("/secciones/{id:guid}/alumnos", async (Guid id, MatricularRequest r, IMatriculaService s, CancellationToken ct) =>
+            (await s.MatricularAsync(id, r, ct)).ToHttp());
+        centro.MapGet("/alumnos", async (string? buscar, int? pagina, IMatriculaService s, CancellationToken ct) =>
+                (await s.BuscarAsync(buscar, pagina ?? 0, ct)).ToHttp())
+            .WithSummary("Alumnos del centro por nombre o identidad, por páginas.");
+        centro.MapGet("/alumnos/{id:guid}", async (Guid id, IMatriculaService s, CancellationToken ct) =>
+            (await s.FichaAsync(id, ct)).ToHttp());
+        centro.MapPut("/alumnos/{id:guid}", async (Guid id, FichaAlumnoRequest r, IMatriculaService s, CancellationToken ct) =>
+            (await s.GuardarFichaAsync(id, r, ct)).ToHttp());
+        centro.MapPost("/matriculas/{id:guid}/baja", async (Guid id, BajaRequest r, IMatriculaService s, CancellationToken ct) =>
+            (await s.DarDeBajaAsync(id, r, ct)).ToHttp());
+        centro.MapPost("/matriculas/{id:guid}/reactivar", async (Guid id, IMatriculaService s, CancellationToken ct) =>
+            (await s.ReactivarAsync(id, ct)).ToHttp());
+        centro.MapPut("/matriculas/{id:guid}/seccion", async (Guid id, CambioSeccionRequest r, IMatriculaService s, CancellationToken ct) =>
+            (await s.CambiarSeccionAsync(id, r, ct)).ToHttp());
+
         // Personal: dirección, subdirección, secretaría y orientación.
         centro.MapGet("/personal", async (IEstructuraCentroService s, CancellationToken ct) => (await s.PersonalAsync(ct)).ToHttp());
         centro.MapPost("/personal", async (CrearPersonalRequest r, IEstructuraCentroService s, CancellationToken ct) =>

@@ -24,7 +24,7 @@ public sealed class EstructuraCentroService(
     AdminService admin,
     IClock clock) : IEstructuraCentroService
 {
-    private const string SinCentro = "Tu cuenta no administra un centro.";
+    internal const string SinCentro = "Tu cuenta no administra un centro.";
 
     // ── Lectura ──────────────────────────────────────────────────────────────
 
@@ -49,6 +49,10 @@ public sealed class EstructuraCentroService(
         var idsSecciones = secciones.Select(s => s.Id).ToList();
         var carga = (await db.CargasDocentes.AsNoTracking().Where(c => idsSecciones.Contains(c.SeccionId)).ToListAsync(ct))
             .ToLookup(c => c.SeccionId);
+        var matriculados = await db.Matriculas
+            .Where(m => idsSecciones.Contains(m.SeccionId) && m.Estado == EstadosMatricula.Activa)
+            .GroupBy(m => m.SeccionId).Select(g => new { g.Key, N = g.Count() })
+            .ToDictionaryAsync(x => x.Key, x => x.N, ct);
 
         var ordenGrado = grados.ToDictionary(g => g.Id, g => (g.Orden, g.Nombre));
         var docentes = await DocentesQuery(id).OrderBy(u => u.FullName)
@@ -63,7 +67,7 @@ public sealed class EstructuraCentroService(
             aulas.Select(a => new AulaDto(a.Id, a.Nombre, a.Capacidad)).ToList(),
             secciones
                 .OrderBy(s => ordenGrado.GetValueOrDefault(s.GradoId).Orden).ThenBy(s => s.Jornada).ThenBy(s => s.Nombre)
-                .Select(s => ADto(s, carga[s.Id])).ToList(),
+                .Select(s => ADto(s, carga[s.Id], matriculados.GetValueOrDefault(s.Id))).ToList(),
             docentes);
     }
 
@@ -299,6 +303,8 @@ public sealed class EstructuraCentroService(
             ? await db.Secciones.FirstOrDefaultAsync(s => s.Id == sid && s.InstitucionId == centro.Id, ct)
             : new Seccion { InstitucionId = centro.Id };
         if (seccion is null) return Result<SeccionDto>.Fail(Error.NotFound("La sección"));
+        if (id is not null && seccion.AnioLectivoId != r.AnioLectivoId && await db.Matriculas.AnyAsync(m => m.SeccionId == seccion.Id, ct))
+            return Result<SeccionDto>.Fail(Error.Conflict("La sección tiene alumnos matriculados: no se cambia de año."));
         if (id is not null && seccion.GradoId != r.GradoId && await db.CargasDocentes.AnyAsync(c => c.SeccionId == seccion.Id, ct))
             return Result<SeccionDto>.Fail(Error.Conflict("La sección ya tiene carga docente; para cambiarla de grado, quita primero la carga."));
         if (await db.Secciones.AnyAsync(s => s.AnioLectivoId == r.AnioLectivoId && s.GradoId == r.GradoId
@@ -325,6 +331,8 @@ public sealed class EstructuraCentroService(
         if (centro is null) return Result.Fail(error!);
         var seccion = await db.Secciones.FirstOrDefaultAsync(s => s.Id == id && s.InstitucionId == centro.Id, ct);
         if (seccion is null) return Result.Fail(Error.NotFound("La sección"));
+        if (await db.Matriculas.AnyAsync(m => m.SeccionId == id, ct))
+            return Result.Fail(Error.Conflict("La sección tiene alumnos matriculados. Muévelos a otra sección primero.", "seccion_con_alumnos"));
         db.Secciones.Remove(seccion);
         await db.SaveChangesAsync(ct);
         return Result.Success();
@@ -419,7 +427,7 @@ public sealed class EstructuraCentroService(
 
     // ── Apoyo ────────────────────────────────────────────────────────────────
 
-    private async Task<(Institucion? Centro, AppUser? Yo)> ContextoAsync(CancellationToken ct)
+    internal async Task<(Institucion? Centro, AppUser? Yo)> ContextoAsync(CancellationToken ct)
     {
         var yo = await users.FindByIdAsync(currentUser.RequireUserId().ToString());
         if (yo?.InstitucionId is not { } id || !await users.IsInRoleAsync(yo, Roles.AdminCentro)) return (null, yo);
@@ -427,7 +435,7 @@ public sealed class EstructuraCentroService(
     }
 
     /// <summary>El centro de quien llama, si su cargo administra y la licencia está al día.</summary>
-    private async Task<(Institucion? Centro, Error? Error)> EditorAsync(CancellationToken ct)
+    internal async Task<(Institucion? Centro, Error? Error)> EditorAsync(CancellationToken ct)
     {
         var (centro, yo) = await ContextoAsync(ct);
         if (centro is null) return (null, Error.Forbidden(SinCentro));
@@ -466,7 +474,7 @@ public sealed class EstructuraCentroService(
         new(g.Id, g.Nivel, g.Nombre, g.Orden,
             asignaturas.OrderBy(a => a.Orden).ThenBy(a => a.Nombre).Select(a => new AsignaturaGradoDto(a.Id, a.Nombre, a.Orden)).ToList());
 
-    private static SeccionDto ADto(Seccion s, IEnumerable<CargaDocente> carga) =>
+    private static SeccionDto ADto(Seccion s, IEnumerable<CargaDocente> carga, int matriculados = 0) =>
         new(s.Id, s.GradoId, s.Nombre, s.Jornada, s.Cupo, s.AulaId, s.MaestroGuiaId,
-            carga.Select(c => new AsignacionDto(c.AsignaturaGradoId, c.DocenteId)).ToList());
+            carga.Select(c => new AsignacionDto(c.AsignaturaGradoId, c.DocenteId)).ToList(), matriculados);
 }

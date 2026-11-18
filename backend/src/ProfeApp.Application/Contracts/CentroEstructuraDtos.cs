@@ -35,7 +35,7 @@ public sealed record AulaRequest(string Nombre, int? Capacidad);
 
 public sealed record SeccionDto(
     Guid Id, Guid GradoId, string Nombre, string Jornada, int? Cupo, Guid? AulaId, Guid? MaestroGuiaId,
-    IReadOnlyList<AsignacionDto> Carga);
+    IReadOnlyList<AsignacionDto> Carga, int Matriculados = 0);
 
 public sealed record SeccionRequest(
     Guid AnioLectivoId, Guid GradoId, string Nombre, string Jornada, int? Cupo, Guid? AulaId, Guid? MaestroGuiaId);
@@ -53,3 +53,50 @@ public sealed record PersonalDto(Guid Id, string Nombre, string Email, string? C
 public sealed record CrearPersonalRequest(string Email, string Nombre, string Cargo);
 
 public sealed record CargoRequest(string Cargo);
+
+// ── Matrícula y fichas ───────────────────────────────────────────────────────
+
+/// <summary>Un alumno en la lista de una sección, con el estado de su matrícula.</summary>
+public sealed record AlumnoSeccionDto(
+    Guid MatriculaId, Guid AlumnoId, string Identidad, string Nombre, string? Sexo,
+    string Tipo, string Estado, DateOnly FechaIngreso, DateOnly? FechaBaja, string? MotivoBaja);
+
+public sealed record AlumnoImportado(string Identidad, string Nombre);
+
+/// <summary>
+/// Lista de una sección leída del archivo de SACE. Quien ya está matriculado en otra
+/// sección del mismo año no se mueve, salvo con <c>MoverDeSeccion</c>.
+/// </summary>
+public sealed record ImportarAlumnosRequest(IReadOnlyList<AlumnoImportado> Alumnos, bool MoverDeSeccion = false);
+
+public sealed record ConflictoMatriculaDto(string Identidad, string Nombre, string Seccion);
+
+public sealed record ImportacionDto(
+    int Nuevos, int YaEstaban, int Movidos, IReadOnlyList<ConflictoMatriculaDto> EnOtraSeccion, int Activos, int? Cupo);
+
+public sealed record MatricularRequest(string Identidad, string Nombre, string Tipo, DateOnly? FechaIngreso = null);
+
+public sealed record EncargadoDto(string Nombre, string? Parentesco, string? Telefono, string? Correo, bool Principal);
+
+public sealed record MatriculaHistorialDto(
+    Guid Id, int Anio, Guid SeccionId, string Seccion, string Tipo, string Estado,
+    DateOnly FechaIngreso, DateOnly? FechaBaja, string? MotivoBaja);
+
+public sealed record FichaAlumnoDto(
+    Guid Id, string Identidad, string Nombre, DateOnly? FechaNacimiento, string? Sexo, string? Direccion,
+    string? Salud, string? Notas, IReadOnlyList<EncargadoDto> Encargados, IReadOnlyList<MatriculaHistorialDto> Matriculas,
+    bool PuedeEditar);
+
+public sealed record FichaAlumnoRequest(
+    string Identidad, string Nombre, DateOnly? FechaNacimiento, string? Sexo, string? Direccion,
+    string? Salud, string? Notas, IReadOnlyList<EncargadoDto> Encargados);
+
+/// <summary><c>Estado</c>: retirada o trasladada.</summary>
+public sealed record BajaRequest(string Estado, DateOnly Fecha, string? Motivo);
+
+public sealed record CambioSeccionRequest(Guid SeccionId);
+
+/// <summary><c>Seccion</c> y <c>Estado</c> son de su matrícula en el año actual, si tiene.</summary>
+public sealed record AlumnoBuscadoDto(Guid Id, string Identidad, string Nombre, string? Seccion, string? Estado);
+
+public sealed record PaginaAlumnosDto(IReadOnlyList<AlumnoBuscadoDto> Alumnos, int Total, bool Mas);

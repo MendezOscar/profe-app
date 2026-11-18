@@ -65,7 +65,9 @@ public static class DependencyInjection
         services.AddHostedService(p => p.GetRequiredService<LimpiezaService>());
         services.AddScoped<ICentroService>(p => p.GetRequiredService<AdminService>());
         services.AddScoped<IPlataformaService>(p => p.GetRequiredService<AdminService>());
-        services.AddScoped<IEstructuraCentroService, Centros.EstructuraCentroService>();
+        services.AddScoped<Centros.EstructuraCentroService>();
+        services.AddScoped<IEstructuraCentroService>(p => p.GetRequiredService<Centros.EstructuraCentroService>());
+        services.AddScoped<IMatriculaService, Centros.MatriculaService>();
 
         return services;
     }

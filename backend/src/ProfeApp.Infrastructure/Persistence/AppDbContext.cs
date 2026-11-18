@@ -35,6 +35,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<Aula> Aulas => Set<Aula>();
     public DbSet<Seccion> Secciones => Set<Seccion>();
     public DbSet<CargaDocente> CargasDocentes => Set<CargaDocente>();
+    public DbSet<Alumno> Alumnos => Set<Alumno>();
+    public DbSet<Encargado> Encargados => Set<Encargado>();
+    public DbSet<Matricula> Matriculas => Set<Matricula>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

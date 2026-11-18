@@ -82,3 +82,50 @@ public class CargaDocenteConfig : IEntityTypeConfiguration<CargaDocente>
         b.HasIndex(x => x.DocenteId);
     }
 }
+
+public class AlumnoConfig : IEntityTypeConfiguration<Alumno>
+{
+    public void Configure(EntityTypeBuilder<Alumno> b)
+    {
+        b.ToTable("alumnos");
+        b.Property(x => x.Identidad).HasMaxLength(30).IsRequired();
+        b.Property(x => x.Nombre).HasMaxLength(160).IsRequired();
+        b.Property(x => x.Sexo).HasMaxLength(1);
+        b.Property(x => x.Direccion).HasMaxLength(300);
+        b.Property(x => x.Salud).HasMaxLength(1000);
+        b.Property(x => x.Notas).HasMaxLength(1000);
+        b.HasOne<Institucion>().WithMany().HasForeignKey(x => x.InstitucionId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.InstitucionId, x.Identidad }).IsUnique();
+    }
+}
+
+public class EncargadoConfig : IEntityTypeConfiguration<Encargado>
+{
+    public void Configure(EntityTypeBuilder<Encargado> b)
+    {
+        b.ToTable("encargados");
+        b.Property(x => x.Nombre).HasMaxLength(160).IsRequired();
+        b.Property(x => x.Parentesco).HasMaxLength(40);
+        b.Property(x => x.Telefono).HasMaxLength(30);
+        b.Property(x => x.Correo).HasMaxLength(160);
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => x.AlumnoId);
+    }
+}
+
+public class MatriculaConfig : IEntityTypeConfiguration<Matricula>
+{
+    public void Configure(EntityTypeBuilder<Matricula> b)
+    {
+        b.ToTable("matriculas");
+        b.Property(x => x.Tipo).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Estado).HasMaxLength(20).IsRequired();
+        b.Property(x => x.MotivoBaja).HasMaxLength(300);
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<AnioLectivo>().WithMany().HasForeignKey(x => x.AnioLectivoId).OnDelete(DeleteBehavior.Restrict);
+        // Una sección con alumnos no se borra: primero se mueven o se retiran.
+        b.HasOne<Seccion>().WithMany().HasForeignKey(x => x.SeccionId).OnDelete(DeleteBehavior.Restrict);
+        b.HasIndex(x => new { x.AlumnoId, x.AnioLectivoId }).IsUnique();
+        b.HasIndex(x => new { x.SeccionId, x.Estado });
+    }
+}
