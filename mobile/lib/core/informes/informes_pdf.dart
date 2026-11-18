@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
@@ -505,6 +507,133 @@ class InformesPdf {
         ],
       ),
     ));
+    return doc.save();
+  }
+
+  // ── Carnet estudiantil ──────────────────────────────────────────────────────
+
+  /// Carnets tamaño tarjeta (85.6 × 54 mm), 8 por hoja carta para recortar. [c] es lo que
+  /// devuelve la API: centro, color, lema, logo y alumnos (con foto en base64).
+  static Future<Uint8List> carnets(Map<String, dynamic> c) async {
+    await _cargar();
+    final centro = c['centro'] as String;
+    final doc = pw.Document(theme: _tema, title: 'Carnets $centro', author: centro);
+    final color = PdfColor.fromHex(c['color'] as String);
+    final claro = color.luminance > 0.6;
+    final sobreColor = claro ? _marino : PdfColors.white;
+    final logo = c['logo'] == null ? null : pw.MemoryImage(base64Decode(c['logo'] as String));
+    final lema = c['lema'] as String?;
+    final anio = c['anio'];
+    final alumnos = (c['alumnos'] as List).cast<Map<String, dynamic>>();
+    const ancho = 85.6 * PdfPageFormat.mm;
+    const alto = 54 * PdfPageFormat.mm;
+    final borde = PdfColor.fromInt(0xFFB0B7C3);
+
+    pw.Widget dato(String etiqueta, String valor) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 2.5),
+          child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+            pw.Text(etiqueta.toUpperCase(), style: const pw.TextStyle(fontSize: 4.5, color: _suave)),
+            pw.Text(valor, style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold, color: _marino), maxLines: 1),
+          ]),
+        );
+
+    pw.Widget tarjeta(Map<String, dynamic> a) => pw.Container(
+          width: ancho,
+          height: alto,
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: borde, width: 0.5),
+            borderRadius: pw.BorderRadius.circular(3 * PdfPageFormat.mm),
+          ),
+          child: pw.ClipRRect(
+            horizontalRadius: 3 * PdfPageFormat.mm,
+            verticalRadius: 3 * PdfPageFormat.mm,
+            child: pw.Column(children: [
+              pw.Container(
+                height: 12 * PdfPageFormat.mm,
+                color: color,
+                padding: const pw.EdgeInsets.symmetric(horizontal: 6),
+                child: pw.Row(children: [
+                  if (logo != null) ...[
+                    pw.Container(
+                      width: 9 * PdfPageFormat.mm,
+                      height: 9 * PdfPageFormat.mm,
+                      padding: const pw.EdgeInsets.all(1),
+                      decoration: pw.BoxDecoration(color: PdfColors.white, borderRadius: pw.BorderRadius.circular(2)),
+                      child: pw.Image(logo, fit: pw.BoxFit.contain),
+                    ),
+                    pw.SizedBox(width: 5),
+                  ],
+                  pw.Expanded(
+                    child: pw.Column(
+                      mainAxisAlignment: pw.MainAxisAlignment.center,
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text(centro.toUpperCase(),
+                            maxLines: 2, style: pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold, color: sobreColor)),
+                        pw.Text('CARNET ESTUDIANTIL $anio', style: pw.TextStyle(fontSize: 5, color: sobreColor, letterSpacing: 0.5)),
+                      ],
+                    ),
+                  ),
+                ]),
+              ),
+              pw.Expanded(
+                child: pw.Padding(
+                  padding: const pw.EdgeInsets.fromLTRB(6, 5, 6, 3),
+                  child: pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                    pw.Container(
+                      width: 21 * PdfPageFormat.mm,
+                      height: 28 * PdfPageFormat.mm,
+                      decoration: pw.BoxDecoration(border: pw.Border.all(color: borde, width: 0.5)),
+                      child: a['foto'] == null
+                          ? pw.Center(child: pw.Text('FOTO', style: const pw.TextStyle(fontSize: 6, color: _suave)))
+                          : pw.Image(pw.MemoryImage(base64Decode(a['foto'] as String)), fit: pw.BoxFit.cover),
+                    ),
+                    pw.SizedBox(width: 6),
+                    pw.Expanded(
+                      child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                        pw.Text('${a['nombre']}',
+                            maxLines: 2, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: _marino)),
+                        dato('Identidad', '${a['identidad']}'),
+                        dato('Grado y sección', '${a['seccion']}'),
+                        dato('Jornada', '${a['jornada']}'.isEmpty ? '' : '${a['jornada'][0].toUpperCase()}${'${a['jornada']}'.substring(1)}'),
+                      ]),
+                    ),
+                    pw.BarcodeWidget(
+                      barcode: pw.Barcode.qrCode(),
+                      data: 'ProfeApp|$centro|${a['identidad']}|${a['nombre']}|$anio',
+                      width: 14 * PdfPageFormat.mm,
+                      height: 14 * PdfPageFormat.mm,
+                      color: _marino,
+                    ),
+                  ]),
+                ),
+              ),
+              pw.Container(
+                height: 4.5 * PdfPageFormat.mm,
+                width: double.infinity,
+                color: color,
+                alignment: pw.Alignment.center,
+                child: lema == null
+                    ? null
+                    : pw.Text(lema, maxLines: 1, style: pw.TextStyle(fontSize: 5, color: sobreColor, fontStyle: pw.FontStyle.italic)),
+              ),
+            ]),
+          ),
+        );
+
+    const porHoja = 8;
+    for (var i = 0; i < alumnos.length; i += porHoja) {
+      final hoja = alumnos.skip(i).take(porHoja).toList();
+      doc.addPage(pw.Page(
+        pageFormat: PdfPageFormat.letter,
+        margin: const pw.EdgeInsets.all(12 * PdfPageFormat.mm),
+        build: (context) => pw.Wrap(
+          spacing: 8 * PdfPageFormat.mm,
+          runSpacing: 6 * PdfPageFormat.mm,
+          children: [for (final a in hoja) tarjeta(a)],
+        ),
+      ));
+    }
     return doc.save();
   }
 }

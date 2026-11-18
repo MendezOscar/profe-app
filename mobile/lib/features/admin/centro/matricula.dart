@@ -12,6 +12,7 @@ import '../../../theme/tokens.dart';
 import '../../../ui/esqueleto.dart';
 import '../../../ui/estado_error.dart';
 import '../../../ui/estado_vacio.dart';
+import 'carnet.dart';
 import 'comun_centro.dart';
 import 'convivencia_tab.dart';
 import 'familias_centro.dart';
@@ -458,9 +459,17 @@ class _AlumnosTabState extends ConsumerState<AlumnosTab> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.xxxl),
           children: [
-            const EncabezadoPestana(
+            EncabezadoPestana(
               titulo: 'Alumnos',
-              ayuda: 'Busca por nombre o identidad para ver su ficha. Para matricular, entra a la sección.',
+              ayuda: 'Busca por nombre o identidad para ver su ficha. Para matricular, entra a la sección. '
+                  'Los carnets de toda una sección salen del menú de la sección.',
+              acciones: [
+                OutlinedButton.icon(
+                  onPressed: () => disenoCarnet(context, ref),
+                  icon: const Icon(Icons.badge_outlined),
+                  label: const Text('Diseño del carnet'),
+                ),
+              ],
             ),
             TextField(
               controller: _buscar,
@@ -657,6 +666,13 @@ class _FormFichaState extends ConsumerState<_FormFicha> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, Espacio.xxxl),
           children: [
+            FotoCarnet(
+              alumnoId: d['id'] as String,
+              nombre: d['nombre'] as String,
+              editar: _editar,
+              activo: matriculas.any((m) => m['estado'] == 'activa'),
+            ),
+            const SizedBox(height: Espacio.xl),
             Text('DATOS', style: text.labelSmall),
             const SizedBox(height: Espacio.s),
             campo(_nombre, 'Nombre completo'),

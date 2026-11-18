@@ -267,3 +267,27 @@ public class IncidenciaConfig : IEntityTypeConfiguration<Incidencia>
         b.HasIndex(x => x.RegistradaPor);
     }
 }
+
+public class FotoAlumnoConfig : IEntityTypeConfiguration<FotoAlumno>
+{
+    public void Configure(EntityTypeBuilder<FotoAlumno> b)
+    {
+        b.ToTable("fotos_alumno");
+        b.Property(x => x.Contenido).IsRequired();
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => x.AlumnoId).IsUnique();
+    }
+}
+
+public class MarcaCentroConfig : IEntityTypeConfiguration<MarcaCentro>
+{
+    public void Configure(EntityTypeBuilder<MarcaCentro> b)
+    {
+        b.ToTable("marcas_centro");
+        b.Property(x => x.TipoLogo).HasMaxLength(20);
+        b.Property(x => x.Color).HasMaxLength(7).IsRequired();
+        b.Property(x => x.Lema).HasMaxLength(120);
+        b.HasOne<Institucion>().WithMany().HasForeignKey(x => x.InstitucionId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => x.InstitucionId).IsUnique();
+    }
+}

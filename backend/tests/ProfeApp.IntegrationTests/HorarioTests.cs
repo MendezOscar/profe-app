@@ -287,6 +287,43 @@ public class HorarioTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await c.DeleteAsync($"/api/v1/centro/incidencias/{id}")).StatusCode.Should().Be(HttpStatusCode.NoContent);
     }
 
+    [Fact]
+    public async Task El_carnet_lleva_la_foto_del_alumno_y_el_logo_y_color_del_centro()
+    {
+        var e = await EscenarioAsync();
+        var c = e.Centro;
+        var ana = (await ReadAsync(await c.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos",
+            new { identidad = "0801201400501", nombre = "Ana Carnet", tipo = "nuevo_ingreso" }))).GetProperty("alumnoId").GetGuid();
+        await c.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos", new { identidad = "0801201400502", nombre = "Beto Carnet", tipo = "nuevo_ingreso" });
+
+        byte[] jpg = [0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3, 4, 5, 6, 0xFF, 0xD9];
+        byte[] png = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 9, 9];
+        (await c.PutAsJsonAsync($"/api/v1/centro/alumnos/{ana}/foto", new { base64 = Convert.ToBase64String(png) }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest, "la foto va en JPG");
+        (await c.PutAsJsonAsync($"/api/v1/centro/alumnos/{ana}/foto", new { base64 = Convert.ToBase64String(jpg) }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await (await c.GetAsync($"/api/v1/centro/alumnos/{ana}/foto")).Content.ReadAsByteArrayAsync()).Should().Equal(jpg);
+
+        (await c.PutAsJsonAsync("/api/v1/centro/marca", new { color = "rojo", lema = "Ciencia" })).StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await c.PutAsJsonAsync("/api/v1/centro/marca", new { color = "#aa0000", lema = "Ciencia y virtud" })).StatusCode.Should().Be(HttpStatusCode.OK);
+        (await ReadAsync(await c.PutAsJsonAsync("/api/v1/centro/marca/logo", new { base64 = Convert.ToBase64String(png) })))
+            .GetProperty("tieneLogo").GetBoolean().Should().BeTrue();
+
+        var carnets = await ReadAsync(await c.GetAsync($"/api/v1/centro/secciones/{e.A}/carnets"));
+        carnets.GetProperty("color").GetString().Should().Be("#AA0000");
+        carnets.GetProperty("lema").GetString().Should().Be("Ciencia y virtud");
+        carnets.GetProperty("logo").GetString().Should().Be(Convert.ToBase64String(png));
+        var alumnos = carnets.GetProperty("alumnos");
+        alumnos.GetArrayLength().Should().Be(2);
+        alumnos[0].GetProperty("foto").GetString().Should().Be(Convert.ToBase64String(jpg));
+        alumnos[1].GetProperty("foto").ValueKind.Should().Be(JsonValueKind.Null);
+        alumnos[0].GetProperty("seccion").GetString().Should().Be("7.º grado A");
+
+        var uno = await ReadAsync(await c.GetAsync($"/api/v1/centro/alumnos/{ana}/carnet"));
+        uno.GetProperty("alumnos").GetArrayLength().Should().Be(1);
+        (await e.Docente.GetAsync($"/api/v1/centro/alumnos/{ana}/foto")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
+
     private static async Task<List<string>> AvisosDeAsync(string token, int esperados)
     {
         for (var i = 0; i < 50; i++)

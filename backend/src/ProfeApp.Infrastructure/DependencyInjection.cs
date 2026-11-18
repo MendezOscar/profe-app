@@ -83,6 +83,7 @@ public static class DependencyInjection
         services.AddScoped<IFamiliasCentroService, Centros.FamiliasCentroService>();
         services.AddScoped<IPadresService, Centros.PadresService>();
         services.AddScoped<IConvivenciaService, Centros.ConvivenciaService>();
+        services.AddScoped<ICarnetService, Centros.CarnetService>();
 
         return services;
     }

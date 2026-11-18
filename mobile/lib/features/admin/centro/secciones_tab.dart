@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../theme/tokens.dart';
 import '../../../ui/estado_vacio.dart';
+import 'carnet.dart';
 import 'comun_centro.dart';
 import 'estructura_tabs.dart';
 import 'consolidado_page.dart';
@@ -140,6 +141,9 @@ class _Seccion extends ConsumerWidget {
                           titulo: '${grado['nombre']} ${seccion['nombre']}',
                         ),
                       ));
+                    case 'carnets':
+                      await imprimirCarnets(context, ref, '/centro/secciones/${seccion['id']}/carnets',
+                          'Carnets ${grado['nombre']} ${seccion['nombre']}');
                     case 'carga':
                       await _carga(context, ref, seccion, grado, datos, editar);
                     case 'editar':
@@ -163,6 +167,7 @@ class _Seccion extends ConsumerWidget {
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'alumnos', child: Text('Alumnos')),
                   const PopupMenuItem(value: 'consolidado', child: Text('Consolidado y boletas')),
+                  const PopupMenuItem(value: 'carnets', child: Text('Carnets de la sección')),
                   const PopupMenuItem(value: 'carga', child: Text('Carga docente')),
                   if (editar) ...const [
                     PopupMenuItem(value: 'editar', child: Text('Editar sección')),

@@ -146,6 +146,25 @@ public static class AdminEndpoints
         centro.MapDelete("/incidencias/{id:guid}", async (Guid id, IConvivenciaService s, CancellationToken ct) =>
             (await s.EliminarIncidenciaAsync(id, ct)).ToHttp());
 
+        // Carnet: logo, color y lema del centro, fotos de los alumnos y datos para imprimir.
+        centro.MapGet("/marca", async (ICarnetService s, CancellationToken ct) => (await s.MarcaAsync(ct)).ToHttp());
+        centro.MapPut("/marca", async (MarcaRequest r, ICarnetService s, CancellationToken ct) => (await s.GuardarMarcaAsync(r, ct)).ToHttp());
+        centro.MapGet("/marca/logo", async (ICarnetService s, CancellationToken ct) =>
+            (await s.LogoAsync(ct)).ToHttp(f => Results.File(f.Contenido, f.ContentType)));
+        centro.MapPut("/marca/logo", async (ImagenRequest r, ICarnetService s, CancellationToken ct) => (await s.GuardarLogoAsync(r, ct)).ToHttp());
+        centro.MapDelete("/marca/logo", async (ICarnetService s, CancellationToken ct) => (await s.QuitarLogoAsync(ct)).ToHttp());
+        centro.MapGet("/alumnos/{id:guid}/foto", async (Guid id, ICarnetService s, CancellationToken ct) =>
+            (await s.FotoAsync(id, ct)).ToHttp(f => Results.File(f.Contenido, f.ContentType)));
+        centro.MapPut("/alumnos/{id:guid}/foto", async (Guid id, ImagenRequest r, ICarnetService s, CancellationToken ct) =>
+            (await s.GuardarFotoAsync(id, r, ct)).ToHttp());
+        centro.MapDelete("/alumnos/{id:guid}/foto", async (Guid id, ICarnetService s, CancellationToken ct) =>
+            (await s.QuitarFotoAsync(id, ct)).ToHttp());
+        centro.MapGet("/alumnos/{id:guid}/carnet", async (Guid id, ICarnetService s, CancellationToken ct) =>
+            (await s.CarnetAlumnoAsync(id, ct)).ToHttp());
+        centro.MapGet("/secciones/{id:guid}/carnets", async (Guid id, ICarnetService s, CancellationToken ct) =>
+                (await s.CarnetsSeccionAsync(id, ct)).ToHttp())
+            .RequireRateLimiting(Limites.Exportar);
+
         centro.MapGet("/reportes", async (IReportesService s, CancellationToken ct) => (await s.ResumenAsync(ct)).ToHttp())
             .WithSummary("Matrícula, rendimiento, alumnos en riesgo y asistencia del año actual.");
 
