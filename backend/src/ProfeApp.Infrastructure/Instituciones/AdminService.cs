@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
+using ProfeApp.Domain.Centros;
 using ProfeApp.Domain.Cobros;
 using ProfeApp.Domain.Common;
 using ProfeApp.Domain.Instituciones;
@@ -33,7 +34,7 @@ public sealed class AdminService(
 
     public async Task<Result<CentroDto>> ObtenerAsync(CancellationToken ct = default)
     {
-        var institucion = await MiInstitucionAsync(ct);
+        var (institucion, yo) = await MiCentroAsync(ct);
         if (institucion is null) return Result<CentroDto>.Fail(Error.Forbidden("Tu cuenta no administra un centro."));
 
         var docentes = await DocentesDeAsync(institucion.Id, ct);
@@ -70,13 +71,16 @@ public sealed class AdminService(
                 .OrderBy(d => d.FullName)
                 .Select(d => new DocenteCentroDto(d.Id, d.FullName, d.Email!, d.IsActive, d.LastLoginAt,
                     De(asignaturas, d.TenantId), De(actividades, d.TenantId), De(parciales, d.TenantId), Ultimo(d.TenantId)))
-                .ToList());
+                .ToList(),
+            yo!.Cargo,
+            Cargos.Administra(yo.Cargo));
     }
 
     public async Task<Result<CuentaCreada>> CrearDocenteAsync(CrearDocenteRequest request, CancellationToken ct = default)
     {
-        var institucion = await MiInstitucionAsync(ct);
+        var (institucion, yo) = await MiCentroAsync(ct);
         if (institucion is null) return Result<CuentaCreada>.Fail(Error.Forbidden("Tu cuenta no administra un centro."));
+        if (!Cargos.Administra(yo!.Cargo)) return Result<CuentaCreada>.Fail(Error.Forbidden(SoloConsulta));
         if (!institucion.Activa || SituacionCobro.Para(institucion, clock.Today).SoloLectura)
             return Result<CuentaCreada>.Fail(Error.Forbidden("La licencia del centro no está al día."));
 
@@ -90,8 +94,9 @@ public sealed class AdminService(
 
     public async Task<Result> CambiarEstadoDocenteAsync(Guid docenteId, bool activo, CancellationToken ct = default)
     {
-        var institucion = await MiInstitucionAsync(ct);
+        var (institucion, yo) = await MiCentroAsync(ct);
         if (institucion is null) return Result.Fail(Error.Forbidden("Tu cuenta no administra un centro."));
+        if (!Cargos.Administra(yo!.Cargo)) return Result.Fail(Error.Forbidden(SoloConsulta));
         var docente = await DocenteDelCentroAsync(institucion.Id, docenteId);
         if (docente is null) return Result.Fail(Error.NotFound("El docente"));
 
@@ -112,8 +117,9 @@ public sealed class AdminService(
 
     public async Task<Result<CuentaCreada>> RestablecerClaveAsync(Guid docenteId, CancellationToken ct = default)
     {
-        var institucion = await MiInstitucionAsync(ct);
+        var (institucion, yo) = await MiCentroAsync(ct);
         if (institucion is null) return Result<CuentaCreada>.Fail(Error.Forbidden("Tu cuenta no administra un centro."));
+        if (!Cargos.Administra(yo!.Cargo)) return Result<CuentaCreada>.Fail(Error.Forbidden(SoloConsulta));
         var docente = await DocenteDelCentroAsync(institucion.Id, docenteId);
         if (docente is null) return Result<CuentaCreada>.Fail(Error.NotFound("El docente"));
         return await ReponerAsync(docente, ct);
@@ -340,7 +346,7 @@ public sealed class AdminService(
     /// recibe su propio espacio de datos, igual que en el plan personal.
     /// </summary>
     private async Task<Result<CuentaCreada>> CrearCuentaAsync(
-        string email, string nombre, string rol, Guid? institucionId, bool conEspacio, CancellationToken ct)
+        string email, string nombre, string rol, Guid? institucionId, bool conEspacio, CancellationToken ct, string? cargo = null)
     {
         email = (email ?? "").Trim().ToLowerInvariant();
         if (!AuthService.CorreoValido(email)) return Result<CuentaCreada>.Fail(Error.Validation("El correo no es válido."));
@@ -357,6 +363,7 @@ public sealed class AdminService(
             Email = email,
             FullName = nombre.Trim(),
             InstitucionId = institucionId,
+            Cargo = cargo,
             MustChangePassword = true,
             CreatedAt = clock.Now,
         };
@@ -382,11 +389,23 @@ public sealed class AdminService(
         return new CuentaCreada(user.Id, email, user.FullName, clave);
     }
 
-    private async Task<Institucion?> MiInstitucionAsync(CancellationToken ct)
+    internal const string SoloConsulta = "Tu cargo sólo permite consultar.";
+
+    private async Task<(Institucion? Institucion, AppUser? Yo)> MiCentroAsync(CancellationToken ct)
     {
         var yo = await users.FindByIdAsync(currentUser.RequireUserId().ToString());
-        return yo?.InstitucionId is { } id ? await db.Instituciones.FirstOrDefaultAsync(i => i.Id == id, ct) : null;
+        var institucion = yo?.InstitucionId is { } id ? await db.Instituciones.FirstOrDefaultAsync(i => i.Id == id, ct) : null;
+        return (institucion, yo);
     }
+
+    /// <summary>
+    /// Personal del centro con su cargo, para quien crea cuentas de dirección, secretaría y
+    /// orientación (no cuentan en el cupo de docentes, que es sólo del rol Docente).
+    /// </summary>
+    internal Task<Result<CuentaCreada>> CrearPersonalAsync(string email, string nombre, string cargo, Guid institucionId, CancellationToken ct) =>
+        CrearCuentaAsync(email, nombre, Roles.AdminCentro, institucionId, conEspacio: false, ct, cargo);
+
+    internal Task<Result<CuentaCreada>> ReponerClaveAsync(AppUser usuario, CancellationToken ct) => ReponerAsync(usuario, ct);
 
     /// <summary>Docentes del centro: los del rol Docente, no su administrador. Filtrado en la base.</summary>
     private Task<List<AppUser>> DocentesDeAsync(Guid institucionId, CancellationToken ct) =>

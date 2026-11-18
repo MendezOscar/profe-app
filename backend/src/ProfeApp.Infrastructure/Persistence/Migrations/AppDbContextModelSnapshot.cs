@@ -152,6 +152,364 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.ToTable("asp_net_user_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Centros.AnioLectivo", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<bool>("Actual")
+                        .HasColumnType("boolean")
+                        .HasColumnName("actual");
+
+                    b.Property<int>("Anio")
+                        .HasColumnType("integer")
+                        .HasColumnName("anio");
+
+                    b.Property<DateOnly?>("CierreParcial1")
+                        .HasColumnType("date")
+                        .HasColumnName("cierre_parcial1");
+
+                    b.Property<DateOnly?>("CierreParcial2")
+                        .HasColumnType("date")
+                        .HasColumnName("cierre_parcial2");
+
+                    b.Property<DateOnly?>("CierreParcial3")
+                        .HasColumnType("date")
+                        .HasColumnName("cierre_parcial3");
+
+                    b.Property<DateOnly?>("CierreParcial4")
+                        .HasColumnType("date")
+                        .HasColumnName("cierre_parcial4");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("Fin")
+                        .HasColumnType("date")
+                        .HasColumnName("fin");
+
+                    b.Property<DateOnly>("Inicio")
+                        .HasColumnType("date")
+                        .HasColumnName("inicio");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_anios_lectivos");
+
+                    b.HasIndex("InstitucionId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_anios_lectivos_actual")
+                        .HasFilter("actual");
+
+                    b.HasIndex("InstitucionId", "Anio")
+                        .IsUnique()
+                        .HasDatabaseName("ix_anios_lectivos_institucion_id_anio");
+
+                    b.ToTable("anios_lectivos", (string)null);
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.AsignaturaGrado", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("GradoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("grado_id");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("nombre");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("integer")
+                        .HasColumnName("orden");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_asignaturas_grado");
+
+                    b.HasIndex("InstitucionId")
+                        .HasDatabaseName("ix_asignaturas_grado_institucion_id");
+
+                    b.HasIndex("GradoId", "Nombre")
+                        .IsUnique()
+                        .HasDatabaseName("ix_asignaturas_grado_grado_id_nombre");
+
+                    b.ToTable("asignaturas_grado", (string)null);
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.Aula", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<int?>("Capacidad")
+                        .HasColumnType("integer")
+                        .HasColumnName("capacidad");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("nombre");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_aulas");
+
+                    b.HasIndex("InstitucionId", "Nombre")
+                        .IsUnique()
+                        .HasDatabaseName("ix_aulas_institucion_id_nombre");
+
+                    b.ToTable("aulas", (string)null);
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.CargaDocente", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AsignaturaGradoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("asignatura_grado_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("DocenteId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("docente_id");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<Guid>("SeccionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("seccion_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cargas_docentes");
+
+                    b.HasIndex("AsignaturaGradoId")
+                        .HasDatabaseName("ix_cargas_docentes_asignatura_grado_id");
+
+                    b.HasIndex("DocenteId")
+                        .HasDatabaseName("ix_cargas_docentes_docente_id");
+
+                    b.HasIndex("SeccionId", "AsignaturaGradoId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_cargas_docentes_seccion_id_asignatura_grado_id");
+
+                    b.ToTable("cargas_docentes", (string)null);
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.Grado", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Nivel")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("nivel");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)")
+                        .HasColumnName("nombre");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("integer")
+                        .HasColumnName("orden");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_grados");
+
+                    b.HasIndex("InstitucionId", "Nombre")
+                        .IsUnique()
+                        .HasDatabaseName("ix_grados_institucion_id_nombre");
+
+                    b.ToTable("grados", (string)null);
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.Seccion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AnioLectivoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("anio_lectivo_id");
+
+                    b.Property<Guid?>("AulaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aula_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int?>("Cupo")
+                        .HasColumnType("integer")
+                        .HasColumnName("cupo");
+
+                    b.Property<Guid>("GradoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("grado_id");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Jornada")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("jornada");
+
+                    b.Property<Guid?>("MaestroGuiaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("maestro_guia_id");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("nombre");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_secciones");
+
+                    b.HasIndex("AulaId")
+                        .HasDatabaseName("ix_secciones_aula_id");
+
+                    b.HasIndex("GradoId")
+                        .HasDatabaseName("ix_secciones_grado_id");
+
+                    b.HasIndex("InstitucionId")
+                        .HasDatabaseName("ix_secciones_institucion_id");
+
+                    b.HasIndex("MaestroGuiaId")
+                        .HasDatabaseName("ix_secciones_maestro_guia_id");
+
+                    b.HasIndex("AnioLectivoId", "GradoId", "Jornada", "Nombre")
+                        .IsUnique()
+                        .HasDatabaseName("ix_secciones_anio_lectivo_id_grado_id_jornada_nombre");
+
+                    b.ToTable("secciones", (string)null);
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Cobros.Pago", b =>
                 {
                     b.Property<Guid>("Id")
@@ -797,6 +1155,11 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("access_failed_count");
 
+                    b.Property<string>("Cargo")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("cargo");
+
                     b.Property<string>("ConcurrencyStamp")
                         .IsConcurrencyToken()
                         .HasColumnType("text")
@@ -1014,6 +1377,99 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_asp_net_user_tokens_asp_net_users_user_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.AnioLectivo", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Instituciones.Institucion", null)
+                        .WithMany()
+                        .HasForeignKey("InstitucionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_anios_lectivos_instituciones_institucion_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.AsignaturaGrado", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Centros.Grado", null)
+                        .WithMany()
+                        .HasForeignKey("GradoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_asignaturas_grado_grados_grado_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.Aula", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Instituciones.Institucion", null)
+                        .WithMany()
+                        .HasForeignKey("InstitucionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_aulas_instituciones_institucion_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.CargaDocente", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Centros.AsignaturaGrado", null)
+                        .WithMany()
+                        .HasForeignKey("AsignaturaGradoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_cargas_docentes_asignaturas_grado_asignatura_grado_id");
+
+                    b.HasOne("ProfeApp.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("DocenteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_cargas_docentes_asp_net_users_docente_id");
+
+                    b.HasOne("ProfeApp.Domain.Centros.Seccion", null)
+                        .WithMany()
+                        .HasForeignKey("SeccionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_cargas_docentes_secciones_seccion_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.Grado", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Instituciones.Institucion", null)
+                        .WithMany()
+                        .HasForeignKey("InstitucionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_grados_instituciones_institucion_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.Seccion", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Centros.AnioLectivo", null)
+                        .WithMany()
+                        .HasForeignKey("AnioLectivoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_secciones_anios_lectivos_anio_lectivo_id");
+
+                    b.HasOne("ProfeApp.Domain.Centros.Aula", null)
+                        .WithMany()
+                        .HasForeignKey("AulaId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_secciones_aulas_aula_id");
+
+                    b.HasOne("ProfeApp.Domain.Centros.Grado", null)
+                        .WithMany()
+                        .HasForeignKey("GradoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_secciones_grados_grado_id");
+
+                    b.HasOne("ProfeApp.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("MaestroGuiaId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_secciones_asp_net_users_maestro_guia_id");
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Cuadros.ClaseAlumno", b =>

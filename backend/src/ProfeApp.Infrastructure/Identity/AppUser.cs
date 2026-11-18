@@ -10,6 +10,9 @@ public class AppUser : IdentityUser<Guid>
     /// <summary>Centro al que pertenece (docente o administrador). Null en el plan personal.</summary>
     public Guid? InstitucionId { get; set; }
     public string FullName { get; set; } = null!;
+
+    /// <summary>Cargo del personal del centro (director, secretaria...). Null en docentes y en el administrador original.</summary>
+    public string? Cargo { get; set; }
     public bool IsActive { get; set; } = true;
     public bool MustChangePassword { get; set; }
     public DateTimeOffset CreatedAt { get; set; }

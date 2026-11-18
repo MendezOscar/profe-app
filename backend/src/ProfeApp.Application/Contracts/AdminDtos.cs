@@ -54,4 +54,6 @@ public sealed record DocenteCentroDto(
     Guid Id, string Nombre, string Email, bool Activo, DateTimeOffset? UltimoAcceso,
     int Asignaturas, int Actividades, int ParcialesCerrados, DateTimeOffset? UltimoTrabajo);
 
-public sealed record CentroDto(InstitucionDto Institucion, IReadOnlyList<DocenteCentroDto> Docentes);
+/// <summary><c>PuedeEditar</c>: falso para orientación, que sólo consulta.</summary>
+public sealed record CentroDto(
+    InstitucionDto Institucion, IReadOnlyList<DocenteCentroDto> Docentes, string? MiCargo = null, bool PuedeEditar = true);

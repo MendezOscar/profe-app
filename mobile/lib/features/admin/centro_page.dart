@@ -8,6 +8,10 @@ import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
 import 'admin_comun.dart';
+import 'centro/comun_centro.dart';
+import 'centro/estructura_tabs.dart';
+import 'centro/personal_tab.dart';
+import 'centro/secciones_tab.dart';
 import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
 import '../../ui/estado_error.dart';
@@ -15,15 +19,31 @@ import '../../ui/estado_error.dart';
 final centroProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
     (ref) => ref.watch(apiClientProvider).get('/centro', parse: (d) => d as Map<String, dynamic>));
 
-/// Panel del administrador de un centro: licencia, docentes y su avance. No ve ni edita
-/// notas: sólo cuántas asignaturas, actividades y parciales cerrados lleva cada docente.
-class CentroPage extends ConsumerWidget {
+/// Panel del centro: licencia y avance de los docentes, y la organización académica (año
+/// lectivo, grados, secciones, aulas y personal). No ve ni edita notas: sólo cuántas
+/// asignaturas, actividades y parciales cerrados lleva cada docente.
+class CentroPage extends ConsumerStatefulWidget {
   const CentroPage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<CentroPage> createState() => _CentroPageState();
+}
+
+class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProviderStateMixin {
+  late final _tabs = TabController(length: 6, vsync: this)..addListener(() => setState(() {}));
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final centro = ref.watch(centroProvider);
     final nombre = centro.valueOrNull?['institucion']?['nombre'] as String?;
+    // Orientación sólo consulta.
+    final puedeEditar = centro.valueOrNull?['puedeEditar'] != false;
 
     return Scaffold(
       appBar: AppBar(
@@ -31,13 +51,30 @@ class CentroPage extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Actualizar',
-            onPressed: () => ref.invalidate(centroProvider),
+            onPressed: () {
+              ref.invalidate(centroProvider);
+              ref.invalidate(estructuraProvider);
+              ref.invalidate(personalProvider);
+            },
             icon: const Icon(Icons.refresh),
           ),
           const MenuCuentaAdmin(),
         ],
+        bottom: TabBar(
+          controller: _tabs,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          tabs: const [
+            Tab(text: 'Docentes'),
+            Tab(text: 'Año lectivo'),
+            Tab(text: 'Grados'),
+            Tab(text: 'Secciones'),
+            Tab(text: 'Aulas'),
+            Tab(text: 'Personal'),
+          ],
+        ),
       ),
-      floatingActionButton: centro.hasValue
+      floatingActionButton: centro.hasValue && puedeEditar && _tabs.index == 0
           ? FloatingActionButton.extended(
               shape: const RoundedRectangleBorder(),
               onPressed: () => _agregar(context, ref),
@@ -45,7 +82,21 @@ class CentroPage extends ConsumerWidget {
               label: const Text('Agregar docente'),
             )
           : null,
-      body: centro.when(
+      body: TabBarView(
+        controller: _tabs,
+        children: [
+          _docentes(centro, puedeEditar),
+          const AniosTab(),
+          const GradosTab(),
+          const SeccionesTab(),
+          const AulasTab(),
+          PersonalTab(puedeEditar: puedeEditar),
+        ],
+      ),
+    );
+  }
+
+  Widget _docentes(AsyncValue<Map<String, dynamic>> centro, bool puedeEditar) => centro.when(
         loading: () => const EsqueletoLista(filas: 6, conTarjeta: true),
         error: (e, _) => EstadoError(error: e, reintentar: () => ref.invalidate(centroProvider)),
         data: (datos) {
@@ -74,13 +125,13 @@ class CentroPage extends ConsumerWidget {
                     if (docentes.any(atrasado)) ...[
                       Text('NECESITAN ATENCIÓN', style: Theme.of(context).textTheme.labelSmall),
                       const SizedBox(height: Espacio.s),
-                      for (final d in docentes.where(atrasado)) _Docente(docente: d),
+                      for (final d in docentes.where(atrasado)) _Docente(docente: d, puedeEditar: puedeEditar),
                       const SizedBox(height: Espacio.l),
                     ],
                     if (docentes.any((d) => !atrasado(d))) ...[
                       Text(docentes.any(atrasado) ? 'AL DÍA' : 'DOCENTES', style: Theme.of(context).textTheme.labelSmall),
                       const SizedBox(height: Espacio.s),
-                      for (final d in docentes.where((d) => !atrasado(d))) _Docente(docente: d),
+                      for (final d in docentes.where((d) => !atrasado(d))) _Docente(docente: d, puedeEditar: puedeEditar),
                     ],
                   ],
                 ],
@@ -88,14 +139,13 @@ class CentroPage extends ConsumerWidget {
             ),
           );
         },
-      ),
-    );
-  }
+      );
 
   Future<void> _agregar(BuildContext context, WidgetRef ref) async {
     final cuenta = await pedirNombreYCorreo(context, ref, titulo: 'Agregar docente', ruta: '/centro/docentes');
     if (cuenta == null || !context.mounted) return;
     ref.invalidate(centroProvider);
+    ref.invalidate(estructuraProvider);
     await mostrarCuentaCreada(context, cuenta, titulo: 'Docente agregado');
   }
 }
@@ -216,9 +266,10 @@ class _Dato extends StatelessWidget {
 }
 
 class _Docente extends ConsumerWidget {
-  const _Docente({required this.docente});
+  const _Docente({required this.docente, required this.puedeEditar});
 
   final Map<String, dynamic> docente;
+  final bool puedeEditar;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -296,14 +347,15 @@ class _Docente extends ConsumerWidget {
                   ],
                 ),
               ),
-              PopupMenuButton<String>(
-                tooltip: 'Opciones',
-                onSelected: accion,
-                itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'clave', child: Text('Restablecer contraseña')),
-                  PopupMenuItem(value: 'estado', child: Text(activo ? 'Desactivar' : 'Activar')),
-                ],
-              ),
+              if (puedeEditar)
+                PopupMenuButton<String>(
+                  tooltip: 'Opciones',
+                  onSelected: accion,
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(value: 'clave', child: Text('Restablecer contraseña')),
+                    PopupMenuItem(value: 'estado', child: Text(activo ? 'Desactivar' : 'Activar')),
+                  ],
+                ),
             ],
           ),
         ),

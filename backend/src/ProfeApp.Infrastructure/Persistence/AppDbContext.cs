@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using ProfeApp.Application.Abstractions;
+using ProfeApp.Domain.Centros;
 using ProfeApp.Domain.Cobros;
 using ProfeApp.Domain.Cuadros;
 using ProfeApp.Domain.Instituciones;
@@ -28,6 +29,12 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<Institucion> Instituciones => Set<Institucion>();
     public DbSet<Pago> Pagos => Set<Pago>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<AnioLectivo> AniosLectivos => Set<AnioLectivo>();
+    public DbSet<Grado> Grados => Set<Grado>();
+    public DbSet<AsignaturaGrado> AsignaturasGrado => Set<AsignaturaGrado>();
+    public DbSet<Aula> Aulas => Set<Aula>();
+    public DbSet<Seccion> Secciones => Set<Seccion>();
+    public DbSet<CargaDocente> CargasDocentes => Set<CargaDocente>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

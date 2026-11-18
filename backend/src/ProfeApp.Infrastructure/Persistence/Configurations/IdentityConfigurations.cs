@@ -22,6 +22,7 @@ public class AppUserConfig : IEntityTypeConfiguration<AppUser>
     public void Configure(EntityTypeBuilder<AppUser> b)
     {
         b.Property(x => x.FullName).HasMaxLength(160).IsRequired();
+        b.Property(x => x.Cargo).HasMaxLength(20);
         b.HasIndex(x => x.TenantId);
         b.HasOne<Tenant>().WithMany().HasForeignKey(x => x.TenantId).OnDelete(DeleteBehavior.Restrict);
         b.HasIndex(x => x.InstitucionId);
