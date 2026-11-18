@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual de usuario · ProfeApp</title>
+<style>
+  :root {
+    --marino: #14213D; --azul: #2B59C3; --suave: #5B6475; --linea: #D5DBE6; --fondo: #F4F6FB; --aviso: #FFF6E0;
+  }
+  * { box-sizing: border-box; }
+  html { font-size: 11pt; }
+  body {
+    margin: 0; background: #fff; color: var(--marino);
+    font-family: "Archivo", "Helvetica Neue", Arial, sans-serif; line-height: 1.5;
+  }
+  main { max-width: 780px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1, h2, h3, h4 { line-height: 1.2; color: var(--marino); }
+  h2 { font-size: 1.9rem; margin: 0 0 4px; padding-top: 8px; border-bottom: 3px solid var(--azul); padding-bottom: 6px; }
+  h3 { font-size: 1.3rem; margin: 28px 0 6px; }
+  h4 { font-size: 1.05rem; margin: 18px 0 4px; }
+  p, li { margin: 6px 0; }
+  ol, ul { padding-left: 1.4em; }
+  .ruta { font-weight: 700; color: var(--azul); }
+  .boton { display: inline-block; padding: 0 6px; border: 1px solid var(--marino); border-radius: 3px; font-weight: 600; font-size: .92em; white-space: nowrap; }
+  .nota { background: var(--fondo); border-left: 4px solid var(--azul); padding: 10px 14px; margin: 12px 0; }
+  .ojo { background: var(--aviso); border-left: 4px solid #C77700; padding: 10px 14px; margin: 12px 0; }
+  .quien { color: var(--suave); font-size: .95rem; margin: 0 0 16px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--linea); }
+  th { border-bottom: 2px solid var(--marino); font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); }
+
+  /* Portada */
+  .portada { min-height: 88vh; display: flex; flex-direction: column; justify-content: center; }
+  .portada .marca { font-size: 1.1rem; font-weight: 800; letter-spacing: .12em; color: var(--azul); text-transform: uppercase; }
+  .portada h1 { font-size: 3rem; margin: 8px 0 12px; }
+  .portada p { font-size: 1.15rem; color: var(--suave); max-width: 560px; }
+  .portada .version { margin-top: 48px; font-size: .95rem; }
+
+  /* Índice */
+  .indice ol { list-style: none; padding: 0; }
+  .indice > ol > li { margin: 10px 0 4px; font-weight: 700; }
+  .indice ol ol { padding-left: 1.2em; font-weight: 400; }
+  .indice a { color: var(--marino); text-decoration: none; }
+  .indice a:hover { text-decoration: underline; }
+
+  .barra { position: sticky; top: 0; background: #fff; border-bottom: 1px solid var(--linea); padding: 8px 24px; display: flex; gap: 12px; align-items: center; justify-content: space-between; z-index: 2; }
+  .barra button { font: inherit; font-weight: 700; padding: 8px 16px; border: 0; background: var(--marino); color: #fff; cursor: pointer; }
+
+  section.parte { margin-top: 48px; }
+
+  @page { size: letter; margin: 18mm 16mm 20mm; }
+  @media print {
+    html { font-size: 10.5pt; }
+    .barra { display: none; }
+    main { max-width: none; padding: 0; }
+    .portada { min-height: 0; height: 230mm; }
+    .portada, .indice, section.parte { break-after: page; }
+    section.parte { margin-top: 0; }
+    h3, h4 { break-after: avoid; }
+    .nota, .ojo, table, li { break-inside: avoid; }
+    a { color: inherit; text-decoration: none; }
+  }
+</style>
+</head>
+<body>
+<div class="barra">
+  <span><strong>Manual de usuario de ProfeApp</strong></span>
+  <button type="button" onclick="window.print()">Imprimir</button>
+</div>
+<main>
+
+<div class="portada">
+  <div class="marca">ProfeApp</div>
+  <h1>Manual de usuario</h1>
+  <p>Para catedráticos, para la dirección y la secretaría del centro educativo, y para las familias.</p>
+  <p class="version">Versión 1.2 · Noviembre de 2026<br>Soporte: WhatsApp +504 9824-2108 · soporte@profeapphn.com · profeapphn.com/soporte</p>
+</div>
+
+<nav class="indice" aria-label="Índice">
+  <h2>Índice</h2>
+  <ol>
+    <li><a href="#intro">1. Antes de empezar</a>
+      <ol>
+        <li><a href="#perfiles">Quién usa ProfeApp</a></li>
+        <li><a href="#entrar">Entrar por primera vez</a></li>
+        <li><a href="#sin-internet">Trabajar sin internet</a></li>
+      </ol>
+    </li>
+    <li><a href="#catedratico">2. Catedrático</a>
+      <ol>
+        <li><a href="#importar">Importar los cuadros de SACE</a></li>
+        <li><a href="#rubrica">Armar la rúbrica del parcial</a></li>
+        <li><a href="#actividades">Actividades y calificaciones</a></li>
+        <li><a href="#lista">Pasar lista en la clase</a></li>
+        <li><a href="#cerrar">Cerrar el parcial y exportar a SACE</a></li>
+        <li><a href="#carga">Mi carga en el centro</a></li>
+        <li><a href="#guia">Maestro guía: lista del día y conducta</a></li>
+        <li><a href="#incidencia-docente">Reportar una incidencia</a></li>
+      </ol>
+    </li>
+    <li><a href="#centro">3. Dirección y secretaría</a>
+      <ol>
+        <li><a href="#panel">El panel del centro</a></li>
+        <li><a href="#arranque">Puesta en marcha, paso a paso</a></li>
+        <li><a href="#docentes">Docentes y personal</a></li>
+        <li><a href="#estructura">Año lectivo, grados, aulas y secciones</a></li>
+        <li><a href="#matricula">Matrícula y fichas</a></li>
+        <li><a href="#horario">Horario</a></li>
+        <li><a href="#asistencia-centro">Asistencia del día</a></li>
+        <li><a href="#excusas">Excusas y permisos</a></li>
+        <li><a href="#incidencias">Incidencias</a></li>
+        <li><a href="#familias">Familias y comunicados</a></li>
+        <li><a href="#consolidado">Consolidado, boletas, constancias y SACE</a></li>
+        <li><a href="#carnet">Carnet estudiantil</a></li>
+        <li><a href="#reportes">Reportes y estadísticas de docentes</a></li>
+        <li><a href="#cargos">Cargos y permisos</a></li>
+      </ol>
+    </li>
+    <li><a href="#familia">4. Familias</a></li>
+    <li><a href="#preguntas">5. Preguntas frecuentes y soporte</a></li>
+  </ol>
+</nav>
+
+<!-- ───────────────────────────── 1 ───────────────────────────── -->
+<section class="parte" id="intro">
+  <h2>1. Antes de empezar</h2>
+  <p>ProfeApp sirve para planificar, calificar y llevar la asistencia con los cuadros de SACE, con o sin internet, y para que el centro educativo lleve su matrícula, sus horarios, la convivencia y la comunicación con las familias.</p>
+
+  <h3 id="perfiles">Quién usa ProfeApp</h3>
+  <table>
+    <thead><tr><th>Perfil</th><th>Qué hace</th><th>Dónde</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Catedrático</strong></td><td>Importa sus cuadros de SACE, califica, pasa lista y exporta las notas. Si es maestro guía, pasa la lista del día y pone la conducta.</td><td>App en Android o iPhone, o el panel web</td></tr>
+      <tr><td><strong>Dirección y secretaría</strong></td><td>Da de alta a los docentes, organiza el año, matricula, arma horarios, registra excusas e incidencias, comunica a las familias e imprime boletas, constancias y carnets.</td><td>Panel web (computadora) o la app</td></tr>
+      <tr><td><strong>Orientación</strong></td><td>Consulta todo lo del centro, sin modificar.</td><td>Panel web o la app</td></tr>
+      <tr><td><strong>Familia</strong></td><td>Ve las notas, la asistencia, el horario, las incidencias y los comunicados de sus hijos, y recibe avisos.</td><td>App en Android o iPhone</td></tr>
+    </tbody>
+  </table>
+
+  <h3 id="entrar">Entrar por primera vez</h3>
+  <ol>
+    <li>Descarga <strong>ProfeApp</strong> de Google Play o de la App Store, o entra en <span class="ruta">profeapphn.com/app</span> desde la computadora.</li>
+    <li>Escribe el correo y la <strong>contraseña temporal</strong> que te entregó la dirección (o ProfeApp, si administras el centro).</li>
+    <li>La app te pide crear tu propia contraseña. Desde ese momento la temporal ya no sirve.</li>
+  </ol>
+  <div class="nota">Las familias no reciben contraseña: crean su cuenta con el <strong>código de familia</strong> que entrega la secretaría (ver <a href="#familia">capítulo 4</a>).</div>
+
+  <h3 id="sin-internet">Trabajar sin internet</h3>
+  <p>Lo que el catedrático hace con sus clases (actividades, notas, asistencia, cierre de parcial) se guarda en el teléfono y se respalda solo cuando vuelve la señal. La nube en la parte de arriba indica si hay cambios pendientes; tocarla intenta respaldar en el momento.</p>
+  <p>Lo del centro (matrícula, lista del día, conducta, excusas, incidencias, comunicados, boletas) se guarda en el servidor y necesita internet.</p>
+</section>
+
+<!-- ───────────────────────────── 2 ───────────────────────────── -->
+<section class="parte" id="catedratico">
+  <h2>2. Catedrático</h2>
+  <p class="quien">La app tiene cuatro secciones abajo (o a la izquierda en la computadora): <strong>Inicio</strong>, <strong>Asistencia</strong>, <strong>Rúbricas</strong> y <strong>Cuenta</strong>.</p>
+
+  <h3 id="importar">Importar los cuadros de SACE</h3>
+  <ol>
+    <li>En SACE entra a <span class="ruta">Notas → Descargar Archivos Notas</span> y descarga el cuadro de cada asignatura y sección.</li>
+    <li>En ProfeApp, en <span class="ruta">Inicio</span>, toca <span class="boton">Importar cuadros</span> y elige los archivos (puedes elegir varios a la vez).</li>
+    <li>Cada cuadro aparece como una asignatura con su lista de alumnos y sus parciales.</li>
+  </ol>
+  <div class="ojo">Usa el archivo tal como lo descarga SACE (.xls o .xlsx), sin abrirlo ni guardarlo en otro formato.</div>
+
+  <h3 id="rubrica">Armar la rúbrica del parcial</h3>
+  <p>En la asignatura, pestaña <strong>Plan</strong>, reparte los 100 puntos del parcial en rubros (tareas, trabajos, proyecto, examen…). La app avisa si faltan o sobran puntos. En <span class="ruta">Rúbricas</span> puedes guardar plantillas para usarlas en varias asignaturas.</p>
+
+  <h3 id="actividades">Actividades y calificaciones</h3>
+  <ol>
+    <li>En la pestaña <strong>Actividades</strong> crea la tarea o el examen dentro de su rubro, con su valor.</li>
+    <li>Tócala y califica alumno por alumno. Se guarda solo.</li>
+    <li>En <strong>Notas</strong> ves el libro completo del parcial y en <strong>Estadísticas</strong>, cómo va el grupo.</li>
+  </ol>
+
+  <h3 id="lista">Pasar lista en la clase</h3>
+  <ol>
+    <li>En <span class="ruta">Asistencia</span> elige la asignatura (o toca el ícono de lista dentro de ella).</li>
+    <li>Todos empiezan presentes. Toca <span class="boton">Todos presentes</span> o toca a un alumno para marcarlo ausente.</li>
+    <li>Toca el estado de un alumno para marcar <strong>Tarde</strong> o <strong>Justificada</strong>.</li>
+  </ol>
+  <div class="nota"><strong>Excusas del centro.</strong> Si la secretaría registró una excusa o permiso para un alumno ese día, al abrir la lista el alumno queda como <strong>Justificada</strong> y debajo de su nombre ves el motivo. Necesita internet para verlo; sin señal la lista funciona igual.</div>
+
+  <h3 id="cerrar">Cerrar el parcial y exportar a SACE</h3>
+  <ol>
+    <li>En <strong>Notas</strong> toca <span class="boton">Cerrar parcial</span>. La NOTA TOTAL y las INASISTENCIAS se llenan solas en el cuadro.</li>
+    <li>Toca <span class="boton">Exportar</span>, guarda el archivo y súbelo en SACE en <span class="ruta">Notas → Cargar Archivos Notas</span>.</li>
+    <li>Si necesitas corregir, reabre el parcial, cambia y vuelve a cerrar y exportar.</li>
+  </ol>
+  <p>Si tu centro tiene licencia, al cerrar el parcial la dirección ve esas notas en el consolidado de la sección y la familia las ve en su app.</p>
+
+  <h3 id="carga">Mi carga en el centro</h3>
+  <p>Si tu centro usa ProfeApp, en <span class="ruta">Inicio</span> aparecen:</p>
+  <ul>
+    <li><strong>Tus clases de hoy:</strong> tus clases del día según el horario, con aula y hora.</li>
+    <li><strong>Tu carga:</strong> las secciones y asignaturas que te asignaron, y cuáles todavía no tienen su cuadro de SACE en la app (en rojo). Desde ahí puedes importarlos.</li>
+    <li><strong>Avisos de lista:</strong> si tu cuadro tiene alumnos retirados o le faltan alumnos que el centro ya matriculó.</li>
+  </ul>
+
+  <h3 id="guia">Maestro guía: lista del día y conducta</h3>
+  <p>En la tarjeta de tu carga, la sección que guías tiene dos botones más:</p>
+  <ul>
+    <li><span class="boton">Pasar lista del día</span>: una lista por día para toda la sección. Todos empiezan presentes; toca a un alumno para ausente o elige Tarde o Justificada. Toca <strong>Guardar</strong>. La familia recibe un aviso si su hijo faltó o llegó tarde. Los alumnos con excusa del centro ya aparecen como justificados.</li>
+    <li><span class="boton">Conducta por parcial</span>: elige el parcial y pon a cada alumno una letra de la A a la E. Va a la boleta y la familia la ve.</li>
+  </ul>
+
+  <h3 id="incidencia-docente">Reportar una incidencia</h3>
+  <ol>
+    <li>En la tarjeta de tu carga, en la sección donde ocurrió, toca <span class="boton">Reportar incidencia</span>.</li>
+    <li>Elige al alumno, si la falta es <strong>leve</strong>, <strong>grave</strong> o <strong>muy grave</strong>, la fecha, qué pasó y, si la hubo, la medida que tomaste.</li>
+    <li>Toca <strong>Guardar</strong>. La dirección la ve en su panel y la familia recibe un aviso.</li>
+  </ol>
+  <div class="ojo">Lo que escribes lo lee la familia. Describe los hechos con respeto y sin datos de otros alumnos. Solo se registran incidencias de los últimos 60 días.</div>
+</section>
+
+<!-- ───────────────────────────── 3 ───────────────────────────── -->
+<section class="parte" id="centro">
+  <h2>3. Dirección y secretaría</h2>
+
+  <h3 id="panel">El panel del centro</h3>
+  <p>Funciona mejor en la computadora, en <span class="ruta">profeapphn.com/app</span>. Arriba están las pestañas:</p>
+  <table>
+    <thead><tr><th>Pestaña</th><th>Para qué sirve</th></tr></thead>
+    <tbody>
+      <tr><td>Inicio</td><td>Tablero del día: alumnos, docentes, familias con cuenta, lista de hoy, asistencia de los últimos días, incidencias y docentes sin actividad.</td></tr>
+      <tr><td>Docentes</td><td>Licencia del centro, alta de docentes y avance de cada uno.</td></tr>
+      <tr><td>Año lectivo · Grados · Aulas · Secciones</td><td>La organización del año.</td></tr>
+      <tr><td>Horario</td><td>Bloques de cada jornada y horario de cada sección.</td></tr>
+      <tr><td>Asistencia</td><td>Qué secciones pasaron la lista del día y quién faltó.</td></tr>
+      <tr><td>Excusas · Incidencias</td><td>Convivencia escolar.</td></tr>
+      <tr><td>Alumnos</td><td>Buscar alumnos, abrir su ficha y el diseño del carnet.</td></tr>
+      <tr><td>Comunicados</td><td>Avisos a las familias.</td></tr>
+      <tr><td>Reportes · Estadísticas docentes</td><td>Números del año, descargables en CSV para Excel.</td></tr>
+      <tr><td>Personal</td><td>Cuentas de dirección, subdirección, secretaría y orientación.</td></tr>
+    </tbody>
+  </table>
+  <p>El botón de actualizar (flecha circular, arriba a la derecha) vuelve a cargar todo.</p>
+
+  <h3 id="arranque">Puesta en marcha, paso a paso</h3>
+  <ol>
+    <li><strong>Año lectivo:</strong> créalo con sus fechas y márcalo como actual.</li>
+    <li><strong>Grados:</strong> toca <span class="boton">Cargar grados de Honduras</span> y elige los que ofrece el centro; luego agrega las asignaturas de cada grado.</li>
+    <li><strong>Aulas</strong> (opcional) y <strong>secciones</strong> de cada grado, con su jornada y su maestro guía.</li>
+    <li><strong>Docentes:</strong> agrégalos y entrégales su contraseña temporal.</li>
+    <li><strong>Carga docente:</strong> en cada sección, asigna quién da cada asignatura.</li>
+    <li><strong>Matrícula:</strong> importa la lista de cada sección desde SACE.</li>
+    <li><strong>Horario:</strong> crea los bloques de cada jornada y arma el horario de cada sección.</li>
+    <li><strong>Familias:</strong> genera los códigos de familia y entrégalos.</li>
+    <li><strong>Carnet:</strong> sube el logo, elige el color y las fotos de los alumnos.</li>
+  </ol>
+
+  <h3 id="docentes">Docentes y personal</h3>
+  <ul>
+    <li>En <strong>Docentes</strong> toca <span class="boton">Agregar docente</span> con su correo y nombre. Aparece una <strong>contraseña temporal</strong> que solo se muestra una vez: cópiala y entrégala.</li>
+    <li>Cada docente ocupa un lugar del cupo de la licencia. Al desactivar a uno se libera su lugar; sus datos no se borran.</li>
+    <li>Si un docente olvida su contraseña, restablécela desde su fila y entrégale la nueva temporal.</li>
+    <li>En <strong>Personal</strong> toca <span class="boton">Agregar personal</span> para dar cuentas de dirección, subdirección, secretaría u orientación. No cuentan en el cupo de docentes.</li>
+  </ul>
+
+  <h3 id="estructura">Año lectivo, grados, aulas y secciones</h3>
+  <ul>
+    <li><strong>Año lectivo:</strong> fechas de inicio y fin y, si quieres, la fecha de cierre de cada parcial. Solo uno es el actual.</li>
+    <li><strong>Grados y asignaturas:</strong> puedes renombrar o quitar asignaturas. Usa los nombres como aparecen en SACE para que la app empareje los cuadros.</li>
+    <li><strong>Secciones:</strong> grado, nombre (A, B…), jornada, cupo, aula y maestro guía. En el menú <strong>⋮</strong> de cada sección están <em>Alumnos</em>, <em>Consolidado y boletas</em>, <em>Carnets de la sección</em>, <em>Carga docente</em>, <em>Editar</em> y <em>Eliminar</em>.</li>
+  </ul>
+
+  <h3 id="matricula">Matrícula y fichas</h3>
+  <h4>Matricular</h4>
+  <ol>
+    <li>En <strong>Secciones</strong>, menú <strong>⋮ → Alumnos</strong>.</li>
+    <li><span class="boton">Importar de SACE</span>: elige el archivo de la sección descargado de SACE y confirma. Los alumnos que ya estaban en otra sección se pueden dejar donde están o mover.</li>
+    <li><span class="boton">A mano</span>: identidad, nombre y tipo (nuevo ingreso, reingreso o traslado).</li>
+  </ol>
+  <p>Desde la lista de la sección puedes cambiar a un alumno de sección o registrar su <strong>retiro</strong> o <strong>traslado</strong>, con fecha y motivo.</p>
+  <h4>La ficha del alumno</h4>
+  <p>En <strong>Alumnos</strong> busca por nombre o identidad y abre la ficha. Tiene:</p>
+  <ul>
+    <li><strong>Foto</strong> para el carnet: <span class="boton">Subir foto</span>. La app la recorta y la reduce sola.</li>
+    <li>Datos: nombre, identidad, fecha de nacimiento, sexo, dirección, salud (alergias, condiciones, medicamentos) y notas de secretaría.</li>
+    <li>Encargados, con uno principal.</li>
+    <li><strong>Acceso de la familia:</strong> el código y las cuentas vinculadas.</li>
+    <li>Matrículas, con los botones <span class="boton">Registrar excusa</span>, <span class="boton">Incidencia</span> y <span class="boton">Constancia de estudio</span>.</li>
+  </ul>
+  <div class="ojo">La ficha (salud y notas de secretaría) solo la ve el personal del centro. Los docentes ven nombre e identidad; las familias no ven la ficha.</div>
+
+  <h3 id="horario">Horario</h3>
+  <ol>
+    <li>Toca <span class="boton">Bloque</span> para crear los períodos de cada jornada (por ejemplo, 1.ª hora de 7:00 a 7:45) y los recesos.</li>
+    <li>Elige una sección y toca cada casilla de día y bloque para poner la asignatura. El docente sale de la carga docente.</li>
+    <li>La app no deja guardar si un docente o un aula queda en dos lugares a la vez. Si después cambias la carga y se produce un choque, el horario te lo avisa.</li>
+  </ol>
+  <p>Cada docente ve su horario en la app y las familias, el de la sección de su hijo.</p>
+
+  <h3 id="asistencia-centro">Asistencia del día</h3>
+  <p>En <strong>Asistencia</strong> elige la fecha: verás qué secciones pasaron la lista del día, su maestro guía y quién faltó, llegó tarde o tuvo falta justificada. El tablero de <strong>Inicio</strong> muestra lo de hoy y la tendencia de los últimos días.</p>
+
+  <h3 id="excusas">Excusas y permisos</h3>
+  <ol>
+    <li>En <strong>Excusas</strong> toca <span class="boton">Registrar excusa</span> (o hazlo desde la ficha del alumno).</li>
+    <li>Busca al alumno, elige <strong>Excusa</strong> (enfermedad, motivo familiar) o <strong>Permiso</strong> (el centro lo autoriza), las fechas desde y hasta, y el motivo.</li>
+    <li>Esos días, el maestro guía y cada catedrático ven al alumno como <strong>falta justificada</strong> al pasar lista, con el motivo.</li>
+  </ol>
+  <p>La pestaña muestra las excusas vigentes y las del último mes; las que cubren hoy aparecen resaltadas. Una excusa cubre hasta 180 días.</p>
+
+  <h3 id="incidencias">Incidencias</h3>
+  <ul>
+    <li>Las registra un catedrático desde su app o el centro con <span class="boton">Registrar incidencia</span>.</li>
+    <li>Toca una incidencia para darle <strong>seguimiento</strong>: medida tomada (la ve la familia), notas internas (solo el centro) y <strong>caso cerrado</strong>.</li>
+    <li>Usa <strong>Solo abiertas</strong> para ver lo pendiente.</li>
+    <li>Al registrarla, la familia recibe un aviso en el teléfono.</li>
+  </ul>
+
+  <h3 id="familias">Familias y comunicados</h3>
+  <h4>Dar acceso a una familia</h4>
+  <ol>
+    <li>En la ficha del alumno, en <strong>Acceso de la familia</strong>, genera el <strong>código</strong> (8 letras y números, vale 30 días).</li>
+    <li>Entrégalo solo a la madre, el padre o el encargado legal. Puedes copiar las instrucciones para enviarlas.</li>
+    <li>Hasta 4 cuentas por alumno. Generar un código nuevo anula el anterior.</li>
+    <li>Si alguien no debe tener acceso (por ejemplo, por una decisión de custodia), quita su cuenta desde la misma ficha.</li>
+  </ol>
+  <h4>Comunicados</h4>
+  <p>En <strong>Comunicados</strong> toca <span class="boton">Nuevo comunicado</span>, escribe título y mensaje, y elige todo el centro o ciertas secciones. Las familias lo reciben como aviso en el teléfono. En cada comunicado ves cuántas familias lo leyeron.</p>
+
+  <h3 id="consolidado">Consolidado, boletas, constancias y SACE</h3>
+  <p>En <strong>Secciones → ⋮ → Consolidado y boletas</strong> ves el cuadro de la sección con todas las asignaturas, armado con lo que cerró cada docente:</p>
+  <ul>
+    <li>Nota mínima 70. La nivelación se suma al parcial; la final es el promedio de los parciales; con final menor a 70 el alumno va a recuperación.</li>
+    <li>Mientras faltan parciales, la casilla muestra cuántos van cerrados (por ejemplo, «2/4»).</li>
+    <li><span class="boton">Boletas de la sección</span> genera un PDF con la boleta de cada alumno (notas y conducta). También hay un botón de boleta por alumno.</li>
+    <li><span class="boton">Cuadros de SACE (.zip)</span> descarga los cuadros de todas las asignaturas de la sección, llenos, para subirlos a SACE.</li>
+  </ul>
+  <p>La <strong>constancia de estudio</strong> se genera desde la ficha del alumno, lista para firmar y sellar.</p>
+
+  <h3 id="carnet">Carnet estudiantil</h3>
+  <ol>
+    <li>En <strong>Alumnos</strong> toca <span class="boton">Diseño del carnet</span>: sube el logo del centro, elige el color y, si quieres, el lema.</li>
+    <li>Sube la foto de cada alumno en su ficha. Sirve una foto de frente con fondo claro; la app la recorta en tamaño carnet.</li>
+    <li>Imprime: el carnet de un alumno desde su ficha (<span class="boton">Carnet estudiantil</span>) o los de toda la sección desde <strong>Secciones → ⋮ → Carnets de la sección</strong>.</li>
+  </ol>
+  <p>Salen 8 carnets por hoja carta, de tamaño tarjeta (85.6 × 54 mm), con logo, nombre del centro, año, foto, nombre, identidad, grado y sección, jornada y un código QR. Si un alumno no tiene foto, queda un recuadro para pegarla. Se recomienda imprimir en cartulina y plastificar.</p>
+
+  <h3 id="reportes">Reportes y estadísticas de docentes</h3>
+  <h4>Reportes</h4>
+  <ul>
+    <li><strong>Matrícula:</strong> activos, nuevos, reingresos, traslados y retiros; por sección, sexo y edad.</li>
+    <li><strong>Alumnos en riesgo:</strong> con notas bajo la mínima o muchas ausencias.</li>
+    <li><strong>Rendimiento</strong> por sección y asignatura.</li>
+    <li><strong>Asistencia</strong> de la lista del día por sección.</li>
+    <li><strong>Convivencia:</strong> faltas leves, graves y muy graves, casos abiertos y excusas.</li>
+  </ul>
+  <h4>Estadísticas docentes</h4>
+  <p>Una tarjeta por docente con su carga, cuadros importados, parciales cerrados, actividades, listas de los últimos 30 días, lista del día (si es guía), conducta, incidencias y la aprobación de sus alumnos. Se puede ordenar por aprobación o por quién lleva más tiempo sin actividad, y descargar en CSV.</p>
+  <div class="nota">La dirección ve el avance y las notas cerradas, pero no modifica las notas: siguen siendo del docente.</div>
+
+  <h3 id="cargos">Cargos y permisos</h3>
+  <table>
+    <thead><tr><th>Cargo</th><th>Puede</th></tr></thead>
+    <tbody>
+      <tr><td>Administración (cuenta original del centro), Dirección, Subdirección, Secretaría</td><td>Ver y modificar todo lo del centro.</td></tr>
+      <tr><td>Orientación</td><td>Ver todo; no modifica nada.</td></tr>
+    </tbody>
+  </table>
+  <p>Si la licencia vence, el panel queda en <strong>solo lectura</strong> hasta renovarla; los datos se conservan 90 días después de terminar la licencia.</p>
+</section>
+
+<!-- ───────────────────────────── 4 ───────────────────────────── -->
+<section class="parte" id="familia">
+  <h2>4. Familias</h2>
+
+  <h3>Crear la cuenta</h3>
+  <ol>
+    <li>Pide en la secretaría del centro el <strong>código de familia</strong> de tu hijo o hija.</li>
+    <li>Descarga <strong>ProfeApp</strong> de Google Play o de la App Store.</li>
+    <li>En la pantalla de inicio toca <span class="boton">Soy padre o madre</span>.</li>
+    <li>Escribe el código, tu nombre, tu correo y una contraseña.</li>
+    <li>Acepta las notificaciones para recibir los avisos del centro.</li>
+  </ol>
+  <p>¿Tienes más hijos en el centro? Entra con tu cuenta y en el menú elige <strong>Agregar otro hijo (código)</strong>.</p>
+
+  <h3>Qué puedes ver</h3>
+  <p>En la pantalla principal están tus hijos y los comunicados del centro. Al tocar a un hijo ves:</p>
+  <table>
+    <thead><tr><th>Pestaña</th><th>Contenido</th></tr></thead>
+    <tbody>
+      <tr><td>Notas</td><td>La nota de cada asignatura por parcial y la conducta (A a E).</td></tr>
+      <tr><td>Asistencia</td><td>La lista del día del maestro guía y la asistencia en cada clase, con las faltas recientes.</td></tr>
+      <tr><td>Próximas</td><td>Tareas y exámenes que vienen.</td></tr>
+      <tr><td>Horario</td><td>Las clases de la semana.</td></tr>
+      <tr><td>Incidencias</td><td>Faltas disciplinarias con la medida tomada.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Avisos al teléfono</h3>
+  <p>Recibes un aviso cuando el centro publica un comunicado, cuando tu hijo falta o llega tarde según la lista del día, y cuando se le registra una incidencia. Puedes apagarlos en los ajustes del teléfono.</p>
+  <div class="nota">Para dudas sobre notas, faltas o incidencias, comunícate con el centro: ProfeApp no tiene mensajes entre familias y docentes.</div>
+</section>
+
+<!-- ───────────────────────────── 5 ───────────────────────────── -->
+<section class="parte" id="preguntas">
+  <h2>5. Preguntas frecuentes y soporte</h2>
+
+  <h4>No puedo importar mi cuadro de SACE</h4>
+  <p>Usa el archivo tal como lo descarga SACE, sin abrirlo ni guardarlo en otro formato. Se aceptan .xls y .xlsx.</p>
+
+  <h4>La nube dice «sin conexión»</h4>
+  <p>Todo queda guardado en el teléfono y se respalda solo cuando vuelve internet. Toca la nube para intentarlo en el momento.</p>
+
+  <h4>Olvidé mi contraseña</h4>
+  <p>Toca <strong>¿Olvidaste tu contraseña?</strong> en la pantalla de inicio. Si tu cuenta es de un centro, la dirección la restablece desde su panel.</p>
+
+  <h4>Un alumno no aparece en mi cuadro pero sí en el centro</h4>
+  <p>El cuadro de SACE es anterior a la matrícula. Descarga de nuevo el cuadro en SACE e impórtalo; la app conserva lo que ya calificaste.</p>
+
+  <h4>La familia no recibe avisos</h4>
+  <p>Revisa que haya iniciado sesión en la app con su cuenta de familia y que las notificaciones de ProfeApp estén permitidas en los ajustes del teléfono.</p>
+
+  <h4>La boleta sale sin notas de una asignatura</h4>
+  <p>El docente todavía no ha cerrado el parcial o no ha importado el cuadro de esa sección. En <strong>Estadísticas docentes</strong> ves quién tiene cuadros o parciales pendientes.</p>
+
+  <h3>Soporte</h3>
+  <p>WhatsApp <strong>+504 9824-2108</strong> · Correo <strong>soporte@profeapphn.com</strong> · Videos y ayuda en <strong>profeapphn.com/soporte</strong>.</p>
+  <p>Para ayudarte más rápido cuéntanos el correo de tu cuenta, si usas Android, iPhone o la web, qué estabas haciendo y, si puedes, una captura de pantalla. Nunca envíes tu contraseña.</p>
+</section>
+
+</main>
+</body>
+</html>
