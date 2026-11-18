@@ -79,6 +79,12 @@ Antes del primer deploy, cargar los dos secretos en *Environment*:
 
 Si la web se publica en otro dominio que no sea `profeapphn.com`, hay que cambiar `App__CorsOrigins__0` por ese dominio exacto, sin barra final.
 
+### Avisos al teléfono (Firebase)
+
+- Proyecto de Firebase `profeapp-5c606`. Variable de Render `Firebase__CredencialesJson` con el JSON de la cuenta de servicio (copia local en `~/ProfeApp-secretos/firebase-admin.json`, fuera del repo). Sin ella la API arranca igual y los avisos se descartan.
+- Para compilar la app hacen falta `mobile/android/app/google-services.json` y `mobile/ios/Runner/GoogleService-Info.plist` (Firebase → Configuración del proyecto → Tus apps). No van al repo: están en `.gitignore`.
+- La clave APNs (`.p8`) está subida en Firebase → Cloud Messaging; el App ID tiene Push Notifications activado.
+
 ## 3. Cloudflare Pages (web)
 
 Pages compila la web desde GitHub en cada push a `main`. Su imagen no trae Flutter: lo instala [scripts/cloudflare-build.sh](../scripts/cloudflare-build.sh).

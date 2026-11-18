@@ -224,3 +224,15 @@ public class MarcaAsistenciaDiariaConfig : IEntityTypeConfiguration<MarcaAsisten
         b.HasIndex(x => x.AlumnoId);
     }
 }
+
+public class ConductaParcialConfig : IEntityTypeConfiguration<ConductaParcial>
+{
+    public void Configure(EntityTypeBuilder<ConductaParcial> b)
+    {
+        b.ToTable("conductas");
+        b.Property(x => x.Nota).HasMaxLength(1).IsRequired();
+        b.HasOne<Seccion>().WithMany().HasForeignKey(x => x.SeccionId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.SeccionId, x.AlumnoId, x.Parcial }).IsUnique();
+    }
+}

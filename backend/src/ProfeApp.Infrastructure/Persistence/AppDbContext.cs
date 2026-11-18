@@ -46,6 +46,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<HorarioClase> HorariosClase => Set<HorarioClase>();
     public DbSet<TomaAsistenciaDiaria> TomasAsistenciaDiaria => Set<TomaAsistenciaDiaria>();
     public DbSet<MarcaAsistenciaDiaria> MarcasAsistenciaDiaria => Set<MarcaAsistenciaDiaria>();
+    public DbSet<ConductaParcial> Conductas => Set<ConductaParcial>();
+    public DbSet<Domain.Common.DispositivoPush> DispositivosPush => Set<Domain.Common.DispositivoPush>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

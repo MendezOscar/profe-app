@@ -44,3 +44,23 @@ public class MarcaAsistenciaDiaria : EntidadDeCentro
     public Guid AlumnoId { get; set; }
     public string Estado { get; set; } = null!;
 }
+
+/// <summary>Nota de conducta (A–E) que el maestro guía pone a un alumno de su sección en un parcial.</summary>
+public class ConductaParcial : EntidadDeCentro
+{
+    public Guid SeccionId { get; set; }
+    public Guid AlumnoId { get; set; }
+
+    /// <summary>1 a 4.</summary>
+    public int Parcial { get; set; }
+
+    /// <summary>A, B, C, D o E.</summary>
+    public string Nota { get; set; } = null!;
+
+    public Guid PuestaPor { get; set; }
+}
+
+public static class NotasConducta
+{
+    public static readonly string[] Todas = ["A", "B", "C", "D", "E"];
+}

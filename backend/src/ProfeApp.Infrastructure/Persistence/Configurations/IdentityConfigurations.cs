@@ -43,3 +43,16 @@ public class RefreshTokenConfig : IEntityTypeConfiguration<RefreshToken>
         b.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 }
+
+public class DispositivoPushConfig : IEntityTypeConfiguration<ProfeApp.Domain.Common.DispositivoPush>
+{
+    public void Configure(EntityTypeBuilder<ProfeApp.Domain.Common.DispositivoPush> b)
+    {
+        b.ToTable("dispositivos_push");
+        b.Property(x => x.Token).HasMaxLength(512).IsRequired();
+        b.Property(x => x.Plataforma).HasMaxLength(10).IsRequired();
+        b.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => x.Token).IsUnique();
+        b.HasIndex(x => x.UsuarioId);
+    }
+}

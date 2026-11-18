@@ -42,3 +42,7 @@ node_modules/
 scripts/videos-ayuda/cuadros/
 scripts/videos-ayuda/node_modules/
 /.playwright-mcp/
+
+# Firebase: configuración por app (no va al repo público)
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist

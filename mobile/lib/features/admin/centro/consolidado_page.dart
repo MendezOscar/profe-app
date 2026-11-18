@@ -136,6 +136,7 @@ class _Contenido extends ConsumerWidget {
                       ),
                     ),
                   ),
+                const DataColumn(label: Text('Conducta')),
                 const DataColumn(label: Text('Resultado')),
                 const DataColumn(label: Text('')),
               ],
@@ -164,6 +165,7 @@ class _Contenido extends ConsumerWidget {
                                 ),
                               ),
                       ),
+                    DataCell(Text(((al['conducta'] as List?) ?? const []).map((c) => c ?? '–').join(' '))),
                     DataCell(Text(_resultados[al['resultado']] ?? '',
                         style: text.labelLarge?.copyWith(
                           color: switch (al['resultado']) {

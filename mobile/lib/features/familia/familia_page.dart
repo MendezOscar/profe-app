@@ -359,7 +359,9 @@ class _Notas extends StatelessWidget {
     final asignaturas = (r['asignaturas'] as List).cast<Map<String, dynamic>>();
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    if (asignaturas.isEmpty) {
+    final conducta = ((r['conducta'] as List?) ?? const []).cast<String?>();
+    final conConducta = conducta.any((c) => c != null);
+    if (asignaturas.isEmpty && !conConducta) {
       return const EstadoVacio(
         icono: Icons.menu_book_outlined,
         titulo: 'Todavía sin notas',
@@ -369,6 +371,19 @@ class _Notas extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(Espacio.l),
       children: [
+        if (conConducta)
+          Card(
+            margin: const EdgeInsets.only(bottom: Espacio.s),
+            child: ListTile(
+              leading: const Icon(Icons.emoji_people_outlined),
+              title: const Text('Conducta'),
+              subtitle: const Text('La pone el maestro guía en cada parcial (A a E).'),
+              trailing: Text(
+                [for (final (i, c) in conducta.indexed) '${['I', 'II', 'III', 'IV'][i]} ${c ?? '–'}'].join('  '),
+                style: text.labelLarge?.copyWith(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
         for (final a in asignaturas)
           Card(
             margin: const EdgeInsets.only(bottom: Espacio.s),

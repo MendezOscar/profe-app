@@ -5,6 +5,7 @@ import '../../core/centro/mi_carga.dart';
 import '../../core/providers.dart';
 import '../../theme/tokens.dart';
 import '../clases/importar_cuadros.dart';
+import 'conducta_page.dart';
 import 'lista_diaria_page.dart';
 
 final _identidadesProvider = FutureProvider<Map<String, Set<String>>>((ref) async {
@@ -64,6 +65,17 @@ class TarjetaCargaCentro extends ConsumerWidget {
                     )),
                     icon: const Icon(Icons.fact_check_outlined),
                     label: const Text('Pasar lista del día'),
+                  ),
+                ),
+              if (s.esGuia)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => ConductaPage(seccionId: s.id, titulo: '${s.grado} ${s.nombre}'),
+                    )),
+                    icon: const Icon(Icons.emoji_people_outlined),
+                    label: const Text('Conducta por parcial'),
                   ),
                 ),
               for (final a in s.asignaturas)

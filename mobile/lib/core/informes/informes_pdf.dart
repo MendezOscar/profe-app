@@ -437,6 +437,16 @@ class InformesPdf {
               pw.Spacer(),
               pw.Text('Inasistencias: $inasistencias', style: const pw.TextStyle(fontSize: 11)),
             ]),
+            if ((a['conducta'] as List?)?.any((c) => c != null) ?? false) ...[
+              pw.SizedBox(height: 6),
+              pw.Text(
+                'Conducta: ${[
+                  for (final (i, c) in (a['conducta'] as List).indexed)
+                    if (i < (maxParciales == 0 ? 4 : maxParciales)) 'P${romanos[i]} ${c ?? '—'}',
+                ].join('   ')}',
+                style: const pw.TextStyle(fontSize: 11),
+              ),
+            ],
             pw.SizedBox(height: 6),
             pw.Text(
               'Nota mínima para aprobar: ${consolidado['notaMinima']}. La final es el promedio de los parciales; con final '

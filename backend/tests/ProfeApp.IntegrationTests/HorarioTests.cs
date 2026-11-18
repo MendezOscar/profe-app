@@ -174,4 +174,85 @@ public class HorarioTests(ApiFixture fixture) : ApiTestBase(fixture)
         diaria.GetProperty("ausencias").GetInt32().Should().Be(1);
         resumen.GetProperty("horario")[0].GetProperty("asignatura").GetString().Should().Be("Español");
     }
+
+    [Fact]
+    public async Task El_maestro_guia_pone_la_conducta_por_parcial_y_sale_en_el_consolidado()
+    {
+        var e = await EscenarioAsync();
+        var ana = (await ReadAsync(await e.Centro.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos",
+            new { identidad = "0801201400201", nombre = "Ana Conducta", tipo = "nuevo_ingreso" }))).GetProperty("alumnoId").GetGuid();
+
+        var vacia = await ReadAsync(await e.Docente.GetAsync($"/api/v1/mi-centro/secciones/{e.A}/conducta?parcial=2"));
+        vacia.GetProperty("alumnos")[0].GetProperty("nota").ValueKind.Should().Be(JsonValueKind.Null);
+
+        (await e.Docente.PutAsJsonAsync($"/api/v1/mi-centro/secciones/{e.A}/conducta",
+            new { parcial = 2, notas = new[] { new { alumnoId = ana, nota = (string?)"F" } } }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await e.Docente.PutAsJsonAsync($"/api/v1/mi-centro/secciones/{e.B}/conducta",
+            new { parcial = 2, notas = new[] { new { alumnoId = ana, nota = (string?)"A" } } }))
+            .StatusCode.Should().Be(HttpStatusCode.NotFound, "no es guía de la B");
+
+        var puesta = await ReadAsync(await e.Docente.PutAsJsonAsync($"/api/v1/mi-centro/secciones/{e.A}/conducta",
+            new { parcial = 2, notas = new[] { new { alumnoId = ana, nota = (string?)"B" } } }));
+        puesta.GetProperty("alumnos")[0].GetProperty("nota").GetString().Should().Be("B");
+
+        var consolidado = await ReadAsync(await e.Centro.GetAsync($"/api/v1/centro/secciones/{e.A}/consolidado"));
+        consolidado.GetProperty("alumnos")[0].GetProperty("conducta").EnumerateArray()
+            .Select(x => x.ValueKind == JsonValueKind.Null ? null : x.GetString()).Should().Equal(null, "B", null, null);
+
+        // Nota null la borra.
+        await e.Docente.PutAsJsonAsync($"/api/v1/mi-centro/secciones/{e.A}/conducta",
+            new { parcial = 2, notas = new[] { new { alumnoId = ana, nota = (string?)null } } });
+        (await ReadAsync(await e.Docente.GetAsync($"/api/v1/mi-centro/secciones/{e.A}/conducta?parcial=2")))
+            .GetProperty("alumnos")[0].GetProperty("nota").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    private static async Task<List<string>> AvisosDeAsync(string token, int esperados)
+    {
+        for (var i = 0; i < 50; i++)
+        {
+            var de = EnviadorDePrueba.Enviados.Where(e => e.Token == token).Select(e => e.Titulo).ToList();
+            if (de.Count >= esperados) return de;
+            await Task.Delay(100);
+        }
+        return EnviadorDePrueba.Enviados.Where(e => e.Token == token).Select(e => e.Titulo).ToList();
+    }
+
+    [Fact]
+    public async Task La_familia_recibe_en_el_telefono_los_comunicados_y_las_faltas_del_dia()
+    {
+        var e = await EscenarioAsync();
+        var ana = (await ReadAsync(await e.Centro.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos",
+            new { identidad = "0801201400301", nombre = "Ana Aviso", tipo = "nuevo_ingreso" }))).GetProperty("alumnoId").GetGuid();
+        var codigo = (await ReadAsync(await e.Centro.PostAsync($"/api/v1/centro/alumnos/{ana}/familia/codigo", null))).GetProperty("codigo").GetString();
+        var padre = Fixture.CreateClient();
+        Autorizar(padre, await ReadAsync(await padre.PostAsJsonAsync("/api/v1/auth/registro-padre", new
+        {
+            codigo, email = $"padre-{Guid.NewGuid():N}@prueba.hn", password = "Familia-1234", fullName = "Papá Aviso",
+        })));
+        var token = $"token-{Guid.NewGuid():N}";
+        var muerto = $"muerto-{Guid.NewGuid():N}";
+        (await padre.PostAsJsonAsync("/api/v1/dispositivos", new { token, plataforma = "android" })).StatusCode.Should().Be(HttpStatusCode.NoContent);
+        (await padre.PostAsJsonAsync("/api/v1/dispositivos", new { token = muerto, plataforma = "ios" })).StatusCode.Should().Be(HttpStatusCode.NoContent);
+
+        await e.Centro.PostAsJsonAsync("/api/v1/centro/comunicados", new { titulo = "Reunión", cuerpo = "El viernes.", seccionIds = (Guid[]?)null });
+        await e.Centro.PostAsJsonAsync("/api/v1/centro/comunicados", new { titulo = "Solo la B", cuerpo = "Gira.", seccionIds = new[] { e.B } });
+        (await AvisosDeAsync(token, 1)).Should().ContainSingle().Which.Should().EndWith("Reunión");
+
+        var hoy = DateTime.Today.ToString("yyyy-MM-dd");
+        var lista = new { fecha = hoy, marcas = new[] { new { alumnoId = ana, estado = "A" } } };
+        await e.Docente.PutAsJsonAsync($"/api/v1/mi-centro/secciones/{e.A}/asistencia", lista);
+        await e.Docente.PutAsJsonAsync($"/api/v1/mi-centro/secciones/{e.A}/asistencia", lista);
+        var avisos = await AvisosDeAsync(token, 2);
+        await Task.Delay(500);
+        avisos = EnviadorDePrueba.Enviados.Where(x => x.Token == token).Select(x => x.Titulo).ToList();
+        avisos.Should().HaveCount(2, "corregir la lista no repite el aviso");
+        avisos[1].Should().Be("Ana Aviso no llegó hoy a clases");
+
+        // El token que Firebase rechazó se olvida: el siguiente aviso ya no va a él.
+        var antes = EnviadorDePrueba.Enviados.Count(x => x.Token == muerto);
+        await e.Centro.PostAsJsonAsync("/api/v1/centro/comunicados", new { titulo = "Otro", cuerpo = "Más.", seccionIds = (Guid[]?)null });
+        await AvisosDeAsync(token, 3);
+        EnviadorDePrueba.Enviados.Count(x => x.Token == muerto).Should().Be(antes);
+    }
 }

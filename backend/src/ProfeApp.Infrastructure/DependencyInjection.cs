@@ -71,6 +71,12 @@ public static class DependencyInjection
         services.AddScoped<Centros.HorarioService>();
         services.AddScoped<IHorarioService>(p => p.GetRequiredService<Centros.HorarioService>());
         services.AddScoped<IMiCargaService, Centros.MiCargaService>();
+        // Avisos al teléfono: cola en memoria y envío en segundo plano por Firebase.
+        services.AddSingleton<Push.ColaPush>();
+        services.AddSingleton<IAvisosPush>(p => p.GetRequiredService<Push.ColaPush>());
+        services.AddSingleton<IEnviadorPush, Push.EnviadorFirebase>();
+        services.AddHostedService<Push.ServicioPush>();
+        services.AddScoped<IDispositivosService, Push.DispositivosService>();
         services.AddScoped<Centros.ConsolidadoService>();
         services.AddScoped<IConsolidadoService>(p => p.GetRequiredService<Centros.ConsolidadoService>());
         services.AddScoped<IReportesService, Centros.ReportesService>();

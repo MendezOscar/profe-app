@@ -16,7 +16,8 @@ public sealed class HorarioService(
     AppDbContext db,
     EstructuraCentroService centro,
     ICurrentUser currentUser,
-    IClock clock) : IHorarioService
+    IClock clock,
+    IAvisosPush avisos) : IHorarioService
 {
     private static readonly string[] Dias = ["", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
     private const int ChoquesMostrados = 8;
@@ -225,6 +226,12 @@ public sealed class HorarioService(
             return Result<ListaDiariaDto>.Fail(Error.Validation("Hay alumnos que no están en la sección."));
 
         var yo = currentUser.RequireUserId();
+        // Las faltas que ya estaban no se vuelven a avisar al corregir la lista.
+        var antes = await (from m in db.MarcasAsistenciaDiaria.AsNoTracking()
+                           join t in db.TomasAsistenciaDiaria.AsNoTracking() on m.TomaId equals t.Id
+                           where t.SeccionId == seccionId && t.Fecha == r.Fecha
+                           select new { m.AlumnoId, m.Estado })
+            .ToDictionaryAsync(m => m.AlumnoId, m => m.Estado, ct);
         await db.Database.CreateExecutionStrategy().ExecuteAsync(async () =>
         {
             await using var tx = await db.Database.BeginTransactionAsync(ct);
@@ -245,7 +252,69 @@ public sealed class HorarioService(
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
         });
+        if (r.Fecha == clock.Today) await AvisarFaltasAsync(r.Marcas.Where(m => m.Estado is "A" or "T" && antes.GetValueOrDefault(m.AlumnoId) != m.Estado).ToList(), ct);
         return await ArmarListaAsync(seccion, r.Fecha, ct);
+    }
+
+    // ── Conducta ─────────────────────────────────────────────────────────────
+
+    public async Task<Result<ConductaSeccionDto>> ConductaAsync(Guid seccionId, int parcial, CancellationToken ct = default)
+    {
+        if (parcial is < 1 or > 4) return Result<ConductaSeccionDto>.Fail(Error.Validation("Los parciales van del I al IV."));
+        var (seccion, error) = await SeccionDeGuiaAsync(seccionId, ct);
+        if (seccion is null) return Result<ConductaSeccionDto>.Fail(error!);
+        return await ArmarConductaAsync(seccion, parcial, ct);
+    }
+
+    public async Task<Result<ConductaSeccionDto>> GuardarConductaAsync(Guid seccionId, ConductaRequest r, CancellationToken ct = default)
+    {
+        if (r.Parcial is < 1 or > 4) return Result<ConductaSeccionDto>.Fail(Error.Validation("Los parciales van del I al IV."));
+        var (seccion, error) = await SeccionDeGuiaAsync(seccionId, ct);
+        if (seccion is null) return Result<ConductaSeccionDto>.Fail(error!);
+        if (r.Notas.Any(n => n.Nota is not null && !NotasConducta.Todas.Contains(n.Nota)))
+            return Result<ConductaSeccionDto>.Fail(Error.Validation("La conducta va de A a E."));
+        if (r.Notas.Select(n => n.AlumnoId).Distinct().Count() != r.Notas.Count)
+            return Result<ConductaSeccionDto>.Fail(Error.Validation("Un alumno aparece dos veces."));
+        var alumnos = await db.Matriculas.Where(m => m.SeccionId == seccionId && m.Estado == EstadosMatricula.Activa)
+            .Select(m => m.AlumnoId).ToListAsync(ct);
+        if (r.Notas.Any(n => !alumnos.Contains(n.AlumnoId)))
+            return Result<ConductaSeccionDto>.Fail(Error.Validation("Hay alumnos que no están en la sección."));
+
+        var yo = currentUser.RequireUserId();
+        var ids = r.Notas.Select(n => n.AlumnoId).ToList();
+        var actuales = await db.Conductas.Where(c => c.SeccionId == seccionId && c.Parcial == r.Parcial && ids.Contains(c.AlumnoId))
+            .ToDictionaryAsync(c => c.AlumnoId, ct);
+        foreach (var n in r.Notas)
+        {
+            actuales.TryGetValue(n.AlumnoId, out var fila);
+            if (n.Nota is null)
+            {
+                if (fila is not null) db.Conductas.Remove(fila);
+                continue;
+            }
+            fila ??= db.Conductas.Add(new ConductaParcial
+            {
+                InstitucionId = seccion.InstitucionId, SeccionId = seccionId, AlumnoId = n.AlumnoId, Parcial = r.Parcial,
+            }).Entity;
+            fila.Nota = n.Nota;
+            fila.PuestaPor = yo;
+        }
+        await db.SaveChangesAsync(ct);
+        return await ArmarConductaAsync(seccion, r.Parcial, ct);
+    }
+
+    private async Task<ConductaSeccionDto> ArmarConductaAsync(Seccion seccion, int parcial, CancellationToken ct)
+    {
+        var notas = await db.Conductas.AsNoTracking().Where(c => c.SeccionId == seccion.Id && c.Parcial == parcial)
+            .ToDictionaryAsync(c => c.AlumnoId, c => c.Nota, ct);
+        var alumnos = await (from m in db.Matriculas.AsNoTracking()
+                             join a in db.Alumnos.AsNoTracking() on m.AlumnoId equals a.Id
+                             where m.SeccionId == seccion.Id && m.Estado == EstadosMatricula.Activa
+                             orderby a.Nombre
+                             select new { a.Id, a.Nombre })
+            .ToListAsync(ct);
+        return new ConductaSeccionDto(seccion.Id, await NombreSeccionAsync(seccion, ct), parcial,
+            alumnos.Select(a => new ConductaAlumnoDto(a.Id, a.Nombre, notas.GetValueOrDefault(a.Id))).ToList());
     }
 
     // ── Para la app del docente y del padre ──────────────────────────────────
@@ -342,6 +411,23 @@ public sealed class HorarioService(
                              where s.Id == seccionId && s.MaestroGuiaId == yo && a.Actual && i.Activa
                              select s).FirstOrDefaultAsync(ct);
         return seccion is null ? (null, Error.NotFound("La sección")) : (seccion, null);
+    }
+
+    /// <summary>A la familia de cada alumno que faltó o llegó tarde hoy.</summary>
+    private async Task AvisarFaltasAsync(List<MarcaDiariaRequest> nuevas, CancellationToken ct)
+    {
+        if (nuevas.Count == 0) return;
+        var ids = nuevas.Select(m => m.AlumnoId).ToList();
+        var familias = (await db.VinculosFamiliares.AsNoTracking().Where(v => ids.Contains(v.AlumnoId))
+            .Select(v => new { v.AlumnoId, v.UsuarioId }).ToListAsync(ct)).ToLookup(v => v.AlumnoId, v => v.UsuarioId);
+        var nombres = await db.Alumnos.AsNoTracking().Where(a => ids.Contains(a.Id)).ToDictionaryAsync(a => a.Id, a => a.Nombre, ct);
+        foreach (var m in nuevas.Where(m => familias[m.AlumnoId].Any()))
+        {
+            var nombre = nombres[m.AlumnoId];
+            avisos.Encolar(new AvisoPush(familias[m.AlumnoId].ToList(),
+                m.Estado == "A" ? $"{nombre} no llegó hoy a clases" : $"{nombre} llegó tarde hoy",
+                "Lo registró su maestro guía en la lista del día.", "/familia"));
+        }
     }
 
     private async Task<ListaDiariaDto> ArmarListaAsync(Seccion seccion, DateOnly fecha, CancellationToken ct)

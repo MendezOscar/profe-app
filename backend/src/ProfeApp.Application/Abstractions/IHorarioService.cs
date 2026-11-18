@@ -19,5 +19,7 @@ public interface IHorarioService
 
     // Del maestro guía, desde la app.
     Task<Result<ListaDiariaDto>> ListaDiariaAsync(Guid seccionId, DateOnly fecha, CancellationToken ct = default);
+    Task<Result<ConductaSeccionDto>> ConductaAsync(Guid seccionId, int parcial, CancellationToken ct = default);
+    Task<Result<ConductaSeccionDto>> GuardarConductaAsync(Guid seccionId, ConductaRequest request, CancellationToken ct = default);
     Task<Result<ListaDiariaDto>> GuardarListaDiariaAsync(Guid seccionId, ListaDiariaRequest request, CancellationToken ct = default);
 }

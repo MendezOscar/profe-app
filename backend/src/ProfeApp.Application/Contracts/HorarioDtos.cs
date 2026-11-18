@@ -33,3 +33,15 @@ public sealed record ListaDiariaRequest(DateOnly Fecha, IReadOnlyList<MarcaDiari
 public sealed record AsistenciaDelDiaDto(DateOnly Fecha, IReadOnlyList<SeccionDelDiaDto> Secciones);
 
 public sealed record SeccionDelDiaDto(Guid SeccionId, string Seccion, string? Guia, bool Tomada, int Activos, IReadOnlyList<AlumnoDiaDto> Faltas);
+
+// ── Conducta (maestro guía, por parcial) ─────────────────────────────────────
+
+/// <summary><c>Nota</c>: A–E o null si aún no la tiene.</summary>
+public sealed record ConductaAlumnoDto(Guid AlumnoId, string Nombre, string? Nota);
+
+public sealed record ConductaSeccionDto(Guid SeccionId, string Seccion, int Parcial, IReadOnlyList<ConductaAlumnoDto> Alumnos);
+
+public sealed record NotaConductaRequest(Guid AlumnoId, string? Nota);
+
+/// <summary>Reemplaza la conducta del parcial; nota null la borra.</summary>
+public sealed record ConductaRequest(int Parcial, IReadOnlyList<NotaConductaRequest> Notas);

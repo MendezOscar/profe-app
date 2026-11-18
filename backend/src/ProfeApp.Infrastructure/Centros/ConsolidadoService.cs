@@ -58,6 +58,8 @@ public sealed class ConsolidadoService(AppDbContext db, EstructuraCentroService 
         var conArchivo = (await db.Set<ClaseArchivo>().AsNoTracking().Where(a => ids.Contains(a.Id) && a.Contenido.Length > 0)
             .Select(a => a.Id).ToListAsync(ct)).ToHashSet();
 
+        var conducta = (await db.Conductas.AsNoTracking().Where(c => c.SeccionId == seccionId).ToListAsync(ct))
+            .ToLookup(c => c.AlumnoId);
         var estructuras = clases.Select(c => (c, Estructura: Estructura(c.Columnas))).ToList();
         var filas = alumnos.Select(a =>
         {
@@ -69,7 +71,8 @@ public sealed class ConsolidadoService(AppDbContext db, EstructuraCentroService 
                 var inasistencias = x.Estructura.Parciales.Sum(p => V(p.Inasistencias) ?? 0);
                 return Calificar(parciales, V(x.Estructura.Recuperacion), inasistencias);
             }).ToList();
-            return new AlumnoConsolidadoDto(a.Id, a.Identidad, a.Nombre, a.Estado, notas, Resultado(notas));
+            var letras = Enumerable.Range(1, 4).Select(p => conducta[a.Id].FirstOrDefault(c => c.Parcial == p)?.Nota).ToList();
+            return new AlumnoConsolidadoDto(a.Id, a.Identidad, a.Nombre, a.Estado, notas, Resultado(notas), letras);
         }).ToList();
 
         return new ConsolidadoDto(seccion.Id, seccion.Nombre, seccion.Jornada, nombreCentro, seccion.Anio, NotaMinima,

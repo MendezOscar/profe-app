@@ -1,6 +1,11 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using ProfeApp.Application.Abstractions;
 using Testcontainers.PostgreSql;
 
 namespace ProfeApp.IntegrationTests.Infrastructure;
@@ -20,6 +25,20 @@ internal sealed class TestApp(string connectionString) : WebApplicationFactory<P
                 ["App:DemoPassword"] = "Demo1234!",
                 ["App:DetailedSqlLogging"] = "false",
             }));
+        // Los avisos al teléfono no salen a Firebase: se anotan para revisarlos.
+        builder.ConfigureTestServices(services => services.Replace(ServiceDescriptor.Singleton<IEnviadorPush, EnviadorDePrueba>()));
+    }
+}
+
+/// <summary>Anota cada aviso enviado; un token que empieza con "muerto" se reporta como inválido.</summary>
+public sealed class EnviadorDePrueba : IEnviadorPush
+{
+    public static readonly ConcurrentQueue<(string Token, string Titulo)> Enviados = new();
+
+    public Task<IReadOnlyList<string>> EnviarAsync(IReadOnlyList<string> tokens, string titulo, string cuerpo, string? ruta, CancellationToken ct)
+    {
+        foreach (var t in tokens) Enviados.Enqueue((t, titulo));
+        return Task.FromResult<IReadOnlyList<string>>(tokens.Where(t => t.StartsWith("muerto")).ToList());
     }
 }
 

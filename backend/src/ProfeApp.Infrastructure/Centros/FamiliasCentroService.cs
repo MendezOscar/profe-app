@@ -12,7 +12,8 @@ public sealed class FamiliasCentroService(
     AppDbContext db,
     EstructuraCentroService centro,
     ICurrentUser currentUser,
-    IClock clock) : IFamiliasCentroService
+    IClock clock,
+    IAvisosPush avisos) : IFamiliasCentroService
 {
     private const int ComunicadosVisibles = 50;
 
@@ -110,6 +111,11 @@ public sealed class FamiliasCentroService(
         db.Comunicados.Add(comunicado);
         await db.SaveChangesAsync(ct);
         var familias = await FamiliasPorSeccionAsync(institucion.Id, ct);
+        avisos.Encolar(new AvisoPush(
+            familias.Where(f => secciones.Count == 0 || secciones.Contains(f.Seccion)).Select(f => f.Usuario).Distinct().ToList(),
+            $"{institucion.Nombre}: {titulo}",
+            cuerpo.Length > 140 ? cuerpo[..137] + "…" : cuerpo,
+            "/familia"));
         return ADto(comunicado, null, 0, familias);
     }
 

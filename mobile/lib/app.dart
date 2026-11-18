@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/avisos/push.dart';
+
 import 'core/router.dart';
 import 'core/sync/sync_controller.dart';
 import 'theme/profeapp_theme.dart';
@@ -14,6 +16,8 @@ class ProfeApp extends ConsumerWidget {
     // Escuchado en la raíz: la sincronización corre apenas hay sesión, esté donde esté el
     // docente. listen y no watch, para no reconstruir toda la app en cada cambio de estado.
     ref.listen(syncControllerProvider, (_, _) {});
+    // Avisos al teléfono de la familia (registra el dispositivo al iniciar sesión).
+    ref.watch(pushProvider);
 
     return MaterialApp.router(
       title: 'ProfeApp',

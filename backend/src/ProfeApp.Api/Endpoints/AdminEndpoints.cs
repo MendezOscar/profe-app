@@ -153,6 +153,19 @@ public static class AdminEndpoints
                 (await s.GuardarListaDiariaAsync(id, r, ct)).ToHttp())
             .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
 
+        // Teléfono que recibe avisos (cualquier usuario con sesión).
+        app.MapPost("/api/v1/dispositivos", async (DispositivoRequest r, IDispositivosService s, CancellationToken ct) =>
+                (await s.RegistrarAsync(r, ct)).ToHttp())
+            .WithTags("Avisos").RequireAuthorization().RequireRateLimiting(Limites.Usuario);
+
+        // El maestro guía pone la conducta (A–E) de su sección en cada parcial.
+        app.MapGet("/api/v1/mi-centro/secciones/{id:guid}/conducta", async (Guid id, int? parcial, IHorarioService s, CancellationToken ct) =>
+                (await s.ConductaAsync(id, parcial ?? 1, ct)).ToHttp())
+            .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
+        app.MapPut("/api/v1/mi-centro/secciones/{id:guid}/conducta", async (Guid id, ConductaRequest r, IHorarioService s, CancellationToken ct) =>
+                (await s.GuardarConductaAsync(id, r, ct)).ToHttp())
+            .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
+
         // El docente ve lo que su centro le asignó.
         app.MapGet("/api/v1/mi-centro/carga", async (IMiCargaService s, CancellationToken ct) => Results.Ok(await s.ObtenerAsync(ct)))
             .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario)

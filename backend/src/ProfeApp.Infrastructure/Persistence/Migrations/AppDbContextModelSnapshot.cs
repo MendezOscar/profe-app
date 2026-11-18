@@ -622,6 +622,67 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.ToTable("comunicados", (string)null);
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Centros.ConductaParcial", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AlumnoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("alumno_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Nota")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("nota");
+
+                    b.Property<int>("Parcial")
+                        .HasColumnType("integer")
+                        .HasColumnName("parcial");
+
+                    b.Property<Guid>("PuestaPor")
+                        .HasColumnType("uuid")
+                        .HasColumnName("puesta_por");
+
+                    b.Property<Guid>("SeccionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("seccion_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_conductas");
+
+                    b.HasIndex("AlumnoId")
+                        .HasDatabaseName("ix_conductas_alumno_id");
+
+                    b.HasIndex("SeccionId", "AlumnoId", "Parcial")
+                        .IsUnique()
+                        .HasDatabaseName("ix_conductas_seccion_id_alumno_id_parcial");
+
+                    b.ToTable("conductas", (string)null);
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Centros.Encargado", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1219,6 +1280,61 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_pagos_cuenta_id_pagado_el");
 
                     b.ToTable("pagos", (string)null);
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Common.DispositivoPush", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("ActualizadoEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("actualizado_en");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Plataforma")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("plataforma");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("token");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_dispositivos_push");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("ix_dispositivos_push_token");
+
+                    b.HasIndex("UsuarioId")
+                        .HasDatabaseName("ix_dispositivos_push_usuario_id");
+
+                    b.ToTable("dispositivos_push", (string)null);
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Cuadros.Clase", b =>
@@ -2127,6 +2243,23 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_comunicados_instituciones_institucion_id");
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Centros.ConductaParcial", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Centros.Alumno", null)
+                        .WithMany()
+                        .HasForeignKey("AlumnoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_conductas_alumnos_alumno_id");
+
+                    b.HasOne("ProfeApp.Domain.Centros.Seccion", null)
+                        .WithMany()
+                        .HasForeignKey("SeccionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_conductas_secciones_seccion_id");
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Centros.Encargado", b =>
                 {
                     b.HasOne("ProfeApp.Domain.Centros.Alumno", null)
@@ -2289,6 +2422,16 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_vinculos_familiares_asp_net_users_usuario_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Common.DispositivoPush", b =>
+                {
+                    b.HasOne("ProfeApp.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_dispositivos_push_asp_net_users_usuario_id");
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Cuadros.ClaseAlumno", b =>
