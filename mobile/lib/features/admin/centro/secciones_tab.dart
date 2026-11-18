@@ -6,6 +6,7 @@ import '../../../theme/tokens.dart';
 import '../../../ui/estado_vacio.dart';
 import 'comun_centro.dart';
 import 'estructura_tabs.dart';
+import 'consolidado_page.dart';
 import 'matricula.dart';
 
 /// Secciones del año elegido: grado, jornada, aula, maestro guía y qué docente da cada asignatura.
@@ -132,6 +133,13 @@ class _Seccion extends ConsumerWidget {
                   switch (o) {
                     case 'alumnos':
                       _alumnos(context, seccion, grado, editar);
+                    case 'consolidado':
+                      Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => ConsolidadoPage(
+                          seccionId: seccion['id'] as String,
+                          titulo: '${grado['nombre']} ${seccion['nombre']}',
+                        ),
+                      ));
                     case 'carga':
                       await _carga(context, ref, seccion, grado, datos, editar);
                     case 'editar':
@@ -154,6 +162,7 @@ class _Seccion extends ConsumerWidget {
                 },
                 itemBuilder: (_) => [
                   const PopupMenuItem(value: 'alumnos', child: Text('Alumnos')),
+                  const PopupMenuItem(value: 'consolidado', child: Text('Consolidado y boletas')),
                   const PopupMenuItem(value: 'carga', child: Text('Carga docente')),
                   if (editar) ...const [
                     PopupMenuItem(value: 'editar', child: Text('Editar sección')),

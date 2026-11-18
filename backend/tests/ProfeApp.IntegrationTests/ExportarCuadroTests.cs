@@ -80,7 +80,7 @@ public class ExportarCuadroTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     /// <summary>Un cuadro con la forma del de SACE: encabezados combinados y celdas de nota con estilo.</summary>
-    private static byte[] CuadroDePrueba()
+    internal static byte[] CuadroDePrueba()
     {
         var workbook = new HSSFWorkbook();
         var sheet = workbook.CreateSheet(Hoja);

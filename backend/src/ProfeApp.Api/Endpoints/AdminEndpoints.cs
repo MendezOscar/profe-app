@@ -119,6 +119,15 @@ public static class AdminEndpoints
                 (await s.AsistenciaDelDiaAsync(fecha ?? clock.Today, ct)).ToHttp())
             .WithSummary("Qué secciones pasaron lista ese día y quién faltó.");
 
+        // Consolidado de la sección con lo que cerró cada docente, y sus cuadros de SACE llenos.
+        centro.MapGet("/secciones/{id:guid}/consolidado", async (Guid id, IConsolidadoService s, CancellationToken ct) =>
+                (await s.SeccionAsync(id, ct)).ToHttp())
+            .WithSummary("Notas de cada alumno en todas las asignaturas de la sección, con final, recuperación y resultado.");
+        centro.MapGet("/secciones/{id:guid}/cuadros-sace", async (Guid id, IConsolidadoService s, CancellationToken ct) =>
+                (await s.CuadrosSaceAsync(id, ct)).ToHttp(c => Results.File(c.Contenido, c.ContentType, c.NombreArchivo)))
+            .RequireRateLimiting(Limites.Exportar)
+            .WithSummary("Los cuadros de SACE de la sección, llenos con lo que capturó cada docente, en un .zip.");
+
         // Personal: dirección, subdirección, secretaría y orientación.
         centro.MapGet("/personal", async (IEstructuraCentroService s, CancellationToken ct) => (await s.PersonalAsync(ct)).ToHttp());
         centro.MapPost("/personal", async (CrearPersonalRequest r, IEstructuraCentroService s, CancellationToken ct) =>

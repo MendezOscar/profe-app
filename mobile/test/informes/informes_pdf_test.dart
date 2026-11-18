@@ -52,4 +52,39 @@ void main() {
     expect(esPdf(libro), isTrue);
     expect(esPdf(asistencia), isTrue);
   });
+
+  test('Las boletas de la sección y la constancia de estudio salen como PDF', () async {
+    final consolidado = {
+      'centro': 'Instituto de prueba',
+      'seccion': '7.º grado A',
+      'jornada': 'matutina',
+      'anio': 2027,
+      'notaMinima': 70,
+      'asignaturas': [
+        {'nombre': 'Matemáticas', 'docente': 'Profe', 'parciales': ['PARCIAL I', 'PARCIAL II']},
+        {'nombre': 'Español', 'docente': 'Profe', 'parciales': ['PARCIAL I']},
+      ],
+      'alumnos': [
+        {
+          'alumnoId': 'a1',
+          'identidad': '0801201400001',
+          'nombre': 'Ana López',
+          'resultado': 'recuperacion',
+          'notas': [
+            {'parciales': [60, 70], 'final': 65, 'recuperacion': null, 'inasistencias': 2, 'estado': 'recuperacion'},
+            null,
+          ],
+        },
+        {'alumnoId': 'a2', 'identidad': '0801201400002', 'nombre': 'Beto', 'resultado': 'sin_notas', 'notas': [null, null]},
+      ],
+    };
+    final todas = await InformesPdf.boletas(consolidado);
+    final una = await InformesPdf.boletas(consolidado, alumnos: {'a1'});
+    expect(String.fromCharCodes(todas.take(5)), '%PDF-');
+    expect(todas.length, greaterThan(una.length), reason: 'una página por alumno');
+
+    final constancia = await InformesPdf.constanciaEstudio(
+        centro: 'Instituto de prueba', alumno: 'Ana López', identidad: '0801201400001', seccion: '7.º grado A', anio: 2027);
+    expect(String.fromCharCodes(constancia.take(5)), '%PDF-');
+  });
 }

@@ -101,10 +101,16 @@ class ApiClient {
 
   /// Para respuestas que son un archivo, como el cuadro exportado. Si falla, el cuerpo
   /// también llega como bytes: se decodifica el problem details para mostrar su mensaje.
-  Future<Uint8List> postBytes(String path, {Object? body}) async {
+  Future<Uint8List> postBytes(String path, {Object? body}) => _bytes(
+      () => _dio.post<List<int>>(path, data: body, options: Options(responseType: ResponseType.bytes)));
+
+  /// Como [postBytes], para descargas por GET (los cuadros de SACE de una sección).
+  Future<Uint8List> getBytes(String path) =>
+      _bytes(() => _dio.get<List<int>>(path, options: Options(responseType: ResponseType.bytes)));
+
+  Future<Uint8List> _bytes(Future<Response<List<int>>> Function() pedir) async {
     try {
-      final response =
-          await _dio.post<List<int>>(path, data: body, options: Options(responseType: ResponseType.bytes));
+      final response = await pedir();
       return Uint8List.fromList(response.data ?? const []);
     } on DioException catch (error) {
       final data = error.response?.data;

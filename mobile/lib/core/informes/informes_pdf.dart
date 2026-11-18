@@ -339,4 +339,162 @@ class InformesPdf {
     ));
     return doc.save();
   }
+  // ── Documentos del centro ────────────────────────────────────────────────
+
+  static const _resultados = {
+    'aprobado': 'Aprobado',
+    'recuperacion': 'Recuperación',
+    'reprobado': 'Reprobado',
+    'en_curso': 'En curso',
+    'sin_notas': 'Sin notas',
+  };
+
+  static const _estadosNota = {
+    'aprobada': 'Aprobada',
+    'recuperacion': 'Recuperación',
+    'reprobada': 'Reprobada',
+    'en_curso': 'En curso',
+  };
+
+  static pw.Widget _firmas(List<String> cargos) => pw.Padding(
+        padding: const pw.EdgeInsets.only(top: 48),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+          children: [
+            for (final c in cargos)
+              pw.Container(
+                width: 180,
+                padding: const pw.EdgeInsets.only(top: 4),
+                decoration: const pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(color: _marino))),
+                child: pw.Text(c, textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 9)),
+              ),
+          ],
+        ),
+      );
+
+  /// Boleta de calificaciones de cada alumno (una página por alumno), con lo que cada
+  /// docente cerró: parciales, final, recuperación, inasistencias y resultado. [consolidado]
+  /// es la respuesta de /centro/secciones/{id}/consolidado; [alumnos] limita a esos ids.
+  static Future<Uint8List> boletas(Map<String, dynamic> consolidado, {Set<String>? alumnos}) async {
+    await _cargar();
+    final asignaturas = (consolidado['asignaturas'] as List).cast<Map<String, dynamic>>();
+    final maxParciales = asignaturas.fold(0, (n, a) => (a['parciales'] as List).length > n ? (a['parciales'] as List).length : n);
+    final romanos = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+    final filas = (consolidado['alumnos'] as List).cast<Map<String, dynamic>>()
+        .where((a) => alumnos == null || alumnos.contains(a['alumnoId']));
+    final doc = pw.Document(theme: _tema, title: 'Boletas ${consolidado['seccion']}', author: '${consolidado['centro']}');
+    String n(Object? v) => v == null ? '' : '$v';
+
+    for (final a in filas) {
+      final notas = (a['notas'] as List).cast<Map<String, dynamic>?>();
+      final tabla = <List<String>>[];
+      var inasistencias = 0;
+      for (final (i, asig) in asignaturas.indexed) {
+        final nota = notas[i];
+        if (nota == null) continue;
+        inasistencias += nota['inasistencias'] as int;
+        final parciales = (nota['parciales'] as List).cast<int?>();
+        tabla.add([
+          '${asig['nombre']}',
+          for (var p = 0; p < maxParciales; p++) p < parciales.length ? n(parciales[p]) : '',
+          n(nota['final']),
+          n(nota['recuperacion']),
+          _estadosNota[nota['estado']] ?? '',
+        ]);
+      }
+      doc.addPage(pw.Page(
+        pageFormat: PdfPageFormat.letter,
+        margin: const pw.EdgeInsets.all(40),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            _encabezado('Boleta de calificaciones', [
+              '${consolidado['centro']}',
+              '${consolidado['seccion']} · Jornada ${consolidado['jornada']} · Año lectivo ${consolidado['anio']}',
+            ]),
+            pw.Text('${a['nombre']}', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+            pw.Text('Identidad: ${a['identidad']}', style: const pw.TextStyle(fontSize: 10, color: _suave)),
+            pw.SizedBox(height: 14),
+            if (tabla.isEmpty)
+              pw.Text('Todavía no hay notas cerradas por los docentes.', style: const pw.TextStyle(fontSize: 11))
+            else
+              _tabla(
+                ['Asignatura', for (var p = 0; p < maxParciales; p++) 'P${romanos[p]}', 'Final', 'Recup.', 'Estado'],
+                tabla,
+                anchos: {0: const pw.FlexColumnWidth(3)},
+                letra: 10,
+                centradas: {for (var c = 1; c <= maxParciales + 2; c++) c},
+              ),
+            pw.SizedBox(height: 14),
+            pw.Row(children: [
+              pw.Text('Resultado: ', style: const pw.TextStyle(fontSize: 11)),
+              pw.Text(_resultados[a['resultado']] ?? '',
+                  style: pw.TextStyle(
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: a['resultado'] == 'aprobado' ? _azul : a['resultado'] == 'reprobado' ? _rojo : _marino,
+                  )),
+              pw.Spacer(),
+              pw.Text('Inasistencias: $inasistencias', style: const pw.TextStyle(fontSize: 11)),
+            ]),
+            pw.SizedBox(height: 6),
+            pw.Text(
+              'Nota mínima para aprobar: ${consolidado['notaMinima']}. La final es el promedio de los parciales; con final '
+              'menor a la mínima, el alumno va a recuperación. La nota oficial es la registrada en SACE.',
+              style: const pw.TextStyle(fontSize: 8, color: _suave),
+            ),
+            pw.Spacer(),
+            _firmas(['Maestro guía', 'Dirección', 'Firma del padre, madre o encargado']),
+            pw.SizedBox(height: 10),
+            pw.Text('Generado con ProfeApp · ${_fecha(DateTime.now())}', style: const pw.TextStyle(fontSize: 8, color: _suave)),
+          ],
+        ),
+      ));
+    }
+    return doc.save();
+  }
+
+  /// Constancia de estudio: el alumno está matriculado en el centro este año lectivo.
+  static Future<Uint8List> constanciaEstudio({
+    required String centro,
+    required String alumno,
+    required String identidad,
+    required String seccion,
+    required int anio,
+    String? jornada,
+  }) async {
+    await _cargar();
+    final doc = pw.Document(theme: _tema, title: 'Constancia de estudio de $alumno', author: centro);
+    final hoy = DateTime.now();
+    doc.addPage(pw.Page(
+      pageFormat: PdfPageFormat.letter,
+      margin: const pw.EdgeInsets.all(56),
+      build: (context) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _encabezado('Constancia de estudio', [centro]),
+          pw.SizedBox(height: 24),
+          pw.Text('A quien interese:', style: const pw.TextStyle(fontSize: 12)),
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'La dirección de $centro hace constar que $alumno, con número de identidad $identidad, está '
+            'matriculado(a) en este centro educativo en $seccion${jornada == null ? '' : ', jornada $jornada'}, '
+            'durante el año lectivo $anio.',
+            style: const pw.TextStyle(fontSize: 12, lineSpacing: 4),
+            textAlign: pw.TextAlign.justify,
+          ),
+          pw.SizedBox(height: 16),
+          pw.Text(
+            'Y para los fines que al interesado convengan, se extiende la presente el ${_fecha(hoy)}.',
+            style: const pw.TextStyle(fontSize: 12, lineSpacing: 4),
+          ),
+          pw.Spacer(),
+          _firmas(['Dirección', 'Secretaría']),
+          pw.SizedBox(height: 10),
+          pw.Text('Sello del centro', style: const pw.TextStyle(fontSize: 9, color: _suave)),
+        ],
+      ),
+    ));
+    return doc.save();
+  }
 }

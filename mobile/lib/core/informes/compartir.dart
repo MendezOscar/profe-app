@@ -16,6 +16,16 @@ Future<void> compartirPdf(BuildContext context, Uint8List bytes, String nombre) 
   ));
 }
 
+/// Igual que [compartirPdf], para otro tipo de archivo (el .zip de cuadros de SACE).
+Future<void> compartirArchivo(BuildContext context, Uint8List bytes, String nombre, String mimeType) async {
+  final caja = context.findRenderObject() as RenderBox?;
+  await SharePlus.instance.share(ShareParams(
+    files: [XFile.fromData(bytes, mimeType: mimeType, name: nombre)],
+    fileNameOverrides: [nombre],
+    sharePositionOrigin: caja == null || !caja.hasSize ? null : caja.localToGlobal(Offset.zero) & caja.size,
+  ));
+}
+
 /// Nombre de archivo sin caracteres que algunos sistemas rechazan.
 String nombreArchivo(String texto) =>
     texto.replaceAll(RegExp(r'[\\/:*?"<>|]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();

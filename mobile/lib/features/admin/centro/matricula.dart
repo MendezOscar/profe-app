@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api/api_exception.dart';
 import '../../../core/providers.dart';
 import '../../../core/sace/cuadro_sace.dart';
+import '../../../core/informes/compartir.dart';
+import '../../../core/informes/informes_pdf.dart';
 import '../../../core/sace/hoja.dart';
 import '../../../theme/tokens.dart';
 import '../../../ui/esqueleto.dart';
@@ -609,6 +611,27 @@ class _FormFichaState extends ConsumerState<_FormFicha> {
     if (ok) ref.invalidate(fichaProvider(d['id'] as String));
   }
 
+  Future<void> _constancia(Map<String, dynamic> matricula) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final centro = await ref.read(apiClientProvider).get('/centro', parse: (x) => x as Map<String, dynamic>);
+      // "7.º grado A (matutina)" → sección y jornada por separado.
+      final seccion = matricula['seccion'] as String;
+      final corte = seccion.lastIndexOf(' (');
+      final bytes = await InformesPdf.constanciaEstudio(
+        centro: centro['institucion']['nombre'] as String,
+        alumno: d['nombre'] as String,
+        identidad: d['identidad'] as String,
+        seccion: corte < 0 ? seccion : seccion.substring(0, corte),
+        jornada: corte < 0 ? null : seccion.substring(corte + 2, seccion.length - 1),
+        anio: matricula['anio'] as int,
+      );
+      if (mounted) await compartirPdf(context, bytes, nombreArchivo('Constancia de estudio ${d['nombre']}'));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.isNetworkError ? 'Necesitas internet.' : e.message)));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -726,7 +749,17 @@ class _FormFichaState extends ConsumerState<_FormFicha> {
             const SizedBox(height: Espacio.s),
             AccesoFamilia(alumnoId: d['id'] as String, nombre: d['nombre'] as String, editar: _editar),
             const SizedBox(height: Espacio.xl),
-            Text('MATRÍCULAS', style: text.labelSmall),
+            Row(
+              children: [
+                Expanded(child: Text('MATRÍCULAS', style: text.labelSmall)),
+                if (matriculas.any((m) => m['estado'] == 'activa'))
+                  TextButton.icon(
+                    onPressed: () => _constancia(matriculas.firstWhere((m) => m['estado'] == 'activa')),
+                    icon: const Icon(Icons.description_outlined),
+                    label: const Text('Constancia de estudio'),
+                  ),
+              ],
+            ),
             const SizedBox(height: Espacio.s),
             if (matriculas.isEmpty)
               Text('Sin matrículas.', style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
