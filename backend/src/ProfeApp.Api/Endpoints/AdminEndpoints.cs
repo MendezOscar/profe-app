@@ -167,6 +167,8 @@ public static class AdminEndpoints
 
         centro.MapGet("/reportes", async (IReportesService s, CancellationToken ct) => (await s.ResumenAsync(ct)).ToHttp())
             .WithSummary("Matrícula, rendimiento, alumnos en riesgo y asistencia del año actual.");
+        centro.MapGet("/tablero", async (IReportesService s, CancellationToken ct) => (await s.TableroAsync(ct)).ToHttp())
+            .WithSummary("Primera pantalla del panel: lo de hoy, la tendencia de asistencia y lo pendiente.");
         centro.MapGet("/estadisticas-docentes", async (IReportesService s, CancellationToken ct) => (await s.DocentesAsync(ct)).ToHttp())
             .RequireRateLimiting(Limites.Exportar)
             .WithSummary("Carga, avance, listas y rendimiento de cada docente en el año actual.");

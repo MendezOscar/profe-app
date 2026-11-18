@@ -3,7 +3,13 @@ namespace ProfeApp.Application.Contracts;
 /// <summary>Reportes del año actual del centro: matrícula, rendimiento, riesgo y asistencia.</summary>
 public sealed record ReportesDto(
     int? Anio, MatriculaReporteDto Matricula, IReadOnlyList<RendimientoSeccionDto> Rendimiento,
-    IReadOnlyList<AlumnoRiesgoDto> Riesgo, IReadOnlyList<AsistenciaSeccionDto> Asistencia);
+    IReadOnlyList<AlumnoRiesgoDto> Riesgo, IReadOnlyList<AsistenciaSeccionDto> Asistencia,
+    ConvivenciaReporteDto? Convivencia = null);
+
+/// <summary>Incidencias del año por gravedad y por sección (de la sección donde ocurrieron), y excusas registradas.</summary>
+public sealed record ConvivenciaReporteDto(int Leves, int Graves, int MuyGraves, int Abiertas, int Excusas, IReadOnlyList<ConvivenciaSeccionDto> PorSeccion);
+
+public sealed record ConvivenciaSeccionDto(string Seccion, int Leves, int Graves, int MuyGraves);
 
 /// <summary>Movimientos del año y matrícula activa por sección, sexo y edad (sin dato si la ficha no lo tiene).</summary>
 public sealed record MatriculaReporteDto(
@@ -46,3 +52,26 @@ public sealed record EstadisticaDocenteDto(
     int Secciones, int AsignaturasCarga, int Alumnos, int CuadrosEnApp, int ParcialesCerrados, int Actividades,
     int ListasRecientes, int SeccionesGuia, int? DiasListaDelDia, int ConductasPuestas, int Incidencias,
     int Evaluados, int Aprobados, decimal? Promedio);
+
+// ── Tablero (primera pantalla del panel) ─────────────────────────────────────
+
+/// <summary>Lo de hoy y lo pendiente del centro, con consultas livianas (sin consolidado).</summary>
+public sealed record TableroDto(
+    int? Anio, int DiasHabilesTranscurridos, int DiasHabilesAnio,
+    int Alumnos, int Secciones, int Docentes, int MaxDocentes, int FamiliasConCuenta,
+    HoyDto Hoy, IReadOnlyList<DiaAsistenciaDto> Tendencia,
+    int IncidenciasAbiertas, IReadOnlyList<IncidenciaDto> IncidenciasRecientes,
+    IReadOnlyList<DocenteInactivoDto> DocentesSinActividad, int ComunicadosMes);
+
+/// <summary>Lista del día de hoy: cuántas secciones (con guía) la pasaron, quién faltó y excusas vigentes.</summary>
+public sealed record HoyDto(
+    DateOnly Fecha, int SeccionesConGuia, int SeccionesConLista, int Ausentes, int Tardes,
+    IReadOnlyList<FaltaHoyDto> Faltas, int Excusas);
+
+public sealed record FaltaHoyDto(Guid AlumnoId, string Nombre, string Seccion, string Estado);
+
+/// <summary>Asistencia de la lista del día en un día con lista (tardes cuentan como presentes).</summary>
+public sealed record DiaAsistenciaDto(DateOnly Fecha, int Secciones, decimal Porcentaje);
+
+/// <summary><c>UltimoTrabajo</c> null: nunca respaldó nada.</summary>
+public sealed record DocenteInactivoDto(Guid Id, string Nombre, DateTimeOffset? UltimoTrabajo);

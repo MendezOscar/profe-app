@@ -18,6 +18,7 @@ import 'centro/matricula.dart';
 import 'centro/personal_tab.dart';
 import 'centro/reportes_tab.dart';
 import 'centro/secciones_tab.dart';
+import 'centro/tablero_tab.dart';
 import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
 import '../../ui/estado_error.dart';
@@ -36,7 +37,17 @@ class CentroPage extends ConsumerStatefulWidget {
 }
 
 class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProviderStateMixin {
-  late final _tabs = TabController(length: 14, vsync: this)..addListener(() => setState(() {}));
+  /// Pestaña de cada destino del tablero (en el orden de las pestañas).
+  static const _indices = {
+    DestinoTablero.asistencia: 6,
+    DestinoTablero.excusas: 7,
+    DestinoTablero.incidencias: 8,
+    DestinoTablero.comunicados: 10,
+    DestinoTablero.reportes: 11,
+    DestinoTablero.estadisticas: 12,
+  };
+
+  late final _tabs = TabController(length: 15, vsync: this)..addListener(() => setState(() {}));
 
   @override
   void dispose() {
@@ -66,6 +77,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
               ref.invalidate(excusasCentroProvider);
               ref.invalidate(incidenciasCentroProvider);
               ref.invalidate(estadisticasDocentesProvider);
+              ref.invalidate(tableroCentroProvider);
             },
             icon: const Icon(Icons.refresh),
           ),
@@ -76,6 +88,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
           isScrollable: true,
           tabAlignment: TabAlignment.start,
           tabs: const [
+            Tab(text: 'Inicio'),
             Tab(text: 'Docentes'),
             Tab(text: 'Año lectivo'),
             Tab(text: 'Grados'),
@@ -93,7 +106,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
           ],
         ),
       ),
-      floatingActionButton: centro.hasValue && puedeEditar && _tabs.index == 0
+      floatingActionButton: centro.hasValue && puedeEditar && _tabs.index == 1
           ? FloatingActionButton.extended(
               shape: const RoundedRectangleBorder(),
               onPressed: () => _agregar(context, ref),
@@ -104,6 +117,7 @@ class _CentroPageState extends ConsumerState<CentroPage> with SingleTickerProvid
       body: TabBarView(
         controller: _tabs,
         children: [
+          TableroTab(puedeEditar: puedeEditar, ir: (d) => _tabs.animateTo(_indices[d]!)),
           _docentes(centro, puedeEditar),
           const AniosTab(),
           const GradosTab(),

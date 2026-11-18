@@ -9,4 +9,7 @@ public interface IReportesService
 
     /// <summary>Estadísticas de cada docente en el año actual: carga, avance, listas y rendimiento.</summary>
     Task<Result<EstadisticasDocentesDto>> DocentesAsync(CancellationToken ct = default);
+
+    /// <summary>Primera pantalla del panel: lo de hoy, la tendencia de asistencia y lo pendiente.</summary>
+    Task<Result<TableroDto>> TableroAsync(CancellationToken ct = default);
 }

@@ -11,7 +11,8 @@ namespace ProfeApp.Infrastructure.Centros;
 /// Reportes del año actual. El rendimiento sale del consolidado de cada sección (lo que
 /// cerraron los docentes) y la asistencia, de la lista del día del maestro guía.
 /// </summary>
-public sealed class ReportesService(AppDbContext db, EstructuraCentroService centro, ConsolidadoService consolidado, IClock clock)
+public sealed class ReportesService(
+    AppDbContext db, EstructuraCentroService centro, ConsolidadoService consolidado, IConvivenciaService convivencia, IClock clock)
     : IReportesService
 {
     /// <summary>Faltas de la lista del día que vuelven "en riesgo" a un alumno: al menos 3 y el 10 % de los días.</summary>
@@ -109,7 +110,20 @@ public sealed class ReportesService(AppDbContext db, EstructuraCentroService cen
             .Select(m => new AlumnoRiesgoDto(m.Key, nombres[m.Key], seccionDe[m.Key], m.Value))
             .OrderByDescending(r => r.Motivos.Count).ThenBy(r => r.Seccion).ThenBy(r => r.Nombre).ToList();
 
-        return new ReportesDto(anio.Anio, matricula, rendimiento, riesgo, asistencia);
+        // ── Convivencia ──
+        var incidencias = await db.Incidencias.AsNoTracking().Where(i => i.InstitucionId == institucion.Id && i.Fecha >= anio.Inicio)
+            .Select(i => new { i.SeccionId, i.Gravedad, i.Cerrada }).ToListAsync(ct);
+        var excusas = await db.Excusas.CountAsync(e => e.InstitucionId == institucion.Id && e.Hasta >= anio.Inicio, ct);
+        var convivencia = new ConvivenciaReporteDto(
+            incidencias.Count(i => i.Gravedad == "leve"), incidencias.Count(i => i.Gravedad == "grave"),
+            incidencias.Count(i => i.Gravedad == "muy_grave"), incidencias.Count(i => !i.Cerrada), excusas,
+            secciones.Select(sec => (sec.Nombre, De: incidencias.Where(i => i.SeccionId == sec.Id).ToList()))
+                .Where(x => x.De.Count > 0)
+                .Select(x => new ConvivenciaSeccionDto(x.Nombre, x.De.Count(i => i.Gravedad == "leve"),
+                    x.De.Count(i => i.Gravedad == "grave"), x.De.Count(i => i.Gravedad == "muy_grave")))
+                .ToList());
+
+        return new ReportesDto(anio.Anio, matricula, rendimiento, riesgo, asistencia, convivencia);
     }
 
     public async Task<Result<EstadisticasDocentesDto>> DocentesAsync(CancellationToken ct = default)
@@ -206,6 +220,87 @@ public sealed class ReportesService(AppDbContext db, EstructuraCentroService cen
                 valores.Count, valores.Count(x => x >= ConsolidadoService.NotaMinima),
                 valores.Count == 0 ? null : Math.Round(valores.Average(), 1));
         }).ToList());
+    }
+
+    private const int DiasSinActividad = 14;
+    private const int DiasTendencia = 15;
+
+    public async Task<Result<TableroDto>> TableroAsync(CancellationToken ct = default)
+    {
+        var (institucion, _) = await centro.ContextoAsync(ct);
+        if (institucion is null) return Result<TableroDto>.Fail(Error.Forbidden(EstructuraCentroService.SinCentro));
+        var hoy = clock.Today;
+        var anio = await db.AniosLectivos.AsNoTracking().FirstOrDefaultAsync(a => a.InstitucionId == institucion.Id && a.Actual, ct);
+
+        var docentes = await (from u in db.Users.AsNoTracking()
+                              join ur in db.UserRoles on u.Id equals ur.UserId
+                              join r in db.Roles on ur.RoleId equals r.Id
+                              where r.Name == Domain.Common.Roles.Docente && u.InstitucionId == institucion.Id && u.IsActive
+                              select new { u.Id, u.FullName, u.TenantId })
+            .ToListAsync(ct);
+        var tenants = docentes.Where(d => d.TenantId is not null).Select(d => d.TenantId!.Value).ToList();
+        var ultimo = await db.Registros.IgnoreQueryFilters().Where(r => tenants.Contains(r.TenantId))
+            .GroupBy(r => r.TenantId).Select(g => new { g.Key, Cuando = g.Max(r => r.ModificadoEn) })
+            .ToDictionaryAsync(x => x.Key, x => x.Cuando, ct);
+        var limite = clock.Now.AddDays(-DiasSinActividad);
+        var inactivos = docentes
+            .Select(d => new DocenteInactivoDto(d.Id, d.FullName, d.TenantId is { } t && ultimo.TryGetValue(t, out var c) ? c : null))
+            .Where(d => d.UltimoTrabajo is null || d.UltimoTrabajo < limite)
+            .OrderBy(d => d.UltimoTrabajo ?? DateTimeOffset.MinValue).ToList();
+        var comunicadosMes = await db.Comunicados.CountAsync(c => c.InstitucionId == institucion.Id && c.PublicadoEn >= clock.Now.AddDays(-30), ct);
+        var abiertas = await db.Incidencias.CountAsync(i => i.InstitucionId == institucion.Id && !i.Cerrada, ct);
+        var recientes = ((await convivencia.IncidenciasAsync(null, false, ct)).Value ?? []).Take(5).ToList();
+
+        if (anio is null)
+            return new TableroDto(null, 0, 0, 0, 0, docentes.Count, institucion.MaxDocentes, 0,
+                new HoyDto(hoy, 0, 0, 0, 0, [], 0), [], abiertas, recientes, inactivos, comunicadosMes);
+
+        var secciones = await (from s in db.Secciones.AsNoTracking()
+                               join g in db.Grados.AsNoTracking() on s.GradoId equals g.Id
+                               where s.AnioLectivoId == anio.Id
+                               select new { s.Id, Nombre = g.Nombre + " " + s.Nombre, s.MaestroGuiaId })
+            .ToListAsync(ct);
+        var ids = secciones.Select(s => s.Id).ToList();
+        var activos = await db.Matriculas.Where(m => m.AnioLectivoId == anio.Id && m.Estado == EstadosMatricula.Activa)
+            .GroupBy(m => m.SeccionId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var alumnosActivos = await db.Matriculas.Where(m => m.AnioLectivoId == anio.Id && m.Estado == EstadosMatricula.Activa)
+            .Select(m => m.AlumnoId).ToListAsync(ct);
+        var familias = await db.VinculosFamiliares.Where(v => alumnosActivos.Contains(v.AlumnoId)).Select(v => v.AlumnoId).Distinct().CountAsync(ct);
+
+        // Hoy.
+        var tomasHoy = await db.TomasAsistenciaDiaria.Where(t => ids.Contains(t.SeccionId) && t.Fecha == hoy).Select(t => t.Id).ToListAsync(ct);
+        var faltas = await (from m in db.MarcasAsistenciaDiaria.AsNoTracking()
+                            join t in db.TomasAsistenciaDiaria.AsNoTracking() on m.TomaId equals t.Id
+                            join a in db.Alumnos.AsNoTracking() on m.AlumnoId equals a.Id
+                            where tomasHoy.Contains(t.Id) && m.Estado != "J"
+                            orderby a.Nombre
+                            select new { a.Id, a.Nombre, t.SeccionId, m.Estado })
+            .ToListAsync(ct);
+        var nombreSeccion = secciones.ToDictionary(s => s.Id, s => s.Nombre);
+        var excusas = await db.Excusas.CountAsync(e => e.InstitucionId == institucion.Id && e.Desde <= hoy && e.Hasta >= hoy, ct);
+        var hoyDto = new HoyDto(hoy, secciones.Count(s => s.MaestroGuiaId != null), tomasHoy.Count,
+            faltas.Count(f => f.Estado == "A"), faltas.Count(f => f.Estado == "T"),
+            faltas.Select(f => new FaltaHoyDto(f.Id, f.Nombre, nombreSeccion[f.SeccionId], f.Estado)).ToList(), excusas);
+
+        // Tendencia: últimos días con lista.
+        var desde = hoy.AddDays(-30);
+        var tomas = await db.TomasAsistenciaDiaria.AsNoTracking().Where(t => ids.Contains(t.SeccionId) && t.Fecha >= desde && t.Fecha <= hoy)
+            .Select(t => new { t.Id, t.Fecha, t.SeccionId }).ToListAsync(ct);
+        var tomaIds = tomas.Select(t => t.Id).ToList();
+        var ausentes = await db.MarcasAsistenciaDiaria.Where(m => tomaIds.Contains(m.TomaId) && (m.Estado == "A" || m.Estado == "J"))
+            .GroupBy(m => m.TomaId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var tendencia = tomas.GroupBy(t => t.Fecha).OrderByDescending(g => g.Key).Take(DiasTendencia).OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var posibles = g.Sum(t => activos.GetValueOrDefault(t.SeccionId));
+                var fuera = g.Sum(t => ausentes.GetValueOrDefault(t.Id));
+                return new DiaAsistenciaDto(g.Key, g.Count(), posibles == 0 ? 100 : Math.Round(100m * (posibles - fuera) / posibles, 1));
+            }).ToList();
+
+        var fin = hoy < anio.Fin ? hoy : anio.Fin;
+        return new TableroDto(anio.Anio, hoy < anio.Inicio ? 0 : DiasHabiles(anio.Inicio, fin), DiasHabiles(anio.Inicio, anio.Fin),
+            alumnosActivos.Count, secciones.Count, docentes.Count, institucion.MaxDocentes, familias,
+            hoyDto, tendencia, abiertas, recientes, inactivos, comunicadosMes);
     }
 
     private sealed record ConteoTenant(Guid TenantId, int N);

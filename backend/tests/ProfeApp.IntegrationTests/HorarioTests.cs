@@ -324,6 +324,42 @@ public class HorarioTests(ApiFixture fixture) : ApiTestBase(fixture)
         (await e.Docente.GetAsync($"/api/v1/centro/alumnos/{ana}/foto")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
 
+    [Fact]
+    public async Task El_tablero_muestra_la_lista_de_hoy_la_tendencia_y_lo_pendiente()
+    {
+        var e = await EscenarioAsync();
+        var c = e.Centro;
+        var ana = (await ReadAsync(await c.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos",
+            new { identidad = "0801201400601", nombre = "Ana Tablero", tipo = "nuevo_ingreso" }))).GetProperty("alumnoId").GetGuid();
+        var beto = (await ReadAsync(await c.PostAsJsonAsync($"/api/v1/centro/secciones/{e.A}/alumnos",
+            new { identidad = "0801201400602", nombre = "Beto Tablero", tipo = "nuevo_ingreso" }))).GetProperty("alumnoId").GetGuid();
+        var hoy = DateTime.Today.ToString("yyyy-MM-dd");
+        await c.PostAsJsonAsync("/api/v1/centro/excusas", new { alumnoId = beto, tipo = "permiso", desde = hoy, hasta = hoy, motivo = "Torneo" });
+        await e.Docente.PutAsJsonAsync($"/api/v1/mi-centro/secciones/{e.A}/asistencia",
+            new { fecha = hoy, marcas = new[] { new { alumnoId = ana, estado = "A" }, new { alumnoId = beto, estado = "J" } } });
+        await e.Docente.PostAsJsonAsync("/api/v1/mi-centro/incidencias",
+            new { seccionId = e.A, identidad = "0801201400601", fecha = hoy, gravedad = "leve", descripcion = "Uso del celular", medida = (string?)null });
+
+        var t = await ReadAsync(await c.GetAsync("/api/v1/centro/tablero"));
+        t.GetProperty("alumnos").GetInt32().Should().Be(2);
+        t.GetProperty("secciones").GetInt32().Should().Be(3);
+        var h = t.GetProperty("hoy");
+        h.GetProperty("seccionesConGuia").GetInt32().Should().Be(1);
+        h.GetProperty("seccionesConLista").GetInt32().Should().Be(1);
+        h.GetProperty("ausentes").GetInt32().Should().Be(1);
+        h.GetProperty("excusas").GetInt32().Should().Be(1);
+        h.GetProperty("faltas").GetArrayLength().Should().Be(1, "la justificada no es falta");
+        t.GetProperty("tendencia")[0].GetProperty("porcentaje").GetDecimal().Should().Be(0m, "uno ausente y otro justificado de dos");
+        t.GetProperty("incidenciasAbiertas").GetInt32().Should().Be(1);
+        t.GetProperty("incidenciasRecientes")[0].GetProperty("alumno").GetString().Should().Be("Ana Tablero");
+        t.GetProperty("docentesSinActividad").GetArrayLength().Should().Be(1, "el docente no ha respaldado nada");
+
+        var conv = (await ReadAsync(await c.GetAsync("/api/v1/centro/reportes"))).GetProperty("convivencia");
+        conv.GetProperty("leves").GetInt32().Should().Be(1);
+        conv.GetProperty("excusas").GetInt32().Should().Be(1);
+        conv.GetProperty("porSeccion")[0].GetProperty("seccion").GetString().Should().Be("7.º grado A");
+    }
+
     private static async Task<List<string>> AvisosDeAsync(string token, int esperados)
     {
         for (var i = 0; i < 50; i++)

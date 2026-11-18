@@ -64,6 +64,10 @@ class ReportesTab extends ConsumerWidget {
                       _Rendimiento((r['rendimiento'] as List).cast<Map<String, dynamic>>()),
                       const SizedBox(height: Espacio.xl),
                       _Asistencia((r['asistencia'] as List).cast<Map<String, dynamic>>()),
+                      if (r['convivencia'] != null) ...[
+                        const SizedBox(height: Espacio.xl),
+                        _Convivencia(r['convivencia'] as Map<String, dynamic>),
+                      ],
                     ],
             ),
           ),
@@ -371,6 +375,57 @@ class _Asistencia extends StatelessWidget {
             ],
           ),
         ),
+      ],
+    );
+  }
+}
+
+class _Convivencia extends StatelessWidget {
+  const _Convivencia(this.c);
+
+  final Map<String, dynamic> c;
+
+  @override
+  Widget build(BuildContext context) {
+    final secciones = (c['porSeccion'] as List).cast<Map<String, dynamic>>();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const _Titulo('Convivencia'),
+        Wrap(
+          spacing: Espacio.xl,
+          runSpacing: Espacio.m,
+          children: [
+            _Dato('Faltas leves', '${c['leves']}'),
+            _Dato('Graves', '${c['graves']}', alerta: (c['graves'] as int) > 0),
+            _Dato('Muy graves', '${c['muyGraves']}', alerta: (c['muyGraves'] as int) > 0),
+            _Dato('Casos abiertos', '${c['abiertas']}'),
+            _Dato('Excusas y permisos', '${c['excusas']}'),
+          ],
+        ),
+        if (secciones.isNotEmpty) ...[
+          const SizedBox(height: Espacio.m),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columns: const [
+                DataColumn(label: Text('Sección')),
+                DataColumn(label: Text('Leves'), numeric: true),
+                DataColumn(label: Text('Graves'), numeric: true),
+                DataColumn(label: Text('Muy graves'), numeric: true),
+              ],
+              rows: [
+                for (final s in secciones)
+                  DataRow(cells: [
+                    DataCell(Text('${s['seccion']}')),
+                    DataCell(Text('${s['leves']}')),
+                    DataCell(Text('${s['graves']}')),
+                    DataCell(Text('${s['muyGraves']}')),
+                  ]),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
