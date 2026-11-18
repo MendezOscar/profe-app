@@ -100,6 +100,11 @@ public static class AdminEndpoints
         centro.MapPost("/personal/{id:guid}/restablecer-clave", async (Guid id, IEstructuraCentroService s, CancellationToken ct) =>
             (await s.RestablecerClavePersonalAsync(id, ct)).ToHttp());
 
+        // El docente ve lo que su centro le asignó.
+        app.MapGet("/api/v1/mi-centro/carga", async (IMiCargaService s, CancellationToken ct) => Results.Ok(await s.ObtenerAsync(ct)))
+            .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario)
+            .WithSummary("Secciones del año actual donde el docente da clase o es guía, con su lista de matrícula.");
+
         var plataforma = app.MapGroup("/api/v1/plataforma").WithTags("Plataforma").RequireAuthorization(Policies.PlatformOnly)
             .RequireRateLimiting(Limites.Usuario);
 

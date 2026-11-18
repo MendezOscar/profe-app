@@ -100,3 +100,18 @@ public sealed record CambioSeccionRequest(Guid SeccionId);
 public sealed record AlumnoBuscadoDto(Guid Id, string Identidad, string Nombre, string? Seccion, string? Estado);
 
 public sealed record PaginaAlumnosDto(IReadOnlyList<AlumnoBuscadoDto> Alumnos, int Total, bool Mas);
+
+// ── Lo que el docente ve de su centro ────────────────────────────────────────
+
+/// <summary>
+/// Carga del docente en el año actual de su centro: las secciones donde da clase o es guía,
+/// con sus asignaturas y la lista de matrícula (sin ficha). Sin centro, todo vacío.
+/// </summary>
+public sealed record MiCargaDto(string? Centro, int? Anio, IReadOnlyList<SeccionDocenteDto> Secciones);
+
+public sealed record SeccionDocenteDto(
+    Guid Id, string Grado, string Nombre, string Jornada, bool EsGuia,
+    IReadOnlyList<string> Asignaturas, IReadOnlyList<AlumnoListaDto> Alumnos);
+
+/// <summary><c>Estado</c>: activa, retirada o trasladada.</summary>
+public sealed record AlumnoListaDto(string Identidad, string Nombre, string Estado);

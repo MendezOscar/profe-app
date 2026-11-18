@@ -147,4 +147,53 @@ public class MatriculaTests(ApiFixture fixture) : ApiTestBase(fixture)
         var docente = await RegisterAsync();
         (await docente.GetAsync($"/api/v1/centro/alumnos/{alumno}")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task El_docente_ve_su_carga_y_la_lista_de_matricula_sin_la_ficha()
+    {
+        var centro = await CentroAsync();
+        var (a, b) = await SeccionesAsync(centro);
+        var cuenta = await ReadAsync(await centro.PostAsJsonAsync("/api/v1/centro/docentes",
+            new { email = $"profe-{Guid.NewGuid():N}@prueba.hn", nombre = "Profe Carga" }));
+        var docenteId = cuenta.GetProperty("usuarioId").GetGuid();
+
+        var estructura = await ReadAsync(await centro.GetAsync("/api/v1/centro/estructura"));
+        var grado = estructura.GetProperty("grados")[0].GetProperty("id").GetGuid();
+        await centro.PostAsJsonAsync("/api/v1/centro/asignaturas", new { gradoIds = new[] { grado }, nombres = new[] { "Español", "Matemáticas" } });
+        estructura = await ReadAsync(await centro.GetAsync("/api/v1/centro/estructura"));
+        var espanol = estructura.GetProperty("grados")[0].GetProperty("asignaturas")[0].GetProperty("id").GetGuid();
+        (await centro.PutAsJsonAsync($"/api/v1/centro/secciones/{a}/carga",
+            new { asignaciones = new[] { new { asignaturaId = espanol, docenteId } } })).IsSuccessStatusCode.Should().BeTrue();
+        // Guía de la B sin dar clase en ella.
+        var anio = estructura.GetProperty("anioId").GetGuid();
+        (await centro.PutAsJsonAsync($"/api/v1/centro/secciones/{b}", new
+        {
+            anioLectivoId = anio, gradoId = grado, nombre = "B", jornada = "matutina", cupo = (int?)null, aulaId = (Guid?)null, maestroGuiaId = docenteId,
+        })).IsSuccessStatusCode.Should().BeTrue();
+
+        await centro.PostAsJsonAsync($"/api/v1/centro/secciones/{a}/importar",
+            Lista(("0801201400031", "Gina Mora"), ("0801201400032", "Hugo Vega")));
+        var lista = (await ReadAsync(await centro.GetAsync($"/api/v1/centro/secciones/{a}/alumnos"))).EnumerateArray().ToList();
+        var hugo = lista.Single(x => x.GetProperty("nombre").GetString() == "Hugo Vega").GetProperty("matriculaId").GetGuid();
+        await centro.PostAsJsonAsync($"/api/v1/centro/matriculas/{hugo}/baja", new { estado = "retirada", fecha = "2027-03-01", motivo = "Salud" });
+
+        var docente = await EntrarConTemporalAsync(cuenta.GetProperty("email").GetString()!, cuenta.GetProperty("claveTemporal").GetString()!);
+        var carga = await ReadAsync(await docente.GetAsync("/api/v1/mi-centro/carga"));
+        carga.GetProperty("centro").GetString().Should().Be("Instituto Matrícula");
+        carga.GetProperty("anio").GetInt32().Should().Be(2027);
+        var secciones = carga.GetProperty("secciones").EnumerateArray().ToList();
+        secciones.Should().HaveCount(2);
+        var seccionA = secciones.Single(s => s.GetProperty("nombre").GetString() == "A");
+        seccionA.GetProperty("asignaturas").EnumerateArray().Select(x => x.GetString()).Should().Equal("Español");
+        seccionA.GetProperty("esGuia").GetBoolean().Should().BeFalse();
+        seccionA.GetProperty("alumnos").EnumerateArray().Select(x => x.GetProperty("estado").GetString()).Should().Equal("activa", "retirada");
+        seccionA.GetProperty("alumnos")[0].TryGetProperty("salud", out _).Should().BeFalse();
+        secciones.Single(s => s.GetProperty("nombre").GetString() == "B").GetProperty("esGuia").GetBoolean().Should().BeTrue();
+
+        // Un docente del plan personal no tiene centro.
+        var personal = await RegisterAsync();
+        var vacia = await ReadAsync(await personal.GetAsync("/api/v1/mi-centro/carga"));
+        vacia.GetProperty("secciones").GetArrayLength().Should().Be(0);
+        (await centro.GetAsync("/api/v1/mi-centro/carga")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
+    }
 }

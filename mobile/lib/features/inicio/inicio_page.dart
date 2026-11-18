@@ -11,7 +11,9 @@ import '../../ui/estado_vacio.dart';
 import '../../ui/indicador_sync.dart';
 import '../../ui/shell.dart';
 import '../../core/avisos/avisos.dart';
+import '../../core/centro/mi_carga.dart';
 import '../avisos/avisos_page.dart';
+import '../centro/carga_centro.dart';
 import '../clases/importar_cuadros.dart';
 import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
@@ -64,7 +66,9 @@ class InicioPage extends ConsumerWidget {
         loading: () => const EsqueletoTarjetas(),
         error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(tableroProvider)),
         data: (avances) => avances.isEmpty
-            ? EstadoVacio(
+            ? ListView(children: [
+                const TarjetaCargaCentro(),
+                EstadoVacio(
                 icono: Icons.upload_file_outlined,
                 titulo: 'Empieza con tus cuadros de SACE',
                 mensaje: 'En SACE ve a Notas → Descargar Archivos Notas y baja el cuadro de cada asignatura. '
@@ -74,12 +78,17 @@ class InicioPage extends ConsumerWidget {
                   icon: const Icon(Icons.upload_file),
                   label: const Text('Importar cuadros de SACE'),
                 ),
-              )
+              ),
+              ])
             : RefreshIndicator(
-                onRefresh: () => ref.read(syncControllerProvider.notifier).sincronizar(),
+                onRefresh: () {
+                  ref.invalidate(miCargaProvider);
+                  return ref.read(syncControllerProvider.notifier).sincronizar();
+                },
                 child: CustomScrollView(
                   slivers: [
                     const SliverToBoxAdapter(child: _LoUrgente()),
+                    const SliverToBoxAdapter(child: TarjetaCargaCentro()),
                     SliverToBoxAdapter(child: _PrimerosPasos(avances: avances)),
                     SliverToBoxAdapter(child: _Resumen(avances: avances)),
                     SliverPadding(

@@ -7,6 +7,7 @@ import '../../core/informes/informes_pdf.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
+import '../centro/carga_centro.dart';
 import '../clases/eliminar_clase.dart';
 import 'actividades_tab.dart';
 import 'estadisticas_tab.dart';
@@ -144,7 +145,12 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
                       child: const Text('Abrir cuadro'),
                     ),
                   )
-                : _Contenido(claseId: widget.claseId, parcial: actual, parciales: lista),
+                : Column(
+                    children: [
+                      AvisoListaCentro(claseId: widget.claseId),
+                      Expanded(child: _Contenido(claseId: widget.claseId, parcial: actual, parciales: lista)),
+                    ],
+                  ),
           ),
         );
       },

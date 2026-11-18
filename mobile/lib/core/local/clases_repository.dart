@@ -141,6 +141,20 @@ class ClasesRepository {
     return rows.map(_resumen).toList();
   }
 
+  /// Identidades de los alumnos activos de cada asignatura, para cotejar con el centro.
+  Future<Map<String, Set<String>>> identidadesPorClase() async {
+    final db = await _db;
+    final rows = await db.rawQuery('''
+      SELECT a.clase_id, a.identidad FROM alumnos a
+      JOIN clases c ON c.id = a.clase_id
+      WHERE c.eliminada = 0 AND a.activo = 1''');
+    final mapa = <String, Set<String>>{};
+    for (final r in rows) {
+      (mapa[r['clase_id'] as String] ??= <String>{}).add(r['identidad'] as String);
+    }
+    return mapa;
+  }
+
   Future<ClaseDetalle> detalle(String claseId) async {
     final db = await _db;
     final clase = (await db.rawQuery('''
