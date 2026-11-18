@@ -397,6 +397,63 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.ToTable("aulas", (string)null);
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Centros.BloqueHorario", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("EsReceso")
+                        .HasColumnType("boolean")
+                        .HasColumnName("es_receso");
+
+                    b.Property<TimeOnly>("Fin")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("fin");
+
+                    b.Property<TimeOnly>("Inicio")
+                        .HasColumnType("time without time zone")
+                        .HasColumnName("inicio");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Jornada")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("jornada");
+
+                    b.Property<int>("Orden")
+                        .HasColumnType("integer")
+                        .HasColumnName("orden");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_bloques_horario");
+
+                    b.HasIndex("InstitucionId", "Jornada", "Orden")
+                        .HasDatabaseName("ix_bloques_horario_institucion_id_jornada_orden");
+
+                    b.ToTable("bloques_horario", (string)null);
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Centros.CargaDocente", b =>
                 {
                     b.Property<Guid>("Id")
@@ -681,6 +738,74 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.ToTable("grados", (string)null);
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Centros.HorarioClase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AsignaturaGradoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("asignatura_grado_id");
+
+                    b.Property<Guid?>("AulaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("aula_id");
+
+                    b.Property<Guid>("BloqueId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("bloque_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<int>("Dia")
+                        .HasColumnType("integer")
+                        .HasColumnName("dia");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<Guid>("SeccionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("seccion_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_horarios_clase");
+
+                    b.HasIndex("AsignaturaGradoId")
+                        .HasDatabaseName("ix_horarios_clase_asignatura_grado_id");
+
+                    b.HasIndex("AulaId")
+                        .HasDatabaseName("ix_horarios_clase_aula_id");
+
+                    b.HasIndex("BloqueId")
+                        .HasDatabaseName("ix_horarios_clase_bloque_id");
+
+                    b.HasIndex("InstitucionId", "Dia")
+                        .HasDatabaseName("ix_horarios_clase_institucion_id_dia");
+
+                    b.HasIndex("SeccionId", "Dia", "BloqueId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_horarios_clase_seccion_id_dia_bloque_id");
+
+                    b.ToTable("horarios_clase", (string)null);
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Centros.LecturaComunicado", b =>
                 {
                     b.Property<Guid>("Id")
@@ -726,6 +851,59 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_lecturas_comunicados_comunicado_id_usuario_id");
 
                     b.ToTable("lecturas_comunicados", (string)null);
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.MarcaAsistenciaDiaria", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<Guid>("AlumnoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("alumno_id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(1)
+                        .HasColumnType("character varying(1)")
+                        .HasColumnName("estado");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<Guid>("TomaId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("toma_id");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_marcas_asistencia_diaria");
+
+                    b.HasIndex("AlumnoId")
+                        .HasDatabaseName("ix_marcas_asistencia_diaria_alumno_id");
+
+                    b.HasIndex("TomaId", "AlumnoId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_marcas_asistencia_diaria_toma_id_alumno_id");
+
+                    b.ToTable("marcas_asistencia_diaria", (string)null);
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Centros.Matricula", b =>
@@ -885,6 +1063,58 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("ix_secciones_anio_lectivo_id_grado_id_jornada_nombre");
 
                     b.ToTable("secciones", (string)null);
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.TomaAsistenciaDiaria", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("Fecha")
+                        .HasColumnType("date")
+                        .HasColumnName("fecha");
+
+                    b.Property<Guid>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<Guid>("SeccionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("seccion_id");
+
+                    b.Property<DateTimeOffset>("TomadaEn")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("tomada_en");
+
+                    b.Property<Guid>("TomadaPor")
+                        .HasColumnType("uuid")
+                        .HasColumnName("tomada_por");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tomas_asistencia_diaria");
+
+                    b.HasIndex("SeccionId", "Fecha")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tomas_asistencia_diaria_seccion_id_fecha");
+
+                    b.ToTable("tomas_asistencia_diaria", (string)null);
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Centros.VinculoFamiliar", b =>
@@ -1843,6 +2073,16 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_aulas_instituciones_institucion_id");
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Centros.BloqueHorario", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Instituciones.Institucion", null)
+                        .WithMany()
+                        .HasForeignKey("InstitucionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_bloques_horario_instituciones_institucion_id");
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Centros.CargaDocente", b =>
                 {
                     b.HasOne("ProfeApp.Domain.Centros.AsignaturaGrado", null)
@@ -1907,6 +2147,36 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasConstraintName("fk_grados_instituciones_institucion_id");
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Centros.HorarioClase", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Centros.AsignaturaGrado", null)
+                        .WithMany()
+                        .HasForeignKey("AsignaturaGradoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_horarios_clase_asignaturas_grado_asignatura_grado_id");
+
+                    b.HasOne("ProfeApp.Domain.Centros.Aula", null)
+                        .WithMany()
+                        .HasForeignKey("AulaId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_horarios_clase_aulas_aula_id");
+
+                    b.HasOne("ProfeApp.Domain.Centros.BloqueHorario", null)
+                        .WithMany()
+                        .HasForeignKey("BloqueId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_horarios_clase_bloques_horario_bloque_id");
+
+                    b.HasOne("ProfeApp.Domain.Centros.Seccion", null)
+                        .WithMany()
+                        .HasForeignKey("SeccionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_horarios_clase_secciones_seccion_id");
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Centros.LecturaComunicado", b =>
                 {
                     b.HasOne("ProfeApp.Domain.Centros.Comunicado", null)
@@ -1922,6 +2192,23 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_lecturas_comunicados_asp_net_users_usuario_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.MarcaAsistenciaDiaria", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Centros.Alumno", null)
+                        .WithMany()
+                        .HasForeignKey("AlumnoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_marcas_asistencia_diaria_alumnos_alumno_id");
+
+                    b.HasOne("ProfeApp.Domain.Centros.TomaAsistenciaDiaria", null)
+                        .WithMany()
+                        .HasForeignKey("TomaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_marcas_asistencia_diaria_tomas_asistencia_diaria_toma_id");
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Centros.Matricula", b =>
@@ -1975,6 +2262,16 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasForeignKey("MaestroGuiaId")
                         .OnDelete(DeleteBehavior.SetNull)
                         .HasConstraintName("fk_secciones_asp_net_users_maestro_guia_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Centros.TomaAsistenciaDiaria", b =>
+                {
+                    b.HasOne("ProfeApp.Domain.Centros.Seccion", null)
+                        .WithMany()
+                        .HasForeignKey("SeccionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tomas_asistencia_diaria_secciones_seccion_id");
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Centros.VinculoFamiliar", b =>

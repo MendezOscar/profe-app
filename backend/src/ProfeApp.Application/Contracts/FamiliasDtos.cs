@@ -42,6 +42,8 @@ public sealed record AsistenciaHijoDto(int Sesiones, int Ausencias, int Tardes, 
 
 public sealed record EntregaDto(string Asignatura, string Titulo, DateOnly Fecha, decimal Puntos);
 
+/// <summary><c>AsistenciaDiaria</c>: la lista del día que pasa el maestro guía (<c>Sesiones</c> = días con lista).</summary>
 public sealed record ResumenHijoDto(
     Guid AlumnoId, string Nombre, string Centro, string? Seccion,
-    IReadOnlyList<AsignaturaHijoDto> Asignaturas, AsistenciaHijoDto Asistencia, IReadOnlyList<EntregaDto> Proximas);
+    IReadOnlyList<AsignaturaHijoDto> Asignaturas, AsistenciaHijoDto Asistencia, IReadOnlyList<EntregaDto> Proximas,
+    AsistenciaHijoDto? AsistenciaDiaria = null, IReadOnlyList<ClaseHorarioDto>? Horario = null);

@@ -67,6 +67,7 @@ class InicioPage extends ConsumerWidget {
         error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(tableroProvider)),
         data: (avances) => avances.isEmpty
             ? ListView(children: [
+                const TarjetaHoyCentro(),
                 const TarjetaCargaCentro(),
                 EstadoVacio(
                 icono: Icons.upload_file_outlined,
@@ -88,6 +89,7 @@ class InicioPage extends ConsumerWidget {
                 child: CustomScrollView(
                   slivers: [
                     const SliverToBoxAdapter(child: _LoUrgente()),
+                    const SliverToBoxAdapter(child: TarjetaHoyCentro()),
                     const SliverToBoxAdapter(child: TarjetaCargaCentro()),
                     SliverToBoxAdapter(child: _PrimerosPasos(avances: avances)),
                     SliverToBoxAdapter(child: _Resumen(avances: avances)),

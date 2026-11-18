@@ -51,18 +51,59 @@ class SeccionCentro {
   String get titulo => '$grado $nombre · ${jornada[0].toUpperCase()}${jornada.substring(1)}';
 }
 
+/// Una clase del horario del docente. [dia]: 1 = lunes … 6 = sábado; horas "07:00:00".
+class ClaseHorario {
+  const ClaseHorario({
+    required this.dia,
+    required this.inicio,
+    required this.fin,
+    required this.asignatura,
+    required this.seccion,
+    this.aula,
+  });
+
+  factory ClaseHorario.fromJson(Map<String, dynamic> j) => ClaseHorario(
+        dia: j['dia'] as int,
+        inicio: j['inicio'] as String,
+        fin: j['fin'] as String,
+        asignatura: j['asignatura'] as String,
+        seccion: j['seccion'] as String,
+        aula: j['aula'] as String?,
+      );
+
+  final int dia;
+  final String inicio;
+  final String fin;
+  final String asignatura;
+  final String seccion;
+  final String? aula;
+
+  /// "07:00:00" → "7:00".
+  static String hora(String t) {
+    final p = t.split(':');
+    return '${int.parse(p[0])}:${p[1]}';
+  }
+}
+
 class MiCarga {
-  const MiCarga({required this.centro, required this.anio, required this.secciones});
+  const MiCarga({required this.centro, required this.anio, required this.secciones, this.horario = const []});
 
   factory MiCarga.fromJson(Map<String, dynamic> j) => MiCarga(
         centro: j['centro'] as String?,
         anio: j['anio'] as int?,
         secciones: [for (final s in (j['secciones'] as List).cast<Map<String, dynamic>>()) SeccionCentro.fromJson(s)],
+        horario: [
+          for (final c in ((j['horario'] as List?) ?? const []).cast<Map<String, dynamic>>()) ClaseHorario.fromJson(c),
+        ],
       );
 
   final String? centro;
   final int? anio;
   final List<SeccionCentro> secciones;
+  final List<ClaseHorario> horario;
+
+  /// Clases de un día de la semana (DateTime.weekday: 1 = lunes).
+  List<ClaseHorario> delDia(int dia) => horario.where((c) => c.dia == dia).toList();
 }
 
 /// La carga que el centro le asignó al docente. Null sin internet o sin centro: la app

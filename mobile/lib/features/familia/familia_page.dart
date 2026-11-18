@@ -271,6 +271,53 @@ class _Comunicados extends ConsumerWidget {
   }
 }
 
+const _dias = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+String _hora(String t) {
+  final p = t.split(':');
+  return '${int.parse(p[0])}:${p[1]}';
+}
+
+class _Horario extends StatelessWidget {
+  const _Horario(this.r);
+
+  final Map<String, dynamic> r;
+
+  @override
+  Widget build(BuildContext context) {
+    final clases = ((r['horario'] as List?) ?? const []).cast<Map<String, dynamic>>();
+    final text = Theme.of(context).textTheme;
+    if (clases.isEmpty) {
+      return const EstadoVacio(
+        icono: Icons.schedule,
+        titulo: 'Sin horario',
+        mensaje: 'Aparece cuando el centro arma el horario de la sección.',
+      );
+    }
+    final hoy = DateTime.now().weekday;
+    return ListView(
+      padding: const EdgeInsets.all(Espacio.l),
+      children: [
+        for (final d in {for (final c in clases) c['dia'] as int}) ...[
+          const SizedBox(height: Espacio.s),
+          Text('${_dias[d].toUpperCase()}${d == hoy ? ' · HOY' : ''}', style: text.labelSmall),
+          for (final c in clases.where((c) => c['dia'] == d))
+            ListTile(
+              dense: true,
+              contentPadding: EdgeInsets.zero,
+              leading: SizedBox(
+                width: 88,
+                child: Text('${_hora(c['inicio'] as String)}–${_hora(c['fin'] as String)}', style: text.labelLarge),
+              ),
+              title: Text('${c['asignatura']}'),
+              subtitle: c['aula'] == null ? null : Text('${c['aula']}'),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
 /// Lo de un hijo: notas por asignatura y parcial, asistencia y próximas entregas.
 class HijoPage extends ConsumerWidget {
   const HijoPage({super.key, required this.alumnoId, required this.nombre});
@@ -282,16 +329,20 @@ class HijoPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final resumen = ref.watch(resumenHijoProvider(alumnoId));
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: Text(nombre),
-          bottom: const TabBar(tabs: [Tab(text: 'Notas'), Tab(text: 'Asistencia'), Tab(text: 'Próximas')]),
+          bottom: const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: [Tab(text: 'Notas'), Tab(text: 'Asistencia'), Tab(text: 'Próximas'), Tab(text: 'Horario')],
+          ),
         ),
         body: resumen.when(
           loading: () => const EsqueletoLista(filas: 4, conTarjeta: true),
           error: (e, _) => EstadoError(error: e, reintentar: () => ref.invalidate(resumenHijoProvider(alumnoId))),
-          data: (r) => TabBarView(children: [_Notas(r), _Asistencia(r), _Proximas(r)]),
+          data: (r) => TabBarView(children: [_Notas(r), _Asistencia(r), _Proximas(r), _Horario(r)]),
         ),
       ),
     );
@@ -378,14 +429,42 @@ class _Asistencia extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final a = r['asistencia'] as Map<String, dynamic>;
+    final diaria = r['asistenciaDiaria'] as Map<String, dynamic>?;
+    return ListView(
+      padding: const EdgeInsets.all(Espacio.l),
+      children: [
+        if (diaria != null && (diaria['sesiones'] as int) > 0) ...[
+          _BloqueAsistencia(
+            titulo: 'LISTA DEL DÍA (MAESTRO GUÍA)',
+            a: diaria,
+            etiquetaTotal: 'Días con lista',
+          ),
+          const SizedBox(height: Espacio.xl),
+        ],
+        _BloqueAsistencia(titulo: 'EN CADA CLASE', a: r['asistencia'] as Map<String, dynamic>, etiquetaTotal: 'Clases registradas'),
+      ],
+    );
+  }
+}
+
+class _BloqueAsistencia extends StatelessWidget {
+  const _BloqueAsistencia({required this.titulo, required this.a, required this.etiquetaTotal});
+
+  final String titulo;
+  final Map<String, dynamic> a;
+  final String etiquetaTotal;
+
+  @override
+  Widget build(BuildContext context) {
     final recientes = (a['recientes'] as List).cast<Map<String, dynamic>>();
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
     const etiquetas = {'ausente': 'Ausente', 'tarde': 'Tarde', 'justificada': 'Ausencia justificada'};
-    return ListView(
-      padding: const EdgeInsets.all(Espacio.l),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        Text(titulo, style: text.labelSmall),
+        const SizedBox(height: Espacio.s),
         Card(
           margin: EdgeInsets.zero,
           child: Padding(
@@ -395,7 +474,7 @@ class _Asistencia extends StatelessWidget {
               runSpacing: 16,
               children: [
                 for (final (etiqueta, valor, alerta) in [
-                  ('Clases registradas', a['sesiones'], false),
+                  (etiquetaTotal, a['sesiones'], false),
                   ('Ausencias', a['ausencias'], (a['ausencias'] as int) > 0),
                   ('Llegadas tarde', a['tardes'], false),
                   ('Justificadas', a['justificadas'], false),

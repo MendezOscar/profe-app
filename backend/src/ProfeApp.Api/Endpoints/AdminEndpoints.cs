@@ -100,6 +100,25 @@ public static class AdminEndpoints
         centro.MapDelete("/comunicados/{id:guid}", async (Guid id, IFamiliasCentroService s, CancellationToken ct) =>
             (await s.EliminarComunicadoAsync(id, ct)).ToHttp());
 
+        // Horario: bloques por jornada, horario de cada sección (sin choques) y lista del día.
+        centro.MapGet("/bloques", async (IHorarioService s, CancellationToken ct) => (await s.BloquesAsync(ct)).ToHttp());
+        centro.MapPost("/bloques", async (BloqueRequest r, IHorarioService s, CancellationToken ct) => (await s.GuardarBloqueAsync(null, r, ct)).ToHttp());
+        centro.MapPut("/bloques/{id:guid}", async (Guid id, BloqueRequest r, IHorarioService s, CancellationToken ct) =>
+            (await s.GuardarBloqueAsync(id, r, ct)).ToHttp());
+        centro.MapDelete("/bloques/{id:guid}", async (Guid id, IHorarioService s, CancellationToken ct) => (await s.EliminarBloqueAsync(id, ct)).ToHttp());
+        centro.MapGet("/secciones/{id:guid}/horario", async (Guid id, IHorarioService s, CancellationToken ct) =>
+            (await s.HorarioSeccionAsync(id, ct)).ToHttp());
+        centro.MapPut("/secciones/{id:guid}/horario", async (Guid id, HorarioSeccionRequest r, IHorarioService s, CancellationToken ct) =>
+                (await s.GuardarHorarioAsync(id, r, ct)).ToHttp())
+            .WithSummary("Reemplaza el horario de la sección; no guarda si un docente o un aula queda en dos lugares a la vez.");
+        centro.MapGet("/docentes/{id:guid}/horario", async (Guid id, IHorarioService s, CancellationToken ct) =>
+            (await s.HorarioDocenteAsync(id, ct)).ToHttp());
+        centro.MapGet("/horario/choques", async (IHorarioService s, CancellationToken ct) => (await s.ChoquesAsync(ct)).ToHttp())
+            .WithSummary("Choques del año actual (por ejemplo, tras cambiar la carga docente).");
+        centro.MapGet("/asistencia-diaria", async (DateOnly? fecha, IHorarioService s, IClock clock, CancellationToken ct) =>
+                (await s.AsistenciaDelDiaAsync(fecha ?? clock.Today, ct)).ToHttp())
+            .WithSummary("Qué secciones pasaron lista ese día y quién faltó.");
+
         // Personal: dirección, subdirección, secretaría y orientación.
         centro.MapGet("/personal", async (IEstructuraCentroService s, CancellationToken ct) => (await s.PersonalAsync(ct)).ToHttp());
         centro.MapPost("/personal", async (CrearPersonalRequest r, IEstructuraCentroService s, CancellationToken ct) =>
@@ -113,6 +132,14 @@ public static class AdminEndpoints
             (await s.CambiarEstadoPersonalAsync(id, false, ct)).ToHttp());
         centro.MapPost("/personal/{id:guid}/restablecer-clave", async (Guid id, IEstructuraCentroService s, CancellationToken ct) =>
             (await s.RestablecerClavePersonalAsync(id, ct)).ToHttp());
+
+        // El maestro guía pasa la lista del día de su sección.
+        app.MapGet("/api/v1/mi-centro/secciones/{id:guid}/asistencia", async (Guid id, DateOnly? fecha, IHorarioService s, IClock clock, CancellationToken ct) =>
+                (await s.ListaDiariaAsync(id, fecha ?? clock.Today, ct)).ToHttp())
+            .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
+        app.MapPut("/api/v1/mi-centro/secciones/{id:guid}/asistencia", async (Guid id, ListaDiariaRequest r, IHorarioService s, CancellationToken ct) =>
+                (await s.GuardarListaDiariaAsync(id, r, ct)).ToHttp())
+            .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
 
         // El docente ve lo que su centro le asignó.
         app.MapGet("/api/v1/mi-centro/carga", async (IMiCargaService s, CancellationToken ct) => Results.Ok(await s.ObtenerAsync(ct)))

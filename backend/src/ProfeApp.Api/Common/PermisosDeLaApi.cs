@@ -18,7 +18,8 @@ public static class PermisosDeLaApi
               tenants, instituciones, refresh_tokens,
               anios_lectivos, grados, asignaturas_grado, aulas, secciones, cargas_docentes,
               alumnos, encargados, matriculas,
-              codigos_familia, vinculos_familiares, comunicados, lecturas_comunicados
+              codigos_familia, vinculos_familiares, comunicados, lecturas_comunicados,
+              bloques_horario, horarios_clase, tomas_asistencia_diaria, marcas_asistencia_diaria
               TO profeapp_app;
             -- Roles: la API los siembra si faltan (base nueva) pero nunca los cambia ni borra.
             GRANT SELECT, INSERT ON asp_net_roles TO profeapp_app;

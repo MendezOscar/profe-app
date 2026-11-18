@@ -176,3 +176,51 @@ public class LecturaComunicadoConfig : IEntityTypeConfiguration<LecturaComunicad
         b.HasIndex(x => new { x.ComunicadoId, x.UsuarioId }).IsUnique();
     }
 }
+
+public class BloqueHorarioConfig : IEntityTypeConfiguration<BloqueHorario>
+{
+    public void Configure(EntityTypeBuilder<BloqueHorario> b)
+    {
+        b.ToTable("bloques_horario");
+        b.Property(x => x.Jornada).HasMaxLength(20).IsRequired();
+        b.HasOne<Institucion>().WithMany().HasForeignKey(x => x.InstitucionId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.InstitucionId, x.Jornada, x.Orden });
+    }
+}
+
+public class HorarioClaseConfig : IEntityTypeConfiguration<HorarioClase>
+{
+    public void Configure(EntityTypeBuilder<HorarioClase> b)
+    {
+        b.ToTable("horarios_clase");
+        b.HasOne<Seccion>().WithMany().HasForeignKey(x => x.SeccionId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<BloqueHorario>().WithMany().HasForeignKey(x => x.BloqueId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<AsignaturaGrado>().WithMany().HasForeignKey(x => x.AsignaturaGradoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<Aula>().WithMany().HasForeignKey(x => x.AulaId).OnDelete(DeleteBehavior.SetNull);
+        b.HasIndex(x => new { x.SeccionId, x.Dia, x.BloqueId }).IsUnique();
+        b.HasIndex(x => new { x.InstitucionId, x.Dia });
+    }
+}
+
+public class TomaAsistenciaDiariaConfig : IEntityTypeConfiguration<TomaAsistenciaDiaria>
+{
+    public void Configure(EntityTypeBuilder<TomaAsistenciaDiaria> b)
+    {
+        b.ToTable("tomas_asistencia_diaria");
+        b.HasOne<Seccion>().WithMany().HasForeignKey(x => x.SeccionId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.SeccionId, x.Fecha }).IsUnique();
+    }
+}
+
+public class MarcaAsistenciaDiariaConfig : IEntityTypeConfiguration<MarcaAsistenciaDiaria>
+{
+    public void Configure(EntityTypeBuilder<MarcaAsistenciaDiaria> b)
+    {
+        b.ToTable("marcas_asistencia_diaria");
+        b.Property(x => x.Estado).HasMaxLength(1).IsRequired();
+        b.HasOne<TomaAsistenciaDiaria>().WithMany().HasForeignKey(x => x.TomaId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.TomaId, x.AlumnoId }).IsUnique();
+        b.HasIndex(x => x.AlumnoId);
+    }
+}

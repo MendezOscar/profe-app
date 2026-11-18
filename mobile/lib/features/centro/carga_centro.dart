@@ -5,6 +5,7 @@ import '../../core/centro/mi_carga.dart';
 import '../../core/providers.dart';
 import '../../theme/tokens.dart';
 import '../clases/importar_cuadros.dart';
+import 'lista_diaria_page.dart';
 
 final _identidadesProvider = FutureProvider<Map<String, Set<String>>>((ref) async {
   await ref.watch(clasesProvider.future);
@@ -54,6 +55,17 @@ class TarjetaCargaCentro extends ConsumerWidget {
               const SizedBox(height: Espacio.s),
               Text('${s.titulo}${s.esGuia ? ' · eres guía' : ''} · ${s.alumnos.where((a) => a.activo).length} alumnos',
                   style: text.labelLarge),
+              if (s.esGuia)
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
+                      builder: (_) => ListaDiariaPage(seccionId: s.id, titulo: '${s.grado} ${s.nombre}'),
+                    )),
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('Pasar lista del día'),
+                  ),
+                ),
               for (final a in s.asignaturas)
                 Padding(
                   padding: const EdgeInsets.only(top: Espacio.xxs),
@@ -87,6 +99,61 @@ class TarjetaCargaCentro extends ConsumerWidget {
               ),
             ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// En Inicio: las clases de hoy según el horario del centro. No aparece sin clases hoy.
+class TarjetaHoyCentro extends ConsumerWidget {
+  const TarjetaHoyCentro({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final carga = ref.watch(miCargaProvider).valueOrNull;
+    final hoy = carga?.delDia(DateTime.now().weekday) ?? const <ClaseHorario>[];
+    if (hoy.isEmpty) return const SizedBox.shrink();
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    final ahora = TimeOfDay.now();
+    final minutos = ahora.hour * 60 + ahora.minute;
+    int enMinutos(String t) => int.parse(t.substring(0, 2)) * 60 + int.parse(t.substring(3, 5));
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.l, Espacio.l, 0),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(Espacio.l),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('TUS CLASES DE HOY', style: text.labelSmall),
+              const SizedBox(height: Espacio.s),
+              for (final c in hoy)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: Espacio.xs),
+                  child: Row(
+                    children: [
+                      SizedBox(
+                        width: 96,
+                        child: Text('${ClaseHorario.hora(c.inicio)}–${ClaseHorario.hora(c.fin)}',
+                            style: text.labelLarge?.copyWith(
+                              color: minutos >= enMinutos(c.inicio) && minutos < enMinutos(c.fin) ? scheme.primary : null,
+                              fontWeight: minutos >= enMinutos(c.inicio) && minutos < enMinutos(c.fin) ? FontWeight.w800 : null,
+                            )),
+                      ),
+                      Expanded(
+                        child: Text('${c.asignatura} · ${c.seccion}${c.aula == null ? '' : ' · ${c.aula}'}',
+                            style: text.bodyMedium?.copyWith(
+                                color: minutos >= enMinutos(c.fin) ? scheme.onSurfaceVariant : null)),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );

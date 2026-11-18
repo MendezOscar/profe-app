@@ -42,6 +42,10 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<VinculoFamiliar> VinculosFamiliares => Set<VinculoFamiliar>();
     public DbSet<Comunicado> Comunicados => Set<Comunicado>();
     public DbSet<LecturaComunicado> LecturasComunicados => Set<LecturaComunicado>();
+    public DbSet<BloqueHorario> BloquesHorario => Set<BloqueHorario>();
+    public DbSet<HorarioClase> HorariosClase => Set<HorarioClase>();
+    public DbSet<TomaAsistenciaDiaria> TomasAsistenciaDiaria => Set<TomaAsistenciaDiaria>();
+    public DbSet<MarcaAsistenciaDiaria> MarcasAsistenciaDiaria => Set<MarcaAsistenciaDiaria>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

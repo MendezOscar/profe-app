@@ -9,7 +9,7 @@ namespace ProfeApp.Infrastructure.Centros;
 /// Secciones del año actual donde el docente tiene carga o es maestro guía, con la lista de
 /// matrícula. Sólo nombre, identidad y estado: la ficha (salud, encargados) no sale de aquí.
 /// </summary>
-public sealed class MiCargaService(AppDbContext db, ICurrentUser currentUser) : IMiCargaService
+public sealed class MiCargaService(AppDbContext db, ICurrentUser currentUser, HorarioService horario) : IMiCargaService
 {
     private static readonly MiCargaDto SinCentro = new(null, null, []);
 
@@ -35,6 +35,7 @@ public sealed class MiCargaService(AppDbContext db, ICurrentUser currentUser) : 
 
         var ids = carga.Select(c => c.SeccionId).Concat(guia).Distinct().ToList();
         if (ids.Count == 0) return new MiCargaDto(centro, anio.Anio, []);
+        var clases = await horario.DelDocenteAsync(anio.Id, yo, ct);
 
         var secciones = await (from s in db.Secciones.AsNoTracking()
                                join g in db.Grados.AsNoTracking() on s.GradoId equals g.Id
@@ -55,6 +56,6 @@ public sealed class MiCargaService(AppDbContext db, ICurrentUser currentUser) : 
             .Select(s => new SeccionDocenteDto(s.Id, s.Grado, s.Nombre, s.Jornada, guia.Contains(s.Id),
                 asignaturas[s.Id].ToList(),
                 alumnos[s.Id].Select(a => new AlumnoListaDto(a.Identidad, a.Nombre, a.Estado)).ToList()))
-            .ToList());
+            .ToList(), clases);
     }
 }

@@ -107,7 +107,8 @@ public sealed record PaginaAlumnosDto(IReadOnlyList<AlumnoBuscadoDto> Alumnos, i
 /// Carga del docente en el año actual de su centro: las secciones donde da clase o es guía,
 /// con sus asignaturas y la lista de matrícula (sin ficha). Sin centro, todo vacío.
 /// </summary>
-public sealed record MiCargaDto(string? Centro, int? Anio, IReadOnlyList<SeccionDocenteDto> Secciones);
+public sealed record MiCargaDto(
+    string? Centro, int? Anio, IReadOnlyList<SeccionDocenteDto> Secciones, IReadOnlyList<ClaseHorarioDto>? Horario = null);
 
 public sealed record SeccionDocenteDto(
     Guid Id, string Grado, string Nombre, string Jornada, bool EsGuia,

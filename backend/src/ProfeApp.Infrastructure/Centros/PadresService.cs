@@ -15,7 +15,7 @@ namespace ProfeApp.Infrastructure.Centros;
 /// de los docentes del centro: se buscan las clases cuya lista de SACE trae la identidad
 /// del alumno y se leen sólo sus registros (actividades, notas y asistencia del hijo).
 /// </summary>
-public sealed class PadresService(AppDbContext db, ICurrentUser currentUser, IClock clock) : IPadresService
+public sealed class PadresService(AppDbContext db, ICurrentUser currentUser, IClock clock, HorarioService horario) : IPadresService
 {
     private const int FaltasRecientes = 10;
     private const int ComunicadosVisibles = 50;
@@ -149,11 +149,34 @@ public sealed class PadresService(AppDbContext db, ICurrentUser currentUser, ICl
             }
         }
 
+        // Lista del día del maestro guía y horario de su sección, en el año actual.
+        var actual = await (from m in db.Matriculas.AsNoTracking()
+                            join an in db.AniosLectivos.AsNoTracking() on m.AnioLectivoId equals an.Id
+                            where m.AlumnoId == alumnoId && an.Actual && m.Estado == EstadosMatricula.Activa
+                            select new { m.SeccionId, m.AnioLectivoId }).FirstOrDefaultAsync(ct);
+        AsistenciaHijoDto? diaria = null;
+        IReadOnlyList<ClaseHorarioDto>? horarioSeccion = null;
+        if (actual is not null)
+        {
+            var dias = await db.TomasAsistenciaDiaria.CountAsync(t => t.SeccionId == actual.SeccionId, ct);
+            var marcas = await (from m in db.MarcasAsistenciaDiaria.AsNoTracking()
+                                join t in db.TomasAsistenciaDiaria.AsNoTracking() on m.TomaId equals t.Id
+                                where m.AlumnoId == alumnoId && t.SeccionId == actual.SeccionId
+                                orderby t.Fecha descending
+                                select new { t.Fecha, m.Estado })
+                .ToListAsync(ct);
+            string Nombre(string e) => e switch { "A" => "ausente", "T" => "tarde", _ => "justificada" };
+            diaria = new AsistenciaHijoDto(dias, marcas.Count(m => m.Estado == "A"), marcas.Count(m => m.Estado == "T"),
+                marcas.Count(m => m.Estado == "J"),
+                marcas.Take(FaltasRecientes).Select(m => new FaltaDto(m.Fecha, "Lista del día", Nombre(m.Estado))).ToList());
+            horarioSeccion = await horario.DeSeccionAsync(actual.AnioLectivoId, actual.SeccionId, ct);
+        }
+
         return new ResumenHijoDto(
             hijo.AlumnoId, hijo.Nombre, hijo.Centro, hijo.Seccion, asignaturas,
             new AsistenciaHijoDto(sesionesTotal, ausencias, tardes, justificadas,
                 faltas.OrderByDescending(f => f.Fecha).Take(FaltasRecientes).ToList()),
-            proximas.OrderBy(p => p.Fecha).ToList());
+            proximas.OrderBy(p => p.Fecha).ToList(), diaria, horarioSeccion);
     }
 
     public async Task<IReadOnlyList<ComunicadoPadreDto>> ComunicadosAsync(CancellationToken ct = default)

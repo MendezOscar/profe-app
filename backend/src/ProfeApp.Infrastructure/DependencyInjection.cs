@@ -68,6 +68,8 @@ public static class DependencyInjection
         services.AddScoped<Centros.EstructuraCentroService>();
         services.AddScoped<IEstructuraCentroService>(p => p.GetRequiredService<Centros.EstructuraCentroService>());
         services.AddScoped<IMatriculaService, Centros.MatriculaService>();
+        services.AddScoped<Centros.HorarioService>();
+        services.AddScoped<IHorarioService>(p => p.GetRequiredService<Centros.HorarioService>());
         services.AddScoped<IMiCargaService, Centros.MiCargaService>();
         services.AddScoped<IFamiliasCentroService, Centros.FamiliasCentroService>();
         services.AddScoped<IPadresService, Centros.PadresService>();
