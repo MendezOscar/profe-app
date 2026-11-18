@@ -29,3 +29,20 @@ public sealed record AlumnoRiesgoDto(Guid AlumnoId, string Nombre, string Seccio
 
 /// <summary>De la lista del día: porcentaje de asistencia (tardes cuentan como presentes).</summary>
 public sealed record AsistenciaSeccionDto(Guid SeccionId, string Seccion, int Dias, int Ausencias, int Tardes, int Justificadas, decimal? Porcentaje);
+
+/// <summary>
+/// Estadísticas de cada docente del centro en el año actual. <c>DiasHabiles</c>: de lunes a
+/// viernes desde el inicio del año hasta hoy, para comparar la lista del día.
+/// </summary>
+public sealed record EstadisticasDocentesDto(int? Anio, int DiasHabiles, IReadOnlyList<EstadisticaDocenteDto> Docentes);
+
+/// <summary>
+/// <c>CuadrosEnApp</c>: asignaturas que importó. <c>ListasRecientes</c>: listas de clase de los
+/// últimos 30 días. <c>DiasListaDelDia</c>: días con lista en las secciones donde es guía (null si no
+/// es guía). <c>Evaluados</c>/<c>Aprobados</c>/<c>Promedio</c>: de sus asignaturas, con lo cerrado.
+/// </summary>
+public sealed record EstadisticaDocenteDto(
+    Guid Id, string Nombre, bool Activo, DateTimeOffset? UltimoAcceso, DateTimeOffset? UltimoTrabajo,
+    int Secciones, int AsignaturasCarga, int Alumnos, int CuadrosEnApp, int ParcialesCerrados, int Actividades,
+    int ListasRecientes, int SeccionesGuia, int? DiasListaDelDia, int ConductasPuestas, int Incidencias,
+    int Evaluados, int Aprobados, decimal? Promedio);

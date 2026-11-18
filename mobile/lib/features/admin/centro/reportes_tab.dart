@@ -17,7 +17,7 @@ final reportesProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
     (ref) => ref.watch(apiClientProvider).get('/centro/reportes', parse: (d) => d as Map<String, dynamic>));
 
 /// CSV con BOM para que Excel respete las tildes, separado por comas.
-Uint8List _csv(List<List<Object?>> filas) {
+Uint8List csvBytes(List<List<Object?>> filas) {
   String celda(Object? v) {
     final t = v?.toString() ?? '';
     return t.contains(RegExp('[",\n]')) ? '"${t.replaceAll('"', '""')}"' : t;
@@ -133,7 +133,7 @@ class _Matricula extends StatelessWidget {
           accion: TextButton.icon(
             onPressed: () => compartirArchivo(
               context,
-              _csv([
+              csvBytes([
                 ['Sección', 'Jornada', 'Activos', 'Cupo', 'Femenino', 'Masculino', 'Sin dato de sexo', 'Retirados', 'Trasladados'],
                 for (final s in secciones)
                   [s['seccion'], s['jornada'], s['activos'], s['cupo'], s['femenino'], s['masculino'], s['sinSexo'], s['retirados'], s['trasladados']],
@@ -237,7 +237,7 @@ class _Riesgo extends StatelessWidget {
               : TextButton.icon(
                   onPressed: () => compartirArchivo(
                     context,
-                    _csv([
+                    csvBytes([
                       ['Alumno', 'Sección', 'Motivos'],
                       for (final r in lista) [r['nombre'], r['seccion'], (r['motivos'] as List).join('; ')],
                     ]),

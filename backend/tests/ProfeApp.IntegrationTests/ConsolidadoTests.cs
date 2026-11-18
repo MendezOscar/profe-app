@@ -144,6 +144,15 @@ public class ConsolidadoTests(ApiFixture fixture) : ApiTestBase(fixture)
             .Should().BeEquivalentTo(["Beto", "Carla"]);
         reportes.GetProperty("asistencia")[0].GetProperty("porcentaje").ValueKind.Should().Be(JsonValueKind.Null);
 
+        // Estadísticas por docente: su carga y el rendimiento de lo que cerró.
+        var stats = await ReadAsync(await c.GetAsync("/api/v1/centro/estadisticas-docentes"));
+        var conNotas = stats.GetProperty("docentes").EnumerateArray().Single(d => d.GetProperty("evaluados").GetInt32() > 0);
+        conNotas.GetProperty("evaluados").GetInt32().Should().Be(3);
+        conNotas.GetProperty("aprobados").GetInt32().Should().Be(1);
+        conNotas.GetProperty("promedio").GetDecimal().Should().Be(66.7m);
+        conNotas.GetProperty("cuadrosEnApp").GetInt32().Should().BeGreaterThan(0);
+        stats.GetProperty("diasHabiles").GetInt32().Should().Be(0, "el año 2027 aún no empieza");
+
         // Otro centro no ve este consolidado.
         var otro = await CentroAsync();
         (await otro.GetAsync($"/api/v1/centro/secciones/{a}/consolidado")).StatusCode.Should().Be(HttpStatusCode.NotFound);

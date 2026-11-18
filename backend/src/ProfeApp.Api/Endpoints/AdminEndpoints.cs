@@ -167,6 +167,9 @@ public static class AdminEndpoints
 
         centro.MapGet("/reportes", async (IReportesService s, CancellationToken ct) => (await s.ResumenAsync(ct)).ToHttp())
             .WithSummary("Matrícula, rendimiento, alumnos en riesgo y asistencia del año actual.");
+        centro.MapGet("/estadisticas-docentes", async (IReportesService s, CancellationToken ct) => (await s.DocentesAsync(ct)).ToHttp())
+            .RequireRateLimiting(Limites.Exportar)
+            .WithSummary("Carga, avance, listas y rendimiento de cada docente en el año actual.");
 
         // Personal: dirección, subdirección, secretaría y orientación.
         centro.MapGet("/personal", async (IEstructuraCentroService s, CancellationToken ct) => (await s.PersonalAsync(ct)).ToHttp());

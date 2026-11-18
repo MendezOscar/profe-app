@@ -112,6 +112,112 @@ public sealed class ReportesService(AppDbContext db, EstructuraCentroService cen
         return new ReportesDto(anio.Anio, matricula, rendimiento, riesgo, asistencia);
     }
 
+    public async Task<Result<EstadisticasDocentesDto>> DocentesAsync(CancellationToken ct = default)
+    {
+        var (institucion, _) = await centro.ContextoAsync(ct);
+        if (institucion is null) return Result<EstadisticasDocentesDto>.Fail(Error.Forbidden(EstructuraCentroService.SinCentro));
+        var anio = await db.AniosLectivos.AsNoTracking().FirstOrDefaultAsync(a => a.InstitucionId == institucion.Id && a.Actual, ct);
+
+        var docentes = await (from u in db.Users.AsNoTracking()
+                              join ur in db.UserRoles on u.Id equals ur.UserId
+                              join r in db.Roles on ur.RoleId equals r.Id
+                              where r.Name == Domain.Common.Roles.Docente && u.InstitucionId == institucion.Id
+                              orderby u.FullName
+                              select new { u.Id, u.FullName, u.IsActive, u.LastLoginAt, u.TenantId })
+            .ToListAsync(ct);
+        var tenants = docentes.Where(d => d.TenantId is not null).Select(d => d.TenantId!.Value).ToList();
+        var ids = docentes.Select(d => d.Id).ToList();
+
+        // Lo del teléfono de cada docente (está en su tenant): se cuenta sin abrir notas.
+        var cuadros = await db.Clases.IgnoreQueryFilters().Where(c => tenants.Contains(c.TenantId) && c.EliminadaEn == null)
+            .GroupBy(c => c.TenantId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var actividades = await db.Registros.IgnoreQueryFilters()
+            .Where(r => tenants.Contains(r.TenantId) && r.Tipo == "actividad" && !r.Eliminado)
+            .GroupBy(r => r.TenantId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var hace30 = clock.Now.AddDays(-30);
+        var listas = await db.Registros.IgnoreQueryFilters()
+            .Where(r => tenants.Contains(r.TenantId) && r.Tipo == "sesion" && !r.Eliminado && r.ActualizadoEn >= hace30)
+            .GroupBy(r => r.TenantId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var parciales = (await db.Database
+                .SqlQuery<ConteoTenant>($@"SELECT tenant_id AS ""TenantId"", count(*)::int AS ""N"" FROM registros
+                    WHERE tipo = 'parcial' AND tenant_id = ANY({tenants.ToArray()}) AND datos->>'cerradoEn' IS NOT NULL
+                    GROUP BY tenant_id")
+                .ToListAsync(ct))
+            .ToDictionary(x => x.TenantId, x => x.N);
+        var ultimoTrabajo = await db.Registros.IgnoreQueryFilters().Where(r => tenants.Contains(r.TenantId))
+            .GroupBy(r => r.TenantId).Select(g => new { g.Key, Cuando = g.Max(r => r.ModificadoEn) })
+            .ToDictionaryAsync(x => x.Key, x => x.Cuando, ct);
+        var conductas = await db.Conductas.Where(c => c.InstitucionId == institucion.Id && ids.Contains(c.PuestaPor))
+            .GroupBy(c => c.PuestaPor).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var inicio = anio?.Inicio ?? clock.Today.AddDays(-365);
+        var incidencias = await db.Incidencias.Where(i => i.InstitucionId == institucion.Id && ids.Contains(i.RegistradaPor) && i.Fecha >= inicio)
+            .GroupBy(i => i.RegistradaPor).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+
+        // Carga, guías y lista del día del año actual.
+        var carga = anio is null ? [] : await (from c in db.CargasDocentes.AsNoTracking()
+                                               join s in db.Secciones.AsNoTracking() on c.SeccionId equals s.Id
+                                               where s.AnioLectivoId == anio.Id
+                                               select new { c.DocenteId, c.SeccionId }).ToListAsync(ct);
+        var guias = anio is null ? [] : await db.Secciones.AsNoTracking()
+            .Where(s => s.AnioLectivoId == anio.Id && s.MaestroGuiaId != null)
+            .Select(s => new { Docente = s.MaestroGuiaId!.Value, s.Id }).ToListAsync(ct);
+        var seccionesAnio = carga.Select(c => c.SeccionId).Concat(guias.Select(g => g.Id)).Distinct().ToList();
+        var activos = await db.Matriculas.Where(m => seccionesAnio.Contains(m.SeccionId) && m.Estado == EstadosMatricula.Activa)
+            .GroupBy(m => m.SeccionId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var tomas = await db.TomasAsistenciaDiaria.Where(t => seccionesAnio.Contains(t.SeccionId))
+            .GroupBy(t => t.SeccionId).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+
+        // Rendimiento: lo cerrado en las asignaturas de cada docente, por el consolidado de cada sección.
+        var claseDeTenant = await db.Clases.IgnoreQueryFilters().Where(c => tenants.Contains(c.TenantId))
+            .Select(c => new { c.Id, c.TenantId }).ToDictionaryAsync(c => c.Id, c => c.TenantId, ct);
+        var notas = new Dictionary<Guid, List<decimal>>();
+        // Todas las secciones del año: el docente puede tener el cuadro sin que le hayan asignado la carga.
+        var todas = anio is null ? [] : await db.Secciones.Where(s => s.AnioLectivoId == anio.Id).Select(s => s.Id).ToListAsync(ct);
+        foreach (var seccion in todas)
+        {
+            var c = await consolidado.DeSeccionAsync(institucion.Id, institucion.Nombre, seccion, ct);
+            if (c is null) continue;
+            var filas = c.Alumnos.Where(a => a.EstadoMatricula == EstadosMatricula.Activa).ToList();
+            for (var i = 0; i < c.Asignaturas.Count; i++)
+            {
+                if (!claseDeTenant.TryGetValue(c.Asignaturas[i].ClaseId, out var tenant)) continue;
+                var lista = notas.TryGetValue(tenant, out var l) ? l : notas[tenant] = [];
+                lista.AddRange(filas.Select(f => Valor(f.Notas[i])).Where(v => v is not null).Select(v => v!.Value));
+            }
+        }
+
+        var hoy = clock.Today;
+        var fin = anio is null ? hoy : (hoy < anio.Fin ? hoy : anio.Fin);
+        var habiles = anio is null ? 0 : DiasHabiles(anio.Inicio, fin);
+        int De<TK>(Dictionary<TK, int> d, TK? k) where TK : struct => k is { } v && d.TryGetValue(v, out var n) ? n : 0;
+
+        return new EstadisticasDocentesDto(anio?.Anio, habiles, docentes.Select(d =>
+        {
+            var suyas = carga.Where(c => c.DocenteId == d.Id).ToList();
+            var guiadas = guias.Where(g => g.Docente == d.Id).Select(g => g.Id).ToList();
+            var secciones = suyas.Select(c => c.SeccionId).Concat(guiadas).Distinct().ToList();
+            var valores = d.TenantId is { } t && notas.TryGetValue(t, out var v) ? v : [];
+            return new EstadisticaDocenteDto(d.Id, d.FullName, d.IsActive, d.LastLoginAt,
+                d.TenantId is { } t2 && ultimoTrabajo.TryGetValue(t2, out var u) ? u : null,
+                secciones.Count, suyas.Count, secciones.Sum(s => activos.GetValueOrDefault(s)),
+                De(cuadros, d.TenantId), De(parciales, d.TenantId), De(actividades, d.TenantId), De(listas, d.TenantId),
+                guiadas.Count, guiadas.Count == 0 ? null : guiadas.Sum(g => tomas.GetValueOrDefault(g)),
+                conductas.GetValueOrDefault(d.Id), incidencias.GetValueOrDefault(d.Id),
+                valores.Count, valores.Count(x => x >= ConsolidadoService.NotaMinima),
+                valores.Count == 0 ? null : Math.Round(valores.Average(), 1));
+        }).ToList());
+    }
+
+    private sealed record ConteoTenant(Guid TenantId, int N);
+
+    private static int DiasHabiles(DateOnly desde, DateOnly hasta)
+    {
+        var n = 0;
+        for (var d = desde; d <= hasta; d = d.AddDays(1))
+            if (d.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday)) n++;
+        return n;
+    }
+
     /// <summary>La final si ya está; si no, el promedio de los parciales cerrados.</summary>
     private static decimal? Valor(NotaAsignaturaDto? n)
     {
