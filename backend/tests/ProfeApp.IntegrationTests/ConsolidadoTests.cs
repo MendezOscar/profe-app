@@ -131,6 +131,19 @@ public class ConsolidadoTests(ApiFixture fixture) : ApiTestBase(fixture)
         var libro = new HSSFWorkbook(archivo.Entries[0].Open());
         libro.GetSheet("12345678~1~1123").GetRow(7).GetCell(4).NumericCellValue.Should().Be(80);
 
+        // Los reportes del centro usan el mismo consolidado.
+        var reportes = await ReadAsync(await c.GetAsync("/api/v1/centro/reportes"));
+        reportes.GetProperty("matricula").GetProperty("activos").GetInt32().Should().Be(3);
+        reportes.GetProperty("matricula").GetProperty("nuevos").GetInt32().Should().Be(3);
+        reportes.GetProperty("matricula").GetProperty("porSeccion")[0].GetProperty("sinSexo").GetInt32().Should().Be(3);
+        var rend = reportes.GetProperty("rendimiento")[0].GetProperty("asignaturas")[0];
+        rend.GetProperty("evaluados").GetInt32().Should().Be(3);
+        rend.GetProperty("aprobados").GetInt32().Should().Be(1);
+        rend.GetProperty("promedio").GetDecimal().Should().Be(66.7m, "75, 65 y la recuperación de 60");
+        reportes.GetProperty("riesgo").EnumerateArray().Select(r => r.GetProperty("nombre").GetString())
+            .Should().BeEquivalentTo(["Beto", "Carla"]);
+        reportes.GetProperty("asistencia")[0].GetProperty("porcentaje").ValueKind.Should().Be(JsonValueKind.Null);
+
         // Otro centro no ve este consolidado.
         var otro = await CentroAsync();
         (await otro.GetAsync($"/api/v1/centro/secciones/{a}/consolidado")).StatusCode.Should().Be(HttpStatusCode.NotFound);

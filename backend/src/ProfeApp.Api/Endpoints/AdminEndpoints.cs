@@ -128,6 +128,9 @@ public static class AdminEndpoints
             .RequireRateLimiting(Limites.Exportar)
             .WithSummary("Los cuadros de SACE de la sección, llenos con lo que capturó cada docente, en un .zip.");
 
+        centro.MapGet("/reportes", async (IReportesService s, CancellationToken ct) => (await s.ResumenAsync(ct)).ToHttp())
+            .WithSummary("Matrícula, rendimiento, alumnos en riesgo y asistencia del año actual.");
+
         // Personal: dirección, subdirección, secretaría y orientación.
         centro.MapGet("/personal", async (IEstructuraCentroService s, CancellationToken ct) => (await s.PersonalAsync(ct)).ToHttp());
         centro.MapPost("/personal", async (CrearPersonalRequest r, IEstructuraCentroService s, CancellationToken ct) =>

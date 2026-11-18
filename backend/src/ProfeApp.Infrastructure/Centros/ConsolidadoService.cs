@@ -27,13 +27,20 @@ public sealed class ConsolidadoService(AppDbContext db, EstructuraCentroService 
     {
         var (institucion, _) = await centro.ContextoAsync(ct);
         if (institucion is null) return Result<ConsolidadoDto>.Fail(Error.Forbidden(EstructuraCentroService.SinCentro));
+        var consolidado = await DeSeccionAsync(institucion.Id, institucion.Nombre, seccionId, ct);
+        return consolidado is null ? Result<ConsolidadoDto>.Fail(Error.NotFound("La sección")) : consolidado;
+    }
+
+    /// <summary>El consolidado de una sección del centro (null si no es suya). Lo usan también los reportes.</summary>
+    internal async Task<ConsolidadoDto?> DeSeccionAsync(Guid institucionId, string nombreCentro, Guid seccionId, CancellationToken ct)
+    {
         var seccion = await (from s in db.Secciones.AsNoTracking()
                              join g in db.Grados.AsNoTracking() on s.GradoId equals g.Id
                              join a in db.AniosLectivos.AsNoTracking() on s.AnioLectivoId equals a.Id
-                             where s.Id == seccionId && s.InstitucionId == institucion.Id
+                             where s.Id == seccionId && s.InstitucionId == institucionId
                              select new { s.Id, Nombre = g.Nombre + " " + s.Nombre, s.Jornada, a.Anio })
             .FirstOrDefaultAsync(ct);
-        if (seccion is null) return Result<ConsolidadoDto>.Fail(Error.NotFound("La sección"));
+        if (seccion is null) return null;
 
         var alumnos = await (from m in db.Matriculas.AsNoTracking()
                              join a in db.Alumnos.AsNoTracking() on m.AlumnoId equals a.Id
@@ -41,7 +48,7 @@ public sealed class ConsolidadoService(AppDbContext db, EstructuraCentroService 
                              orderby a.Nombre
                              select new { a.Id, a.Identidad, a.Nombre, m.Estado })
             .ToListAsync(ct);
-        var clases = await ClasesDeSeccionAsync(institucion.Id, alumnos.Select(a => a.Identidad).ToHashSet(), ct);
+        var clases = await ClasesDeSeccionAsync(institucionId, alumnos.Select(a => a.Identidad).ToHashSet(), ct);
         var ids = clases.Select(c => c.Clase.Id).ToList();
         var valores = (await db.ClaseValores.IgnoreQueryFilters().AsNoTracking()
                 .Where(v => ids.Contains(v.ClaseId) && v.Valor != null)
@@ -65,7 +72,7 @@ public sealed class ConsolidadoService(AppDbContext db, EstructuraCentroService 
             return new AlumnoConsolidadoDto(a.Id, a.Identidad, a.Nombre, a.Estado, notas, Resultado(notas));
         }).ToList();
 
-        return new ConsolidadoDto(seccion.Id, seccion.Nombre, seccion.Jornada, institucion.Nombre, seccion.Anio, NotaMinima,
+        return new ConsolidadoDto(seccion.Id, seccion.Nombre, seccion.Jornada, nombreCentro, seccion.Anio, NotaMinima,
             estructuras.Select(x => new AsignaturaConsolidadoDto(x.c.Clase.Id, x.c.Clase.Asignatura ?? "Asignatura", x.c.Docente,
                 x.Estructura.Parciales.Select(p => p.Nombre).ToList(), conArchivo.Contains(x.c.Clase.Id))).ToList(),
             filas);
