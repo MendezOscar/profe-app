@@ -52,6 +52,31 @@ Future<bool> puedeUsarIaCentro(BuildContext context, WidgetRef ref) async {
 
 String _mensaje(ApiException e) => e.isNetworkError ? 'Necesitas internet.' : e.message;
 
+/// Muestra un aviso de espera que no se puede cerrar mientras corre [trabajo].
+Future<T> _conEspera<T>(BuildContext context, String mensaje, Future<T> Function() trabajo) async {
+  final navegador = Navigator.of(context, rootNavigator: true);
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => PopScope(
+      canPop: false,
+      child: AlertDialog(
+        shape: const RoundedRectangleBorder(),
+        content: Row(children: [
+          const CircularProgressIndicator(),
+          const SizedBox(width: Espacio.l),
+          Expanded(child: Text(mensaje)),
+        ]),
+      ),
+    ),
+  );
+  try {
+    return await trabajo();
+  } finally {
+    navegador.pop();
+  }
+}
+
 const _romanos = ['I', 'II', 'III', 'IV'];
 
 // ── Comentarios de boleta ────────────────────────────────────────────────────
@@ -239,29 +264,13 @@ class _ComentariosBoletaPageState extends ConsumerState<ComentariosBoletaPage> {
 Future<void> informeIa(BuildContext context, WidgetRef ref) async {
   if (!await puedeUsarIaCentro(context, ref) || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
-  final navegador = Navigator.of(context, rootNavigator: true);
-  showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    builder: (_) => const PopScope(
-      canPop: false,
-      child: AlertDialog(
-        shape: RoundedRectangleBorder(),
-        content: Row(children: [
-          CircularProgressIndicator(),
-          SizedBox(width: Espacio.l),
-          Expanded(child: Text('La IA está leyendo los reportes del año…')),
-        ]),
-      ),
-    ),
-  );
   Map<String, dynamic>? informe;
   try {
-    informe = await ref.read(apiClientProvider).post('/centro/ia/informe', parse: (d) => d as Map<String, dynamic>);
+    informe = await _conEspera(context, 'La IA está leyendo los reportes del año…',
+        () => ref.read(apiClientProvider).post('/centro/ia/informe', parse: (d) => d as Map<String, dynamic>));
   } on ApiException catch (e) {
     messenger.showSnackBar(SnackBar(content: Text(_mensaje(e))));
   } finally {
-    navegador.pop();
     ref.invalidate(estadoIaCentroProvider);
   }
   if (informe == null || !context.mounted) return;
@@ -363,8 +372,9 @@ Future<(String, String)?> redactarComunicadoIa(BuildContext context, WidgetRef r
   if (ok != true || puntos.text.trim().isEmpty || !context.mounted) return null;
   final messenger = ScaffoldMessenger.of(context);
   try {
-    final r = await ref.read(apiClientProvider).post('/centro/ia/comunicado',
-        body: {'puntos': puntos.text, 'destinatarios': destinatarios}, parse: (d) => d as Map<String, dynamic>);
+    final r = await _conEspera(context, 'La IA está redactando el comunicado…',
+        () => ref.read(apiClientProvider).post('/centro/ia/comunicado',
+            body: {'puntos': puntos.text, 'destinatarios': destinatarios}, parse: (d) => d as Map<String, dynamic>));
     ref.invalidate(estadoIaCentroProvider);
     return ('${r['titulo']}', '${r['cuerpo']}');
   } on ApiException catch (e) {
