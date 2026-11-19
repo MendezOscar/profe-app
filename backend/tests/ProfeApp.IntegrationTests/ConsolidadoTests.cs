@@ -208,6 +208,12 @@ public class ConsolidadoTests(ApiFixture fixture) : ApiTestBase(fixture)
         estado.GetProperty("boletas").GetInt32().Should().Be(5, "3 la primera vez y 2 al rehacer");
         estado.GetProperty("informes").GetInt32().Should().Be(1);
 
+        // El docente del centro con Pro (sin Pro propio) tiene la mitad de los topes.
+        var delDocente = await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"));
+        delDocente.GetProperty("habilitada").GetBoolean().Should().BeTrue();
+        delDocente.GetProperty("limiteGeneraciones").GetInt32().Should().Be(30);
+        delDocente.GetProperty("limiteCalificaciones").GetInt32().Should().Be(75);
+
         // Otro centro no ve este consolidado.
         var otro = await CentroAsync();
         (await otro.GetAsync($"/api/v1/centro/secciones/{a}/consolidado")).StatusCode.Should().Be(HttpStatusCode.NotFound);

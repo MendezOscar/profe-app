@@ -223,3 +223,19 @@ a.tienda:hover small { color: var(--azul-claro); }
 /* WhatsApp no tapa la portada en el teléfono: aparece al bajar. */
 .wa-flotante { transition: opacity .2s, visibility .2s; }
 .wa-flotante.oculto { opacity: 0; visibility: hidden; }
+
+/* Promoción del asistente con IA (plan Pro). */
+.nuevo-ia { display: inline-flex; align-items: center; gap: 8px; margin-top: 20px; font-weight: 600; color: var(--azul-oscuro); text-decoration: none; }
+.nuevo-ia span { background: var(--azul); color: var(--blanco); font-size: 12px; font-weight: 800; padding: 2px 8px; letter-spacing: .04em; text-transform: uppercase; }
+.nuevo-ia:hover { text-decoration: underline; }
+section.ia { background: var(--marino); color: var(--blanco); }
+section.ia h2 { color: var(--blanco); }
+section.ia .intro, section.ia .tarjeta p, section.ia .ia-centro { color: rgba(255,255,255,.8); }
+section.ia .tarjeta { background: rgba(255,255,255,.07); }
+section.ia .tarjeta h3 { color: var(--blanco); }
+section.ia .etiqueta { margin-bottom: 12px; }
+section.ia .ia-centro { margin-top: 24px; max-width: 760px; }
+section.ia .ia-privado { margin-top: 8px; color: var(--blanco); }
+section.ia .acciones { margin-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; }
+section.ia .btn.linea:hover { background: rgba(255,255,255,.12); }
+section.ia .btn.linea { color: var(--blanco); border-color: var(--blanco); }

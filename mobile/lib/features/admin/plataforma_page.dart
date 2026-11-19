@@ -1135,17 +1135,17 @@ class _CostosIaState extends ConsumerState<_CostosIa> {
                   contentPadding: EdgeInsets.zero,
                   title: Text(_nombresFuncionIa[f['funcion']] ?? f['funcion'] as String),
                   subtitle: Text('${f['usos']} usos · ${_lps(f['porUso'] as num)} por uso'),
-                  trailing: Text(_lps(f['total'] as num)),
+                  trailing: Text(_lps(f['total'] as num), style: theme.textTheme.bodyLarge),
                 ),
               const SizedBox(height: Espacio.l),
               Text('Por cuenta', style: theme.textTheme.titleSmall),
               for (final c in cuentas)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: Icon(c['tipo'] == 'centro' ? Icons.school_outlined : Icons.person_outline),
+                  leading: Icon(c['tipo'] == 'centro' ? Icons.apartment : Icons.person_outline),
                   title: Text(c['nombre'] as String),
                   subtitle: Text('${c['usos']} usos${c['tipo'] == 'centro' ? ' (con sus docentes)' : ''}'),
-                  trailing: Text(_lps(c['total'] as num)),
+                  trailing: Text(_lps(c['total'] as num), style: theme.textTheme.bodyLarge),
                 ),
             ];
           },

@@ -400,7 +400,10 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
             {
                 pro.planNombre, pro.monto, pro.pagadoHasta, pro.diasGracia, pro.comoPagar, pro.conIa, iaMultiplicador = 2,
             }))).GetProperty("iaMultiplicador").GetInt32().Should().Be(2);
-        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("limiteGeneraciones").GetInt32().Should().Be(120);
+        estado.GetProperty("limiteCalificaciones").GetInt32().Should().Be(150);
+        var doble = await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"));
+        doble.GetProperty("limiteGeneraciones").GetInt32().Should().Be(120);
+        doble.GetProperty("limiteCalificaciones").GetInt32().Should().Be(300);
 
         var costos = await ReadAsync(await plataforma.GetAsync("/api/v1/plataforma/ia/costos"));
         costos.GetProperty("usos").GetInt32().Should().BeGreaterThanOrEqualTo(4);

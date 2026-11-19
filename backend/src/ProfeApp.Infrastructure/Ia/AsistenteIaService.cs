@@ -24,8 +24,14 @@ public sealed class AsistenteIaService(
     /// <summary>Comentarios de alumnos por docente al mes (son cortos y baratos).</summary>
     public const int LimiteComentarios = 400;
 
-    /// <summary>Trabajos calificados desde una foto por docente al mes.</summary>
-    public const int LimiteCalificaciones = 300;
+    /// <summary>Trabajos calificados desde una foto por docente al mes (es lo que más cuesta).</summary>
+    public const int LimiteCalificaciones = 150;
+
+    /// <summary>
+    /// Con el Pro del centro (y sin Pro propio) el docente tiene la mitad de los topes: el centro
+    /// paga por docente bastante menos que un Pro personal.
+    /// </summary>
+    public const int DivisorCentro = 2;
 
     /// <summary>Se agrega a los avisos de tope alcanzado.</summary>
     public const string Ampliar = " Se renueva el día 1; si necesitas más, escríbenos a ProfeApp.";
@@ -38,10 +44,10 @@ public sealed class AsistenteIaService(
 
     public async Task<EstadoIaDto> EstadoAsync(CancellationToken ct = default)
     {
-        var (habilitada, _, x) = await HabilitadaAsync(ct);
+        var (habilitada, _, topes) = await HabilitadaAsync(ct);
         var (generaciones, comentarios, calificaciones) = await UsadosAsync(ct);
-        return new EstadoIaDto(habilitada, ia.Disponible, generaciones, LimiteGeneraciones * x, comentarios, LimiteComentarios * x,
-            calificaciones, LimiteCalificaciones);
+        return new EstadoIaDto(habilitada, ia.Disponible, generaciones, topes.Generaciones, comentarios, topes.Comentarios,
+            calificaciones, topes.Calificaciones);
     }
 
     // ── Plan del parcial ─────────────────────────────────────────────────────
@@ -214,8 +220,13 @@ public sealed class AsistenteIaService(
 
     // ── Apoyo ────────────────────────────────────────────────────────────────
 
-    /// <summary>Pro por su cuenta personal o por su centro; el multiplicador de topes es el mayor de los dos.</summary>
-    private async Task<(bool Habilitada, Guid? Institucion, int Multiplicador)> HabilitadaAsync(CancellationToken ct)
+    private sealed record Topes(int Generaciones, int Comentarios, int Calificaciones);
+
+    /// <summary>
+    /// Pro por su cuenta personal (topes completos) o por su centro (la mitad), cada uno por su
+    /// multiplicador; si tiene los dos, vale el mayor.
+    /// </summary>
+    private async Task<(bool Habilitada, Guid? Institucion, Topes Topes)> HabilitadaAsync(CancellationToken ct)
     {
         var yo = currentUser.RequireUserId();
         var cuenta = await db.Users.AsNoTracking().Where(u => u.Id == yo)
@@ -226,8 +237,11 @@ public sealed class AsistenteIaService(
         var porCuenta = cuenta.TenantId is { } t
             ? await db.Tenants.IgnoreQueryFilters().Where(x => x.Id == t && x.IsActive && x.ConIa).Select(x => (int?)x.IaMultiplicador).FirstOrDefaultAsync(ct)
             : null;
-        var multiplicador = Math.Max(1, Math.Max(porCentro ?? 0, porCuenta ?? 0));
-        return (porCentro is not null || porCuenta is not null, cuenta.InstitucionId, multiplicador);
+        int Tope(int baseMes) => Math.Max(
+            porCuenta is { } c ? baseMes * Math.Max(1, c) : 0,
+            porCentro is { } i ? baseMes / DivisorCentro * Math.Max(1, i) : 0);
+        var topes = new Topes(Tope(LimiteGeneraciones), Tope(LimiteComentarios), Tope(LimiteCalificaciones));
+        return (porCentro is not null || porCuenta is not null, cuenta.InstitucionId, topes);
     }
 
     private DateTimeOffset InicioDelMes()
@@ -248,14 +262,14 @@ public sealed class AsistenteIaService(
     private async Task<Error?> PuedeAsync(string funcion, CancellationToken ct)
     {
         if (!ia.Disponible) return Error.Forbidden("El asistente con IA no está disponible en este momento.");
-        var (habilitada, _, x) = await HabilitadaAsync(ct);
+        var (habilitada, _, t) = await HabilitadaAsync(ct);
         if (!habilitada) return Error.Forbidden("El asistente con IA es parte del plan Pro.");
         var (generaciones, comentarios, calificaciones) = await UsadosAsync(ct);
         return funcion switch
         {
-            FuncionesIa.Comentario => comentarios >= LimiteComentarios * x ? Error.Validation($"Ya usaste los {LimiteComentarios * x} comentarios de este mes.{Ampliar}") : null,
-            FuncionesIa.Calificar => calificaciones >= LimiteCalificaciones * x ? Error.Validation($"Ya usaste las {LimiteCalificaciones * x} calificaciones con foto de este mes.{Ampliar}") : null,
-            _ => generaciones >= LimiteGeneraciones * x ? Error.Validation($"Ya usaste las {LimiteGeneraciones * x} generaciones de este mes.{Ampliar}") : null,
+            FuncionesIa.Comentario => comentarios >= t.Comentarios ? Error.Validation($"Ya usaste los {t.Comentarios} comentarios de este mes.{Ampliar}") : null,
+            FuncionesIa.Calificar => calificaciones >= t.Calificaciones ? Error.Validation($"Ya usaste las {t.Calificaciones} calificaciones con foto de este mes.{Ampliar}") : null,
+            _ => generaciones >= t.Generaciones ? Error.Validation($"Ya usaste las {t.Generaciones} generaciones de este mes.{Ampliar}") : null,
         };
     }
 
