@@ -27,6 +27,9 @@ public sealed class AsistenteIaService(
     /// <summary>Trabajos calificados desde una foto por docente al mes.</summary>
     public const int LimiteCalificaciones = 300;
 
+    /// <summary>Se agrega a los avisos de tope alcanzado.</summary>
+    public const string Ampliar = " Se renueva el día 1; si necesitas más, escríbenos a ProfeApp.";
+
     private const int MaxFoto = 2 * 1024 * 1024;
 
     private const string Contexto = ClienteIa.Contexto;
@@ -35,9 +38,9 @@ public sealed class AsistenteIaService(
 
     public async Task<EstadoIaDto> EstadoAsync(CancellationToken ct = default)
     {
-        var (habilitada, _) = await HabilitadaAsync(ct);
+        var (habilitada, _, x) = await HabilitadaAsync(ct);
         var (generaciones, comentarios, calificaciones) = await UsadosAsync(ct);
-        return new EstadoIaDto(habilitada, ia.Disponible, generaciones, LimiteGeneraciones, comentarios, LimiteComentarios,
+        return new EstadoIaDto(habilitada, ia.Disponible, generaciones, LimiteGeneraciones * x, comentarios, LimiteComentarios * x,
             calificaciones, LimiteCalificaciones);
     }
 
@@ -211,15 +214,20 @@ public sealed class AsistenteIaService(
 
     // ── Apoyo ────────────────────────────────────────────────────────────────
 
-    /// <summary>Pro por su cuenta personal o por su centro.</summary>
-    private async Task<(bool Habilitada, Guid? Institucion)> HabilitadaAsync(CancellationToken ct)
+    /// <summary>Pro por su cuenta personal o por su centro; el multiplicador de topes es el mayor de los dos.</summary>
+    private async Task<(bool Habilitada, Guid? Institucion, int Multiplicador)> HabilitadaAsync(CancellationToken ct)
     {
         var yo = currentUser.RequireUserId();
         var cuenta = await db.Users.AsNoTracking().Where(u => u.Id == yo)
             .Select(u => new { u.TenantId, u.InstitucionId }).FirstAsync(ct);
-        var porCentro = cuenta.InstitucionId is { } i && await db.Instituciones.AnyAsync(x => x.Id == i && x.Activa && x.ConIa, ct);
-        var porCuenta = cuenta.TenantId is { } t && await db.Tenants.IgnoreQueryFilters().AnyAsync(x => x.Id == t && x.IsActive && x.ConIa, ct);
-        return (porCentro || porCuenta, cuenta.InstitucionId);
+        var porCentro = cuenta.InstitucionId is { } i
+            ? await db.Instituciones.Where(x => x.Id == i && x.Activa && x.ConIa).Select(x => (int?)x.IaMultiplicador).FirstOrDefaultAsync(ct)
+            : null;
+        var porCuenta = cuenta.TenantId is { } t
+            ? await db.Tenants.IgnoreQueryFilters().Where(x => x.Id == t && x.IsActive && x.ConIa).Select(x => (int?)x.IaMultiplicador).FirstOrDefaultAsync(ct)
+            : null;
+        var multiplicador = Math.Max(1, Math.Max(porCentro ?? 0, porCuenta ?? 0));
+        return (porCentro is not null || porCuenta is not null, cuenta.InstitucionId, multiplicador);
     }
 
     private DateTimeOffset InicioDelMes()
@@ -240,26 +248,26 @@ public sealed class AsistenteIaService(
     private async Task<Error?> PuedeAsync(string funcion, CancellationToken ct)
     {
         if (!ia.Disponible) return Error.Forbidden("El asistente con IA no está disponible en este momento.");
-        var (habilitada, _) = await HabilitadaAsync(ct);
+        var (habilitada, _, x) = await HabilitadaAsync(ct);
         if (!habilitada) return Error.Forbidden("El asistente con IA es parte del plan Pro.");
         var (generaciones, comentarios, calificaciones) = await UsadosAsync(ct);
         return funcion switch
         {
-            FuncionesIa.Comentario => comentarios >= LimiteComentarios ? Error.Validation($"Ya usaste los {LimiteComentarios} comentarios de este mes.") : null,
-            FuncionesIa.Calificar => calificaciones >= LimiteCalificaciones ? Error.Validation($"Ya usaste las {LimiteCalificaciones} calificaciones con foto de este mes.") : null,
-            _ => generaciones >= LimiteGeneraciones ? Error.Validation($"Ya usaste las {LimiteGeneraciones} generaciones de este mes.") : null,
+            FuncionesIa.Comentario => comentarios >= LimiteComentarios * x ? Error.Validation($"Ya usaste los {LimiteComentarios * x} comentarios de este mes.{Ampliar}") : null,
+            FuncionesIa.Calificar => calificaciones >= LimiteCalificaciones * x ? Error.Validation($"Ya usaste las {LimiteCalificaciones * x} calificaciones con foto de este mes.{Ampliar}") : null,
+            _ => generaciones >= LimiteGeneraciones * x ? Error.Validation($"Ya usaste las {LimiteGeneraciones * x} generaciones de este mes.{Ampliar}") : null,
         };
     }
 
     private async Task<Result<T>> LlamarAsync<T>(string funcion, PeticionIa peticion, CancellationToken ct)
     {
-        var (_, institucion) = await HabilitadaAsync(ct);
+        var (_, institucion, _) = await HabilitadaAsync(ct);
         return await ia.JsonAsync<T>(funcion, peticion, currentUser.RequireUserId(), institucion, ct);
     }
 
     private async Task<Result<string>> LlamarAsync(string funcion, PeticionIa peticion, CancellationToken ct)
     {
-        var (_, institucion) = await HabilitadaAsync(ct);
+        var (_, institucion, _) = await HabilitadaAsync(ct);
         return await ia.TextoAsync(funcion, peticion, currentUser.RequireUserId(), institucion, ct);
     }
 

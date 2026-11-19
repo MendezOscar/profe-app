@@ -9,7 +9,7 @@ import '../../../core/informes/informes_pdf.dart';
 import '../../../core/providers.dart';
 import '../../../theme/tokens.dart';
 import '../../../ui/estado_error.dart';
-import '../../ia/asistente_ia.dart' show iconoIa;
+import '../../ia/asistente_ia.dart' show iconoIa, revisarTopeIa;
 import '../centro_page.dart' show centroProvider;
 import 'consolidado_page.dart';
 
@@ -23,7 +23,7 @@ final estadoIaCentroProvider = FutureProvider.autoDispose<Map<String, dynamic>?>
 });
 
 /// Sin plan Pro o sin internet se explica y no sigue.
-Future<bool> puedeUsarIaCentro(BuildContext context, WidgetRef ref) async {
+Future<bool> puedeUsarIaCentro(BuildContext context, WidgetRef ref, String uso, String nombre) async {
   final estado = await ref.read(estadoIaCentroProvider.future);
   if (!context.mounted) return false;
   final (titulo, mensaje) = switch (estado) {
@@ -36,7 +36,7 @@ Future<bool> puedeUsarIaCentro(BuildContext context, WidgetRef ref) async {
     {'disponible': false} => ('No disponible', 'El asistente no está disponible en este momento. Intenta más tarde.'),
     _ => (null, null),
   };
-  if (titulo == null) return true;
+  if (titulo == null) return revisarTopeIa(context, estado!, uso, nombre);
   await showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
@@ -135,7 +135,7 @@ class _ComentariosBoletaPageState extends ConsumerState<ComentariosBoletaPage> {
   }
 
   Future<void> _generar({required bool todos}) async {
-    if (!await puedeUsarIaCentro(context, ref) || !mounted) return;
+    if (!await puedeUsarIaCentro(context, ref, 'boletas', 'comentarios de boleta') || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     try {
       final d = await ref.read(apiClientProvider).post('/centro/secciones/${widget.seccionId}/comentarios/generar',
@@ -262,7 +262,7 @@ class _ComentariosBoletaPageState extends ConsumerState<ComentariosBoletaPage> {
 // ── Informe para la dirección ────────────────────────────────────────────────
 
 Future<void> informeIa(BuildContext context, WidgetRef ref) async {
-  if (!await puedeUsarIaCentro(context, ref) || !context.mounted) return;
+  if (!await puedeUsarIaCentro(context, ref, 'informes', 'informes') || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
   Map<String, dynamic>? informe;
   try {
@@ -344,7 +344,7 @@ class _InformePage extends StatelessWidget {
 
 /// Pide los puntos clave y devuelve (título, mensaje) redactados, o null.
 Future<(String, String)?> redactarComunicadoIa(BuildContext context, WidgetRef ref, {String? destinatarios}) async {
-  if (!await puedeUsarIaCentro(context, ref) || !context.mounted) return null;
+  if (!await puedeUsarIaCentro(context, ref, 'comunicados', 'borradores de comunicados') || !context.mounted) return null;
   final puntos = TextEditingController();
   final ok = await showDialog<bool>(
     context: context,
@@ -529,6 +529,6 @@ class _PreguntasIaPageState extends ConsumerState<PreguntasIaPage> {
 
 /// Abre el chat si el centro tiene el plan Pro.
 Future<void> abrirPreguntasIa(BuildContext context, WidgetRef ref) async {
-  if (!await puedeUsarIaCentro(context, ref) || !context.mounted) return;
+  if (!await puedeUsarIaCentro(context, ref, 'preguntas', 'preguntas') || !context.mounted) return;
   await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PreguntasIaPage()));
 }

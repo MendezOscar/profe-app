@@ -389,5 +389,17 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
         estado.GetProperty("comentarios").GetInt32().Should().Be(1);
         (await docente.PostAsJsonAsync("/api/v1/ia/examen", new { asignatura = "Mate", temas = "x", preguntas = 2, puntos = 10m, tipos = new[] { "desarrollo" } }))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest, "mínimo 3 preguntas");
+
+        estado.GetProperty("limiteGeneraciones").GetInt32().Should().Be(60);
+        (await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{id}/plan", new
+            {
+                pro.planNombre, pro.monto, pro.pagadoHasta, pro.diasGracia, pro.comoPagar, pro.conIa, iaMultiplicador = 9,
+            }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest, "de x1 a x5");
+        (await ReadAsync(await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{id}/plan", new
+            {
+                pro.planNombre, pro.monto, pro.pagadoHasta, pro.diasGracia, pro.comoPagar, pro.conIa, iaMultiplicador = 2,
+            }))).GetProperty("iaMultiplicador").GetInt32().Should().Be(2);
+        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("limiteGeneraciones").GetInt32().Should().Be(120);
     }
 }

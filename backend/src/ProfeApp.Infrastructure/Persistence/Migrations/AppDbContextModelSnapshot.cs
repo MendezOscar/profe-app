@@ -2079,6 +2079,10 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("dias_gracia");
 
+                    b.Property<int>("IaMultiplicador")
+                        .HasColumnType("integer")
+                        .HasColumnName("ia_multiplicador");
+
                     b.Property<int>("MaxDocentes")
                         .HasColumnType("integer")
                         .HasColumnName("max_docentes");
@@ -2222,6 +2226,10 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.Property<int>("DiasGracia")
                         .HasColumnType("integer")
                         .HasColumnName("dias_gracia");
+
+                    b.Property<int>("IaMultiplicador")
+                        .HasColumnType("integer")
+                        .HasColumnName("ia_multiplicador");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean")

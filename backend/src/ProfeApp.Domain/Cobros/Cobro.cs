@@ -22,6 +22,9 @@ public interface ICobrable
 
     /// <summary>Plan Pro: asistente con IA.</summary>
     bool ConIa { get; set; }
+
+    /// <summary>Multiplica los topes mensuales de IA (1 = normal).</summary>
+    int IaMultiplicador { get; set; }
 }
 
 public enum EstadoCobro

@@ -710,6 +710,7 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
   late int _gracia = _c.diasGracia;
   late String? _nivel = _c.nivel;
   late bool _conIa = _c.conIa;
+  late int _iaMultiplicador = _c.iaMultiplicador;
   var _guardando = false;
   String? _error;
 
@@ -831,6 +832,19 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
                   ? 'Todos los docentes del centro pueden usarlo.'
                   : 'Plan del parcial, exámenes y comentarios de alumnos, con tope mensual.'),
             ),
+            if (_conIa)
+              DropdownButtonFormField<int>(
+                initialValue: _iaMultiplicador,
+                decoration: const InputDecoration(
+                  labelText: 'Topes mensuales de IA',
+                  helperText: 'Súbelo cuando la cuenta pida más uso del asistente.',
+                ),
+                items: [
+                  for (final x in [1, 2, 3, 4, 5])
+                    DropdownMenuItem(value: x, child: Text(x == 1 ? 'Normal' : '×$x')),
+                ],
+                onChanged: (v) => setState(() => _iaMultiplicador = v ?? 1),
+              ),
             if (_error != null) ...[
               const SizedBox(height: Espacio.s),
               Text(_error!, style: TextStyle(color: scheme.error)),
@@ -860,6 +874,7 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
         'comoPagar': _comoPagar.text.trim(),
         if (!widget.cuenta.esCentro) 'nivel': _nivel,
         'conIa': _conIa,
+        'iaMultiplicador': _iaMultiplicador,
       });
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {

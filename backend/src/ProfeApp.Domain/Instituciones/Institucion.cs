@@ -24,6 +24,9 @@ public class Institucion : BaseEntity, ICobrable
     /// <summary>Plan Pro: sus docentes usan el asistente con IA.</summary>
     public bool ConIa { get; set; }
 
+    /// <summary>Multiplica los topes mensuales de IA (1 = normal). Se sube a pedido desde Plataforma.</summary>
+    public int IaMultiplicador { get; set; } = 1;
+
     public string? PlanNombre { get; set; }
     public decimal Monto { get; set; }
     public DateOnly? PagadoHasta { get; set; }

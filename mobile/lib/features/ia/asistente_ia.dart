@@ -27,7 +27,7 @@ final estadoIaProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref)
 const iconoIa = Icons.auto_awesome_outlined;
 
 /// Antes de abrir el asistente: sin plan Pro o sin internet se explica y no sigue.
-Future<bool> _puedeUsar(BuildContext context, WidgetRef ref) async {
+Future<bool> _puedeUsar(BuildContext context, WidgetRef ref, String uso, String nombre) async {
   final estado = await ref.read(estadoIaProvider.future);
   if (!context.mounted) return false;
   final (titulo, mensaje) = switch (estado) {
@@ -40,7 +40,7 @@ Future<bool> _puedeUsar(BuildContext context, WidgetRef ref) async {
     {'disponible': false} => ('No disponible', 'El asistente no está disponible en este momento. Intenta más tarde.'),
     _ => (null, null),
   };
-  if (titulo == null) return true;
+  if (titulo == null) return revisarTopeIa(context, estado!, uso, nombre);
   await showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
@@ -52,6 +52,32 @@ Future<bool> _puedeUsar(BuildContext context, WidgetRef ref) async {
     ),
   );
   return false;
+}
+
+/// Con el tope del mes alcanzado lo explica y no sigue; desde el 80 % avisa cuánto queda.
+/// [uso] es la clave del conteo en el estado (p. ej. 'comentarios', con su 'limiteComentarios').
+Future<bool> revisarTopeIa(BuildContext context, Map<String, dynamic> estado, String uso, String nombre) async {
+  final usado = estado[uso] as int? ?? 0;
+  final limite = estado['limite${uso[0].toUpperCase()}${uso.substring(1)}'] as int? ?? 0;
+  if (limite <= 0) return true;
+  if (usado >= limite) {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: const RoundedRectangleBorder(),
+        icon: const Icon(iconoIa),
+        title: const Text('Tope del mes alcanzado'),
+        content: Text('Ya se usaron $limite de $limite $nombre de este mes. Se renueva el día 1; '
+            'si necesitas más, escríbenos a ProfeApp. Lo demás de la app sigue funcionando igual.'),
+        actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido'))],
+      ),
+    );
+    return false;
+  }
+  if (usado >= limite * 0.8) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Este mes te quedan ${limite - usado} de $limite $nombre.')));
+  }
+  return true;
 }
 
 /// Llama al asistente con un indicador de espera. Null si falló (ya avisó).
@@ -92,7 +118,7 @@ double _num(Object? v) => (v as num).toDouble();
 
 /// Propone rubros (si el parcial no tiene) y actividades; el docente elige cuáles agregar.
 Future<void> sugerirPlanIa(BuildContext context, WidgetRef ref, PlanParcial plan) async {
-  if (!await _puedeUsar(context, ref) || !context.mounted) return;
+  if (!await _puedeUsar(context, ref, 'generaciones', 'planes y exámenes') || !context.mounted) return;
   final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
   if (!context.mounted) return;
 
@@ -286,7 +312,7 @@ const _tipos = {
 
 /// Genera un examen con su clave; se imprime en PDF y, si se quiere, queda como actividad.
 Future<void> generarExamenIa(BuildContext context, WidgetRef ref, PlanParcial plan) async {
-  if (!await _puedeUsar(context, ref) || !context.mounted) return;
+  if (!await _puedeUsar(context, ref, 'generaciones', 'planes y exámenes') || !context.mounted) return;
   final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
   if (!context.mounted) return;
 
@@ -472,7 +498,7 @@ class _RevisarExamen extends ConsumerWidget {
 /// y lo guarda como observación si el docente quiere.
 Future<void> comentarioIa(BuildContext context, WidgetRef ref, PlanParcial plan, AlumnoPlan alumno,
     {required Future<void> Function(String texto) guardar}) async {
-  if (!await _puedeUsar(context, ref) || !context.mounted) return;
+  if (!await _puedeUsar(context, ref, 'comentarios', 'comentarios') || !context.mounted) return;
   final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
   if (!context.mounted) return;
 
@@ -542,7 +568,7 @@ Future<double?> calificarConFotoIa(
   required String? criterios,
   required ValueChanged<String> alCriterios,
 }) async {
-  if (!await _puedeUsar(context, ref) || !context.mounted) return null;
+  if (!await _puedeUsar(context, ref, 'calificaciones', 'calificaciones con foto') || !context.mounted) return null;
   final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
   if (!context.mounted) return null;
 
