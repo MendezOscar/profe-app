@@ -270,6 +270,9 @@ public static class AdminEndpoints
         var plataforma = app.MapGroup("/api/v1/plataforma").WithTags("Plataforma").RequireAuthorization(Policies.PlatformOnly)
             .RequireRateLimiting(Limites.Usuario);
 
+        plataforma.MapGet("/ia/costos", async (int? anio, int? mes, ICostosIaService s, CancellationToken ct) =>
+            Results.Ok(await s.CostosAsync(anio, mes, ct)))
+            .WithSummary("Costo estimado de la IA del mes, por función y por cuenta, en lempiras.");
         plataforma.MapGet("/instituciones", async (IPlataformaService s, CancellationToken ct) =>
             (await s.InstitucionesAsync(ct)).ToHttp());
         plataforma.MapPost("/instituciones", async (CrearInstitucionRequest r, IPlataformaService s, CancellationToken ct) =>

@@ -60,6 +60,11 @@ final docentesPlataformaProvider =
 final pagosProvider = FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, ruta) =>
     ref.watch(apiClientProvider).get('/plataforma/$ruta/pagos', parse: (d) => (d as List).cast<Map<String, dynamic>>()));
 
+/// Costo estimado de la IA de un mes (año, mes).
+final costosIaProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, (int, int)>((ref, m) => ref
+    .watch(apiClientProvider)
+    .get('/plataforma/ia/costos', query: {'anio': m.$1, 'mes': m.$2}, parse: (d) => d as Map<String, dynamic>));
+
 /// A quién se le cobra: un docente del plan personal o un centro. [ruta] es la de la API.
 class _Cuenta {
   _Cuenta.docente(Map<String, dynamic> d)
@@ -94,7 +99,7 @@ class PlataformaPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Plataforma'),
@@ -103,14 +108,15 @@ class PlataformaPage extends ConsumerWidget {
               tooltip: 'Actualizar',
               onPressed: () => ref
                 ..invalidate(docentesPlataformaProvider)
-                ..invalidate(institucionesProvider),
+                ..invalidate(institucionesProvider)
+                ..invalidate(costosIaProvider),
               icon: const Icon(Icons.refresh),
             ),
             const MenuCuentaAdmin(),
           ],
-          bottom: const TabBar(tabs: [Tab(text: 'Docentes'), Tab(text: 'Centros')]),
+          bottom: const TabBar(tabs: [Tab(text: 'Docentes'), Tab(text: 'Centros'), Tab(text: 'Costo IA')]),
         ),
-        body: const TabBarView(children: [_Docentes(), _Centros()]),
+        body: const TabBarView(children: [_Docentes(), _Centros(), _CostosIa()]),
       ),
     );
   }
@@ -1048,6 +1054,102 @@ class _FormCentroState extends ConsumerState<_FormCentro> {
       actions: [
         TextButton(onPressed: _guardando ? null : () => Navigator.pop(context), child: const Text('Cancelar')),
         FilledButton(onPressed: _guardando ? null : _guardar, child: Text(_nuevo ? 'Crear centro' : 'Guardar')),
+      ],
+    );
+  }
+}
+
+const _nombresFuncionIa = {
+  'plan': 'Plan del parcial',
+  'examen': 'Examen',
+  'comentario': 'Comentario de alumno',
+  'calificar': 'Calificar con foto',
+  'boleta': 'Comentario de boleta',
+  'informe': 'Informe del año',
+  'comunicado': 'Comunicado',
+  'pregunta': 'Pregunta de la dirección',
+};
+
+String _lps(num v) => 'L ${v.toStringAsFixed(2)}';
+
+/// Cuánto costó la IA en el mes, por función (con el promedio por uso) y por cuenta.
+class _CostosIa extends ConsumerStatefulWidget {
+  const _CostosIa();
+
+  @override
+  ConsumerState<_CostosIa> createState() => _CostosIaState();
+}
+
+class _CostosIaState extends ConsumerState<_CostosIa> {
+  var _mes = DateTime(DateTime.now().year, DateTime.now().month);
+
+  static const _meses = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', //
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final datos = ref.watch(costosIaProvider((_mes.year, _mes.month)));
+    final ahora = DateTime.now();
+    final esteMes = _mes.year == ahora.year && _mes.month == ahora.month;
+    final theme = Theme.of(context);
+    return ListView(
+      padding: const EdgeInsets.all(Espacio.l),
+      children: [
+        Row(children: [
+          IconButton(
+            tooltip: 'Mes anterior',
+            onPressed: () => setState(() => _mes = DateTime(_mes.year, _mes.month - 1)),
+            icon: const Icon(Icons.chevron_left),
+          ),
+          Expanded(
+            child: Text('${_meses[_mes.month - 1]} ${_mes.year}', textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
+          ),
+          IconButton(
+            tooltip: 'Mes siguiente',
+            onPressed: esteMes ? null : () => setState(() => _mes = DateTime(_mes.year, _mes.month + 1)),
+            icon: const Icon(Icons.chevron_right),
+          ),
+        ]),
+        ...datos.when(
+          loading: () => [const Padding(padding: EdgeInsets.all(Espacio.l), child: Center(child: CircularProgressIndicator()))],
+          error: (e, _) => [Padding(padding: const EdgeInsets.all(Espacio.l), child: Text('No se pudo cargar: $e'))],
+          data: (d) {
+            final funciones = (d['porFuncion'] as List).cast<Map<String, dynamic>>();
+            final cuentas = (d['porCuenta'] as List).cast<Map<String, dynamic>>();
+            return [
+              Card(
+                shape: const RoundedRectangleBorder(),
+                child: ListTile(
+                  title: Text(_lps(d['total'] as num), style: theme.textTheme.headlineSmall),
+                  subtitle: Text('${d['usos']} usos. Estimado con US\$${d['precioEntrada']} y US\$${d['precioSalida']} '
+                      'por millón de tokens (entrada y salida) y L ${d['tasaLempira']} por dólar.'),
+                ),
+              ),
+              const SizedBox(height: Espacio.l),
+              Text('Por función', style: theme.textTheme.titleSmall),
+              if (funciones.isEmpty) const Padding(padding: EdgeInsets.symmetric(vertical: Espacio.m), child: Text('Sin usos este mes.')),
+              for (final f in funciones)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(_nombresFuncionIa[f['funcion']] ?? f['funcion'] as String),
+                  subtitle: Text('${f['usos']} usos · ${_lps(f['porUso'] as num)} por uso'),
+                  trailing: Text(_lps(f['total'] as num)),
+                ),
+              const SizedBox(height: Espacio.l),
+              Text('Por cuenta', style: theme.textTheme.titleSmall),
+              for (final c in cuentas)
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(c['tipo'] == 'centro' ? Icons.school_outlined : Icons.person_outline),
+                  title: Text(c['nombre'] as String),
+                  subtitle: Text('${c['usos']} usos${c['tipo'] == 'centro' ? ' (con sus docentes)' : ''}'),
+                  trailing: Text(_lps(c['total'] as num)),
+                ),
+            ];
+          },
+        ),
       ],
     );
   }

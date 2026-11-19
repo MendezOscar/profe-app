@@ -99,3 +99,16 @@ public sealed record TurnoIaDto(string Pregunta, string Respuesta);
 public sealed record PreguntaIaRequest(string? Pregunta, IReadOnlyList<TurnoIaDto>? Historial);
 
 public sealed record RespuestaIaDto(string Texto);
+
+// ── Costo de la IA (plataforma) ──────────────────────────────────────────────
+
+/// <summary>Costo estimado del mes en lempiras, con los precios del modelo y la tasa usados.</summary>
+public sealed record CostosIaDto(
+    int Anio, int Mes, decimal TasaLempira, decimal PrecioEntrada, decimal PrecioSalida, int Usos, decimal Total,
+    IReadOnlyList<CostoFuncionIaDto> PorFuncion, IReadOnlyList<CostoCuentaIaDto> PorCuenta);
+
+/// <summary><c>PorUso</c>: el promedio en lempiras de una llamada de esa función.</summary>
+public sealed record CostoFuncionIaDto(string Funcion, int Usos, long TokensEntrada, long TokensSalida, decimal Total, decimal PorUso);
+
+/// <summary><c>Tipo</c>: centro (incluye a sus docentes) o docente (plan personal).</summary>
+public sealed record CostoCuentaIaDto(string Tipo, string Nombre, int Usos, decimal Total);

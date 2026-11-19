@@ -89,6 +89,7 @@ public static class DependencyInjection
         services.AddScoped<Ia.ClienteIa>();
         services.AddScoped<IAsistenteIaService, Ia.AsistenteIaService>();
         services.AddScoped<ICentroIaService, Ia.CentroIaService>();
+        services.AddScoped<ICostosIaService, Ia.CostosIaService>();
         services.AddSingleton<Ia.ColaBoletas>();
         services.AddHostedService<Ia.ServicioBoletas>();
 

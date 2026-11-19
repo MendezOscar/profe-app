@@ -49,3 +49,9 @@ public interface ICentroIaService
     /// <summary>Responde preguntas de la dirección con las cifras del centro (sin nombres de alumnos).</summary>
     Task<Result<RespuestaIaDto>> PreguntarAsync(PreguntaIaRequest request, CancellationToken ct = default);
 }
+
+/// <summary>Cuánto cuesta la IA en un mes, por función y por cuenta. Solo para la plataforma.</summary>
+public interface ICostosIaService
+{
+    Task<CostosIaDto> CostosAsync(int? anio, int? mes, CancellationToken ct = default);
+}

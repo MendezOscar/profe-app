@@ -81,6 +81,9 @@ public sealed class GeneradorClaude : IGeneradorIa
         var texto = string.Concat(respuesta.Content.Select(b => b.Value).OfType<BetaTextBlock>().Select(t => t.Text));
         var rechazada = respuesta.StopReason == "refusal";
         if (rechazada) _log.LogWarning("La IA declinó una petición: {Detalle}", respuesta.StopDetails?.Category);
-        return new RespuestaIa(texto, respuesta.Model, (int)respuesta.Usage.InputTokens, (int)respuesta.Usage.OutputTokens, rechazada);
+        // La entrada incluye lo que pasó por la caché, para que el reporte de costo no se quede corto.
+        var u = respuesta.Usage;
+        var entrada = u.InputTokens + (u.CacheCreationInputTokens ?? 0) + (u.CacheReadInputTokens ?? 0);
+        return new RespuestaIa(texto, respuesta.Model, (int)entrada, (int)respuesta.Usage.OutputTokens, rechazada);
     }
 }
