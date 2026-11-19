@@ -1,6 +1,7 @@
 using Anthropic;
 using Anthropic.Models.Beta;
 using Anthropic.Models.Beta.Messages;
+using Anthropic.Models.Beta.Messages.Batches;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ProfeApp.Application.Abstractions;
@@ -77,7 +78,11 @@ public sealed class GeneradorClaude : IGeneradorIa
             },
             Messages = Mensajes(p),
         };
-        var respuesta = await _cliente.Beta.Messages.Create(parametros, ct);
+        return Respuesta(await _cliente.Beta.Messages.Create(parametros, ct));
+    }
+
+    private RespuestaIa Respuesta(BetaMessage respuesta)
+    {
         var texto = string.Concat(respuesta.Content.Select(b => b.Value).OfType<BetaTextBlock>().Select(t => t.Text));
         var rechazada = respuesta.StopReason == "refusal";
         if (rechazada) _log.LogWarning("La IA declinó una petición: {Detalle}", respuesta.StopDetails?.Category);
@@ -85,5 +90,45 @@ public sealed class GeneradorClaude : IGeneradorIa
         var u = respuesta.Usage;
         var entrada = u.InputTokens + (u.CacheCreationInputTokens ?? 0) + (u.CacheReadInputTokens ?? 0);
         return new RespuestaIa(texto, respuesta.Model, (int)entrada, (int)respuesta.Usage.OutputTokens, rechazada);
+    }
+
+    public async Task<string> CrearLoteAsync(IReadOnlyList<(string Id, PeticionIa Peticion)> peticiones, CancellationToken ct)
+    {
+        if (_cliente is null) throw new InvalidOperationException("El asistente con IA no está configurado.");
+        var lote = await _cliente.Beta.Messages.Batches.Create(new BatchCreateParams
+        {
+            Requests = peticiones.Select(x => new Request
+            {
+                CustomID = x.Id,
+                Params = new Params
+                {
+                    Model = Modelo,
+                    MaxTokens = x.Peticion.MaxTokens,
+                    // Mismo sistema en todo el lote: se reutiliza de la caché cuando se puede.
+                    System = new List<BetaTextBlockParam> { new() { Text = x.Peticion.Sistema, CacheControl = new BetaCacheControlEphemeral() } },
+                    OutputConfig = new BetaOutputConfig
+                    {
+                        Effort = x.Peticion.Breve ? Effort.Low : Effort.Medium,
+                        Format = x.Peticion.Esquema is null ? null : new BetaJsonOutputFormat { Schema = new Dictionary<string, System.Text.Json.JsonElement>(x.Peticion.Esquema) },
+                    },
+                    Messages = Mensajes(x.Peticion),
+                },
+            }).ToList(),
+        }, ct);
+        return lote.ID;
+    }
+
+    public async Task<IReadOnlyList<(string Id, RespuestaIa? Respuesta)>?> ResultadosLoteAsync(string lote, CancellationToken ct)
+    {
+        if (_cliente is null) throw new InvalidOperationException("El asistente con IA no está configurado.");
+        var estado = await _cliente.Beta.Messages.Batches.Retrieve(lote, new BatchRetrieveParams(), ct);
+        if (estado.ProcessingStatus != ProcessingStatus.Ended) return null;
+        var resultados = new List<(string, RespuestaIa?)>();
+        await foreach (var r in _cliente.Beta.Messages.Batches.ResultsStreaming(lote, new BatchResultsParams(), ct))
+            resultados.Add((r.CustomID, r.Result.TryPickSucceeded(out var ok) ? Respuesta(ok.Message) : null));
+        // Ya están en la base: no se dejan los resultados en Anthropic.
+        try { await _cliente.Beta.Messages.Batches.Delete(lote, new BatchDeleteParams(), ct); }
+        catch (Exception e) when (e is not OperationCanceledException) { _log.LogWarning(e, "No se pudo borrar el lote {Lote}", lote); }
+        return resultados;
     }
 }

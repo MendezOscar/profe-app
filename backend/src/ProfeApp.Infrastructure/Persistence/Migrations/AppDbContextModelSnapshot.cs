@@ -1651,6 +1651,79 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.ToTable("dispositivos_push", (string)null);
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Common.TandaIa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("Actividad")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("actividad");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Estado")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("estado");
+
+                    b.Property<Guid?>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Lote")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("lote");
+
+                    b.Property<decimal>("Puntos")
+                        .HasPrecision(6, 2)
+                        .HasColumnType("numeric(6,2)")
+                        .HasColumnName("puntos");
+
+                    b.Property<string>("Resultados")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("resultados");
+
+                    b.Property<int>("Trabajos")
+                        .HasColumnType("integer")
+                        .HasColumnName("trabajos");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tandas_ia");
+
+                    b.HasIndex("Estado")
+                        .HasDatabaseName("ix_tandas_ia_estado");
+
+                    b.HasIndex("UsuarioId", "Actividad")
+                        .HasDatabaseName("ix_tandas_ia_usuario_id_actividad");
+
+                    b.ToTable("tandas_ia", (string)null);
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Common.UsoIa", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2887,6 +2960,16 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_dispositivos_push_asp_net_users_usuario_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Common.TandaIa", b =>
+                {
+                    b.HasOne("ProfeApp.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_tandas_ia_asp_net_users_usuario_id");
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Common.UsoIa", b =>

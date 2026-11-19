@@ -53,6 +53,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<MarcaCentro> MarcasCentro => Set<MarcaCentro>();
     public DbSet<ComentarioBoleta> ComentariosBoleta => Set<ComentarioBoleta>();
     public DbSet<ProfeApp.Domain.Common.UsoIa> UsosIa => Set<ProfeApp.Domain.Common.UsoIa>();
+    public DbSet<ProfeApp.Domain.Common.TandaIa> TandasIa => Set<ProfeApp.Domain.Common.TandaIa>();
     public DbSet<Domain.Common.DispositivoPush> DispositivosPush => Set<Domain.Common.DispositivoPush>();
 
     protected override void OnModelCreating(ModelBuilder builder)

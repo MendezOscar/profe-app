@@ -411,4 +411,52 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
         costos.GetProperty("porCuenta").GetArrayLength().Should().BeGreaterThan(0);
         (await docente.GetAsync("/api/v1/plataforma/ia/costos")).StatusCode.Should().Be(HttpStatusCode.Forbidden);
     }
+
+    [Fact]
+    public async Task Calificar_en_tanda_cuesta_la_mitad_del_tope_y_deja_las_sugerencias()
+    {
+        var plataforma = await PlataformaAsync();
+        var correo = $"profe-tanda-{Guid.NewGuid():N}@prueba.hn";
+        var cuenta = await ReadAsync(await plataforma.PostAsJsonAsync("/api/v1/plataforma/docentes", new { email = correo, nombre = "Profe Tanda" }));
+        var id = cuenta.GetProperty("usuarioId").GetGuid();
+        (await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{id}/plan", new
+        {
+            planNombre = "Docente Pro", monto = 100m, pagadoHasta = Hoy.AddMonths(1), diasGracia = 0, comoPagar = (string?)null, conIa = true,
+        })).IsSuccessStatusCode.Should().BeTrue();
+        var docente = await EntrarConTemporalAsync(correo, cuenta.GetProperty("claveTemporal").GetString()!);
+
+        var foto = Convert.ToBase64String(new byte[] { 0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3, 0xFF, 0xD9 });
+        var actividad = Guid.NewGuid().ToString();
+        object Tanda(params string[] alumnos) => new
+        {
+            actividadId = actividad, asignatura = "Matemáticas", grado = "7.º grado", actividad = "Tarea 1", puntos = 10m,
+            criterios = "1/2 + 1/4 = 3/4", trabajos = alumnos.Select(a => new { alumnoId = a, imagenes = new[] { foto } }).ToArray(),
+        };
+
+        (await docente.PostAsJsonAsync("/api/v1/ia/calificar/tanda", Tanda("a", "a"))).StatusCode
+            .Should().Be(HttpStatusCode.BadRequest, "un alumno dos veces");
+        (await docente.PostAsJsonAsync("/api/v1/ia/calificar/tanda", Tanda(Enumerable.Range(0, 11).Select(i => $"x{i}").ToArray()))).StatusCode
+            .Should().Be(HttpStatusCode.BadRequest, "hasta 10 por envío");
+
+        var tanda = await ReadAsync(await docente.PostAsJsonAsync("/api/v1/ia/calificar/tanda", Tanda("alumno-1", "alumno-2", "falla-3")));
+        tanda.GetProperty("estado").GetString().Should().Be("procesando");
+        GeneradorDePrueba.Lotes.Values.SelectMany(l => l).Should().Contain(p => p.Peticion.Sistema.Contains("3/4"), "la clave va en el sistema, igual para todos");
+        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("calificaciones").GetInt32()
+            .Should().Be(2, "3 trabajos en camino cuentan como 1.5, redondeado hacia arriba");
+
+        await new ProfeApp.Infrastructure.Ia.ServicioTandas(Fixture.Services.GetRequiredService<IServiceScopeFactory>(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<ProfeApp.Infrastructure.Ia.ServicioTandas>.Instance).RevisarAsync(default);
+
+        var tandas = await ReadAsync(await docente.GetAsync($"/api/v1/ia/calificar/tandas?actividad={actividad}"));
+        tandas.GetArrayLength().Should().Be(1);
+        tandas[0].GetProperty("estado").GetString().Should().Be("lista");
+        var resultados = tandas[0].GetProperty("resultados").EnumerateArray().ToDictionary(r => r.GetProperty("alumnoId").GetString()!);
+        resultados["alumno-1"].GetProperty("nota").GetDecimal().Should().Be(7.5m);
+        resultados["falla-3"].GetProperty("nota").ValueKind.Should().Be(JsonValueKind.Null);
+        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("calificaciones").GetInt32()
+            .Should().Be(1, "solo se cobran los 2 que la IA calificó: medio cada uno");
+
+        var costos = await ReadAsync(await plataforma.GetAsync("/api/v1/plataforma/ia/costos"));
+        costos.GetProperty("porFuncion").EnumerateArray().Select(f => f.GetProperty("funcion").GetString()).Should().Contain("calificar_tanda");
+    }
 }

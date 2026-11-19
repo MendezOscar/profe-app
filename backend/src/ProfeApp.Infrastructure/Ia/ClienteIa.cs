@@ -17,6 +17,9 @@ public sealed class ClienteIa(AppDbContext db, IGeneradorIa generador, ILogger<C
 
     public bool Disponible => generador.Disponible;
 
+    public Task<string> CrearLoteAsync(IReadOnlyList<(string Id, PeticionIa Peticion)> peticiones, CancellationToken ct) =>
+        generador.CrearLoteAsync(peticiones, ct);
+
     public async Task<Result<string>> TextoAsync(string funcion, PeticionIa peticion, Guid usuario, Guid? institucion, CancellationToken ct)
     {
         RespuestaIa respuesta;

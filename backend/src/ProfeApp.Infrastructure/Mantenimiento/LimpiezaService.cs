@@ -57,9 +57,11 @@ public sealed class LimpiezaService(IServiceScopeFactory scopes, ILogger<Limpiez
         // SQL directo: EF no admite ExecuteDelete en una tabla compartida (clase + archivo).
         var clases = await db.Database.ExecuteSqlAsync(
             $"DELETE FROM clases WHERE eliminada_en IS NOT NULL AND eliminada_en < {corte}", ct);
+        // Las sugerencias de una tanda solo se muestran 7 días.
+        var tandas = await db.TandasIa.Where(t => t.CreatedAt < ahora.AddDays(-30)).ExecuteDeleteAsync(ct);
 
         logger.LogInformation(
-            "Limpieza: {Sesiones} sesiones, {Registros} registros, {Celdas} celdas y {Clases} clases borradas.",
-            sesiones, registros, celdas, clases);
+            "Limpieza: {Sesiones} sesiones, {Registros} registros, {Celdas} celdas, {Clases} clases y {Tandas} tandas borradas.",
+            sesiones, registros, celdas, clases, tandas);
     }
 }

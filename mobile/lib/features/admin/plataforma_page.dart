@@ -1064,6 +1064,7 @@ const _nombresFuncionIa = {
   'examen': 'Examen',
   'comentario': 'Comentario de alumno',
   'calificar': 'Calificar con foto',
+  'calificar_tanda': 'Calificar en tanda (mitad de precio)',
   'boleta': 'Comentario de boleta',
   'informe': 'Informe del año',
   'comunicado': 'Comunicado',

@@ -69,3 +69,19 @@ public class UsoIaConfig : IEntityTypeConfiguration<ProfeApp.Domain.Common.UsoIa
         b.HasIndex(x => new { x.InstitucionId, x.CreatedAt });
     }
 }
+
+public class TandaIaConfig : IEntityTypeConfiguration<ProfeApp.Domain.Common.TandaIa>
+{
+    public void Configure(EntityTypeBuilder<ProfeApp.Domain.Common.TandaIa> b)
+    {
+        b.ToTable("tandas_ia");
+        b.Property(x => x.Actividad).HasMaxLength(64).IsRequired();
+        b.Property(x => x.Lote).HasMaxLength(100).IsRequired();
+        b.Property(x => x.Estado).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Puntos).HasPrecision(6, 2);
+        b.Property(x => x.Resultados).HasColumnType("jsonb");
+        b.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.UsuarioId, x.Actividad });
+        b.HasIndex(x => x.Estado);
+    }
+}

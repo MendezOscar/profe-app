@@ -24,8 +24,17 @@ public sealed class AsistenteIaService(
     /// <summary>Comentarios de alumnos por docente al mes (son cortos y baratos).</summary>
     public const int LimiteComentarios = 400;
 
-    /// <summary>Trabajos calificados desde una foto por docente al mes (es lo que más cuesta).</summary>
+    /// <summary>
+    /// Trabajos calificados desde una foto por docente al mes (es lo que más cuesta). En tanda cada
+    /// trabajo cuenta como medio, porque el lote cuesta la mitad: el costo máximo es el mismo.
+    /// </summary>
     public const int LimiteCalificaciones = 150;
+
+    /// <summary>Trabajos por envío de una tanda (cuida el tamaño de la petición).</summary>
+    public const int TrabajosPorTanda = 10;
+
+    /// <summary>Días que se guardan las sugerencias de una tanda.</summary>
+    public const int DiasTanda = 7;
 
     /// <summary>
     /// Con el Pro del centro (y sin Pro propio) el docente tiene la mitad de los topes: el centro
@@ -168,44 +177,122 @@ public sealed class AsistenteIaService(
         var actividad = Texto(r.Actividad, 160);
         if (actividad is null) return Result<CalificacionIaDto>.Fail(Error.Validation("Falta la actividad."));
         if (r.Puntos is <= 0 or > 100) return Result<CalificacionIaDto>.Fail(Error.Validation("La actividad debe valer de 1 a 100 puntos."));
-        var fotos = new List<byte[]>();
-        foreach (var b64 in (r.Imagenes ?? []).Take(5))
-        {
-            byte[] foto;
-            try { foto = Convert.FromBase64String(b64); }
-            catch (FormatException) { return Result<CalificacionIaDto>.Fail(Error.Validation("Una de las fotos no se pudo leer.")); }
-            if (foto.Length is < 4 or > MaxFoto || foto[0] != 0xFF || foto[1] != 0xD8)
-                return Result<CalificacionIaDto>.Fail(Error.Validation("Las fotos deben ser JPG de hasta 2 MB."));
-            fotos.Add(foto);
-        }
-        if (fotos.Count is < 1 or > 4) return Result<CalificacionIaDto>.Fail(Error.Validation("Envía de 1 a 4 fotos del trabajo."));
+        var (fotos, error) = Fotos(r.Imagenes);
+        if (error is not null) return Result<CalificacionIaDto>.Fail(error);
 
         var permiso = await PuedeAsync(FuncionesIa.Calificar, ct);
         if (permiso is not null) return Result<CalificacionIaDto>.Fail(permiso);
 
-        var usuario =
-            $"Asignatura: {Texto(r.Asignatura, 120) ?? "no indicada"}\nGrado: {Texto(r.Grado, 120) ?? "no indicado"}\n" +
-            $"Actividad: {actividad}\nValor: {r.Puntos} puntos\n" +
-            (Texto(r.Descripcion, 1000) is { } d ? $"Descripción de la actividad: {d}\n" : "") +
-            (Texto(r.Criterios, 3000) is { } c ? $"Criterios o clave del docente:\n{c}\n" : "Sin clave: evalúa con lo que se espera para el grado.\n");
-        var sistema = Contexto + "\n\nAyudas a un docente a calificar el trabajo escrito de un estudiante a partir de fotos. " +
-            "Lee el trabajo, compáralo con los criterios o la clave del docente y sugiere una nota entre 0 y el valor de la " +
-            "actividad, en múltiplos de 0.5. En la justificación (de 2 a 4 oraciones, para el docente) di qué está bien, qué " +
-            "falta o está mal y por qué esa nota. No menciones nombres que aparezcan en la hoja. Si las fotos no se leen o no " +
-            "son un trabajo escolar, marca legible como falso.";
         var resultado = await LlamarAsync<CalificacionLeida>(FuncionesIa.Calificar,
-            new PeticionIa(sistema, usuario, EsquemaCalificacion, 3000, Breve: false, Imagenes: fotos), ct);
+            new PeticionIa(SistemaCalificar, DatosActividad(r.Asignatura, r.Grado, actividad, r.Puntos, r.Descripcion, r.Criterios),
+                EsquemaCalificacion, 3000, Breve: false, Imagenes: fotos), ct);
         if (!resultado.IsSuccess) return Result<CalificacionIaDto>.Fail(resultado.Error!);
         var leida = resultado.Value;
         if (!leida.Legible)
             return Result<CalificacionIaDto>.Fail(Error.Validation("No se pudo leer el trabajo en las fotos. Toma otra con buena luz y de frente."));
-        var nota = Math.Clamp(Math.Round(leida.Nota * 2, MidpointRounding.AwayFromZero) / 2, 0, r.Puntos);
-        return new CalificacionIaDto(nota, leida.Justificacion.Trim());
+        return new CalificacionIaDto(Redondear(leida.Nota, r.Puntos), leida.Justificacion.Trim());
     }
 
-    private sealed record CalificacionLeida(bool Legible, decimal Nota, string Justificacion);
+    public sealed record CalificacionLeida(bool Legible, decimal Nota, string Justificacion);
 
-    private static readonly Dictionary<string, JsonElement> EsquemaCalificacion = Esquema(new
+    private const string SistemaCalificar = Contexto + "\n\nAyudas a un docente a calificar el trabajo escrito de un estudiante a partir de fotos. " +
+        "Lee el trabajo, compáralo con los criterios o la clave del docente y sugiere una nota entre 0 y el valor de la " +
+        "actividad, en múltiplos de 0.5. En la justificación (de 2 a 4 oraciones, para el docente) di qué está bien, qué " +
+        "falta o está mal y por qué esa nota. No menciones nombres que aparezcan en la hoja. Si las fotos no se leen o no " +
+        "son un trabajo escolar, marca legible como falso.";
+
+    private static string DatosActividad(string? asignatura, string? grado, string actividad, decimal puntos, string? descripcion, string? criterios) =>
+        $"Asignatura: {Texto(asignatura, 120) ?? "no indicada"}\nGrado: {Texto(grado, 120) ?? "no indicado"}\n" +
+        $"Actividad: {actividad}\nValor: {puntos} puntos\n" +
+        (Texto(descripcion, 1000) is { } d ? $"Descripción de la actividad: {d}\n" : "") +
+        (Texto(criterios, 3000) is { } c ? $"Criterios o clave del docente:\n{c}\n" : "Sin clave: evalúa con lo que se espera para el grado.\n");
+
+    /// <summary>De 1 a 4 fotos JPG de hasta 2 MB.</summary>
+    private static (List<byte[]> Fotos, Error? Error) Fotos(IReadOnlyList<string>? imagenes)
+    {
+        var fotos = new List<byte[]>();
+        foreach (var b64 in (imagenes ?? []).Take(5))
+        {
+            byte[] foto;
+            try { foto = Convert.FromBase64String(b64); }
+            catch (FormatException) { return (fotos, Error.Validation("Una de las fotos no se pudo leer.")); }
+            if (foto.Length is < 4 or > MaxFoto || foto[0] != 0xFF || foto[1] != 0xD8)
+                return (fotos, Error.Validation("Las fotos deben ser JPG de hasta 2 MB."));
+            fotos.Add(foto);
+        }
+        return fotos.Count is < 1 or > 4 ? (fotos, Error.Validation("Envía de 1 a 4 fotos de cada trabajo.")) : (fotos, null);
+    }
+
+    /// <summary>La nota sugerida en medios puntos, dentro del valor de la actividad.</summary>
+    public static decimal Redondear(decimal nota, decimal puntos) =>
+        Math.Clamp(Math.Round(nota * 2, MidpointRounding.AwayFromZero) / 2, 0, puntos);
+
+    // ── Calificar en tanda ───────────────────────────────────────────────────
+
+    public async Task<Result<TandaIaDto>> CalificarTandaAsync(CalificarTandaIaRequest r, CancellationToken ct = default)
+    {
+        var actividadId = Texto(r.ActividadId, 64);
+        var actividad = Texto(r.Actividad, 160);
+        if (actividadId is null || actividad is null) return Result<TandaIaDto>.Fail(Error.Validation("Falta la actividad."));
+        if (r.Puntos is <= 0 or > 100) return Result<TandaIaDto>.Fail(Error.Validation("La actividad debe valer de 1 a 100 puntos."));
+        var trabajos = r.Trabajos ?? [];
+        if (trabajos.Count is < 1 or > TrabajosPorTanda)
+            return Result<TandaIaDto>.Fail(Error.Validation($"Envía de 1 a {TrabajosPorTanda} trabajos a la vez."));
+        var peticiones = new List<(string, PeticionIa)>();
+        // La clave va en el sistema: es igual para todos los trabajos de la tanda.
+        var sistema = SistemaCalificar + "\n\n" + DatosActividad(r.Asignatura, r.Grado, actividad, r.Puntos, r.Descripcion, r.Criterios);
+        foreach (var t in trabajos)
+        {
+            var alumno = Texto(t.AlumnoId, 64);
+            if (alumno is null || peticiones.Any(p => p.Item1 == alumno))
+                return Result<TandaIaDto>.Fail(Error.Validation("Cada trabajo debe ser de un alumno distinto."));
+            var (fotos, error) = Fotos(t.Imagenes);
+            if (error is not null) return Result<TandaIaDto>.Fail(error);
+            peticiones.Add((alumno, new PeticionIa(sistema, "Califica este trabajo.", EsquemaCalificacion, 3000, Breve: false, Imagenes: fotos)));
+        }
+
+        if (!ia.Disponible) return Result<TandaIaDto>.Fail(Error.Forbidden("El asistente con IA no está disponible en este momento."));
+        var (habilitada, institucion, topes) = await HabilitadaAsync(ct);
+        if (!habilitada) return Result<TandaIaDto>.Fail(Error.Forbidden("El asistente con IA es parte del plan Pro."));
+        var quedan = topes.Calificaciones * 2 - await MediasAsync(ct);
+        if (peticiones.Count > quedan)
+            return Result<TandaIaDto>.Fail(Error.Validation(quedan <= 0
+                ? $"Ya usaste las {topes.Calificaciones} calificaciones con foto de este mes.{Ampliar}"
+                : $"Este mes te quedan {quedan} trabajos en tanda; manda menos.{Ampliar}"));
+
+        string lote;
+        try
+        {
+            lote = await ia.CrearLoteAsync(peticiones, ct);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return Result<TandaIaDto>.Fail(Error.Validation("La IA no recibió la tanda. Intenta de nuevo en un momento."));
+        }
+        var tanda = new TandaIa
+        {
+            UsuarioId = currentUser.RequireUserId(), InstitucionId = institucion, Actividad = actividadId, Lote = lote,
+            Trabajos = peticiones.Count, Puntos = r.Puntos,
+        };
+        db.TandasIa.Add(tanda);
+        await db.SaveChangesAsync(ct);
+        return Dto(tanda);
+    }
+
+    public async Task<IReadOnlyList<TandaIaDto>> TandasAsync(string actividad, CancellationToken ct = default)
+    {
+        var yo = currentUser.RequireUserId();
+        var desde = clock.Now.AddDays(-DiasTanda);
+        var tandas = await db.TandasIa.AsNoTracking()
+            .Where(t => t.UsuarioId == yo && t.Actividad == actividad && t.CreatedAt >= desde)
+            .OrderBy(t => t.CreatedAt).ToListAsync(ct);
+        return tandas.Select(Dto).ToList();
+    }
+
+    private static TandaIaDto Dto(TandaIa t) => new(t.Id, t.Estado, t.Trabajos, t.CreatedAt,
+        t.Resultados is null ? [] : JsonSerializer.Deserialize<List<ResultadoTandaIaDto>>(t.Resultados, ClienteIa.Json)!);
+
+    public static readonly Dictionary<string, JsonElement> EsquemaCalificacion = Esquema(new
     {
         type = "object",
         additionalProperties = false,
@@ -255,9 +342,28 @@ public sealed class AsistenteIaService(
         var desde = InicioDelMes();
         var usos = await db.UsosIa.Where(u => u.UsuarioId == yo && u.CreatedAt >= desde)
             .GroupBy(u => u.Funcion).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        var medias = 2 * usos.GetValueOrDefault(FuncionesIa.Calificar) + usos.GetValueOrDefault(FuncionesIa.CalificarTanda) +
+                     await PendientesAsync(yo, desde, ct);
         return (usos.GetValueOrDefault(FuncionesIa.Plan) + usos.GetValueOrDefault(FuncionesIa.Examen),
-            usos.GetValueOrDefault(FuncionesIa.Comentario), usos.GetValueOrDefault(FuncionesIa.Calificar));
+            usos.GetValueOrDefault(FuncionesIa.Comentario), (medias + 1) / 2);
     }
+
+    /// <summary>Calificaciones del mes en medios: una con foto vale 2, una en tanda (o en camino) vale 1.</summary>
+    private async Task<int> MediasAsync(CancellationToken ct)
+    {
+        var yo = currentUser.RequireUserId();
+        var desde = InicioDelMes();
+        var usos = await db.UsosIa.Where(u => u.UsuarioId == yo && u.CreatedAt >= desde &&
+                                              (u.Funcion == FuncionesIa.Calificar || u.Funcion == FuncionesIa.CalificarTanda))
+            .GroupBy(u => u.Funcion).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        return 2 * usos.GetValueOrDefault(FuncionesIa.Calificar) + usos.GetValueOrDefault(FuncionesIa.CalificarTanda) +
+               await PendientesAsync(yo, desde, ct);
+    }
+
+    /// <summary>Trabajos de tandas que siguen en proceso: se apartan del tope desde que se mandan.</summary>
+    private Task<int> PendientesAsync(Guid yo, DateTimeOffset desde, CancellationToken ct) =>
+        db.TandasIa.Where(t => t.UsuarioId == yo && t.Estado == EstadosTanda.Procesando && t.CreatedAt >= desde)
+            .SumAsync(t => t.Trabajos, ct);
 
     private async Task<Error?> PuedeAsync(string funcion, CancellationToken ct)
     {

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Contracts;
+using ProfeApp.Domain.Common;
 using ProfeApp.Infrastructure.Persistence;
 
 namespace ProfeApp.Infrastructure.Ia;
@@ -45,7 +46,7 @@ public sealed class CostosIaService(AppDbContext db, IClock clock) : ICostosIaSe
         var porFuncion = filas.GroupBy(f => f.Funcion)
             .Select(g =>
             {
-                var total = Lempiras(g.Sum(f => f.Entrada), g.Sum(f => f.Salida));
+                var total = g.Sum(f => Lempiras(f.Funcion, f.Entrada, f.Salida));
                 var usos = g.Sum(f => f.Usos);
                 return new CostoFuncionIaDto(g.Key, usos, g.Sum(f => f.Entrada), g.Sum(f => f.Salida), total, Math.Round(total / usos, 2));
             })
@@ -55,13 +56,15 @@ public sealed class CostosIaService(AppDbContext db, IClock clock) : ICostosIaSe
             .GroupBy(f => f.InstitucionId is { } i ? ("centro", i) : ("docente", f.UsuarioId))
             .Select(g => new CostoCuentaIaDto(g.Key.Item1,
                 g.Key.Item1 == "centro" ? nombresCentro.GetValueOrDefault(g.Key.Item2, "Centro") : nombresDocente.GetValueOrDefault(g.Key.Item2, "Docente"),
-                g.Sum(f => f.Usos), Lempiras(g.Sum(f => f.Entrada), g.Sum(f => f.Salida))))
+                g.Sum(f => f.Usos), g.Sum(f => Lempiras(f.Funcion, f.Entrada, f.Salida))))
             .OrderByDescending(c => c.Total).ToList();
 
         return new CostosIaDto(primero.Year, primero.Month, TasaLempira, PrecioEntrada, PrecioSalida,
             filas.Sum(f => f.Usos), porFuncion.Sum(f => f.Total), porFuncion, porCuenta);
     }
 
-    private static decimal Lempiras(long entrada, long salida) =>
-        Math.Round((entrada * PrecioEntrada + salida * PrecioSalida) / 1_000_000m * TasaLempira, 2);
+    /// <summary>Lo que va en lote (calificar en tanda) se cobra a la mitad.</summary>
+    private static decimal Lempiras(string funcion, long entrada, long salida) =>
+        Math.Round((entrada * PrecioEntrada + salida * PrecioSalida) / 1_000_000m * TasaLempira *
+                   (funcion == FuncionesIa.CalificarTanda ? 0.5m : 1m), 2);
 }

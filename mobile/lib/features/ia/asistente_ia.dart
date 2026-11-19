@@ -12,6 +12,7 @@ import '../../core/informes/compartir.dart';
 import '../../core/informes/informes_pdf.dart';
 import '../../core/planes/calculo_parcial.dart';
 import '../../core/planes/modelos.dart';
+import '../../core/preferencias.dart';
 import '../../core/providers.dart';
 import '../../theme/tokens.dart';
 
@@ -594,58 +595,42 @@ Uint8List? _reducirTrabajo(Uint8List bytes) {
   return img.encodeJpg(reducida, quality: 80);
 }
 
-/// Toma o elige las fotos del trabajo (hasta 4 páginas), pide la sugerencia y devuelve la nota
-/// que el docente acepta, o null. [criterios] es la clave de la actividad, que se recuerda
-/// mientras el docente está en la pantalla.
-Future<double?> calificarConFotoIa(
-  BuildContext context,
-  WidgetRef ref,
-  PlanParcial plan,
-  Actividad actividad, {
-  required String? criterios,
-  required ValueChanged<String> alCriterios,
-}) async {
-  if (!await _puedeUsar(context, ref, 'calificaciones', 'calificaciones con foto') || !context.mounted) return null;
-  final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
-  if (!context.mounted) return null;
-
-  // La clave se pide una vez por actividad: ayuda mucho a la IA.
-  var clave = criterios;
-  if (clave == null) {
-    final campo = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: const RoundedRectangleBorder(),
-        title: const Text('Clave o criterios'),
-        content: TextField(
-          controller: campo,
-          autofocus: true,
-          minLines: 3,
-          maxLines: 8,
-          maxLength: 3000,
-          decoration: const InputDecoration(
-            helperText: 'Opcional, pero mejora mucho la sugerencia. Se usa para todos los alumnos de esta actividad.',
-            helperMaxLines: 3,
-            hintText: '1) 3/4  2) Verdadero  3) Explica con un dibujo…',
-            alignLabelWithHint: true,
-          ),
+/// La clave se pide una vez por actividad: ayuda mucho a la IA. Null si el docente cancela.
+Future<String?> _pedirClave(BuildContext context) async {
+  final campo = TextEditingController();
+  final ok = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: const RoundedRectangleBorder(),
+      title: const Text('Clave o criterios'),
+      content: TextField(
+        controller: campo,
+        autofocus: true,
+        minLines: 3,
+        maxLines: 8,
+        maxLength: 3000,
+        decoration: const InputDecoration(
+          helperText: 'Opcional, pero mejora mucho la sugerencia. Se usa para todos los alumnos de esta actividad.',
+          helperMaxLines: 3,
+          hintText: '1) 3/4  2) Verdadero  3) Explica con un dibujo…',
+          alignLabelWithHint: true,
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Seguir')),
-        ],
       ),
-    );
-    if (ok != true || !context.mounted) return null;
-    clave = campo.text.trim();
-    alCriterios(clave);
-  }
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Seguir')),
+      ],
+    ),
+  );
+  return ok == true ? campo.text.trim() : null;
+}
 
+/// Toma o elige las fotos de un trabajo (hasta 4 páginas), ya reducidas. Vacía si no tomó ninguna.
+Future<List<Uint8List>> tomarFotosTrabajo(BuildContext context, {String listo = 'Listo, calificar'}) async {
   final picker = ImagePicker();
   final fotos = <Uint8List>[];
   while (fotos.length < 4) {
-    if (!context.mounted) return null;
+    if (!context.mounted) return fotos;
     final origen = await showModalBottomSheet<ImageSource>(
       context: context,
       showDragHandle: true,
@@ -671,7 +656,7 @@ Future<double?> calificarConFotoIa(
           if (fotos.isNotEmpty)
             ListTile(
               leading: const Icon(iconoIa),
-              title: const Text('Listo, calificar'),
+              title: Text(listo),
               onTap: () => Navigator.pop(context),
             ),
         ]),
@@ -683,19 +668,12 @@ Future<double?> calificarConFotoIa(
     final lista = await compute(_reducirTrabajo, await elegida.readAsBytes());
     if (lista != null) fotos.add(lista);
   }
-  if (fotos.isEmpty || !context.mounted) return null;
+  return fotos;
+}
 
-  final r = await _pedir(context, ref, '/ia/calificar', {
-    'asignatura': clase.asignatura,
-    'grado': clase.gradoSeccion,
-    'actividad': actividad.titulo,
-    'descripcion': actividad.descripcion,
-    'puntos': actividad.puntos,
-    'criterios': clave,
-    'imagenes': [for (final f in fotos) base64Encode(f)],
-  });
-  if (r == null || !context.mounted) return null;
-  final nota = TextEditingController(text: formatoPuntos(_num(r['nota'])));
+/// La sugerencia de la IA para que el docente la acepte o la cambie. Devuelve la nota o null.
+Future<double?> revisarSugerenciaIa(BuildContext context, Actividad actividad, double sugerida, String justificacion) async {
+  final nota = TextEditingController(text: formatoPuntos(sugerida));
   final usar = await showDialog<bool>(
     context: context,
     builder: (context) => AlertDialog(
@@ -711,7 +689,7 @@ Future<double?> calificarConFotoIa(
             decoration: InputDecoration(labelText: 'Nota', suffixText: '/ ${formatoPuntos(actividad.puntos)}'),
           ),
           const SizedBox(height: Espacio.m),
-          Text('${r['justificacion']}'),
+          Text(justificacion),
           const SizedBox(height: Espacio.s),
           Text('Es una sugerencia: la nota la decides tú.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
@@ -726,4 +704,139 @@ Future<double?> calificarConFotoIa(
   if (usar != true) return null;
   final valor = double.tryParse(nota.text.replaceAll(',', '.'));
   return valor == null || valor < 0 || valor > actividad.puntos ? null : valor;
+}
+
+/// Toma o elige las fotos del trabajo (hasta 4 páginas), pide la sugerencia y devuelve la nota
+/// que el docente acepta, o null. [criterios] es la clave de la actividad, que se recuerda
+/// mientras el docente está en la pantalla.
+Future<double?> calificarConFotoIa(
+  BuildContext context,
+  WidgetRef ref,
+  PlanParcial plan,
+  Actividad actividad, {
+  required String? criterios,
+  required ValueChanged<String> alCriterios,
+}) async {
+  if (!await _puedeUsar(context, ref, 'calificaciones', 'calificaciones con foto') || !context.mounted) return null;
+  final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
+  if (!context.mounted) return null;
+
+  var clave = criterios;
+  if (clave == null) {
+    clave = await _pedirClave(context);
+    if (clave == null || !context.mounted) return null;
+    alCriterios(clave);
+  }
+
+  final fotos = await tomarFotosTrabajo(context);
+  if (fotos.isEmpty || !context.mounted) return null;
+
+  final r = await _pedir(context, ref, '/ia/calificar', {
+    'asignatura': clase.asignatura,
+    'grado': clase.gradoSeccion,
+    'actividad': actividad.titulo,
+    'descripcion': actividad.descripcion,
+    'puntos': actividad.puntos,
+    'criterios': clave,
+    'imagenes': [for (final f in fotos) base64Encode(f)],
+  });
+  if (r == null || !context.mounted) return null;
+  return revisarSugerenciaIa(context, actividad, _num(r['nota']), '${r['justificacion']}');
+}
+
+// ── Calificar en tanda ───────────────────────────────────────────────────────
+
+/// Trabajos por envío (lo mismo que acepta el servidor).
+const _trabajosPorEnvio = 10;
+
+/// Actividades con tandas enviadas en los últimos 7 días (id → fecha). Solo esas consultan al
+/// servidor: abrir una actividad sin tandas no gasta una llamada.
+const _claveTandas = 'ia_tandas_v1';
+
+Map<String, DateTime> _actividadesConTanda(SharedPreferences prefs) {
+  final hace7 = DateTime.now().subtract(const Duration(days: 7));
+  final guardadas = jsonDecode(prefs.getString(_claveTandas) ?? '{}') as Map<String, dynamic>;
+  return {
+    for (final MapEntry(:key, :value) in guardadas.entries)
+      if (DateTime.tryParse('$value') case final f? when f.isAfter(hace7)) key: f,
+  };
+}
+
+/// Las tandas de la actividad (las de los últimos 7 días), o vacío si nunca mandó una.
+final tandasIaProvider = FutureProvider.autoDispose.family<List<Map<String, dynamic>>, String>((ref, actividadId) async {
+  final prefs = ref.watch(preferenciasProvider);
+  if (!_actividadesConTanda(prefs).containsKey(actividadId)) return const [];
+  return ref.watch(apiClientProvider).get('/ia/calificar/tandas',
+      query: {'actividad': actividadId}, parse: (d) => (d as List).cast<Map<String, dynamic>>());
+});
+
+/// Antes de tomar las fotos de la tanda: plan Pro, permiso, tope y la clave. Devuelve la clave o null.
+Future<String?> prepararTandaIa(BuildContext context, WidgetRef ref, {required String? criterios}) async {
+  if (!await _puedeUsar(context, ref, 'calificaciones', 'calificaciones con foto') || !context.mounted) return null;
+  return criterios ?? await _pedirClave(context);
+}
+
+/// Manda los trabajos (alumno → fotos) en envíos de 10. Devuelve cuántos se mandaron.
+Future<int> enviarTandaIa(BuildContext context, WidgetRef ref, PlanParcial plan, Actividad actividad, String clave,
+    Map<String, List<Uint8List>> trabajos) async {
+  final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
+  if (!context.mounted) return 0;
+  final messenger = ScaffoldMessenger.of(context);
+  final navegador = Navigator.of(context, rootNavigator: true);
+  final prefs = ref.read(preferenciasProvider);
+  final api = ref.read(apiClientProvider);
+  final progreso = ValueNotifier(0);
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => PopScope(
+      canPop: false,
+      child: AlertDialog(
+        shape: const RoundedRectangleBorder(),
+        content: Row(children: [
+          const CircularProgressIndicator(),
+          const SizedBox(width: Espacio.l),
+          Expanded(
+            child: ValueListenableBuilder(
+              valueListenable: progreso,
+              builder: (_, n, _) => Text('Enviando los trabajos… $n de ${trabajos.length}'),
+            ),
+          ),
+        ]),
+      ),
+    ),
+  );
+  final lista = trabajos.entries.toList();
+  var enviados = 0;
+  try {
+    for (var i = 0; i < lista.length; i += _trabajosPorEnvio) {
+      final envio = lista.skip(i).take(_trabajosPorEnvio).toList();
+      await api.post('/ia/calificar/tanda', body: {
+        'actividadId': actividad.id,
+        'asignatura': clase.asignatura,
+        'grado': clase.gradoSeccion,
+        'actividad': actividad.titulo,
+        'descripcion': actividad.descripcion,
+        'puntos': actividad.puntos,
+        'criterios': clave,
+        'trabajos': [
+          for (final MapEntry(key: alumno, value: fotos) in envio)
+            {'alumnoId': alumno, 'imagenes': [for (final f in fotos) base64Encode(f)]},
+        ],
+      });
+      enviados += envio.length;
+      progreso.value = enviados;
+      final tandas = _actividadesConTanda(prefs)..[actividad.id] = DateTime.now();
+      await prefs.setString(_claveTandas, jsonEncode({for (final e in tandas.entries) e.key: e.value.toIso8601String()}));
+    }
+  } on ApiException catch (e) {
+    messenger.showSnackBar(SnackBar(
+        content: Text(e.isNetworkError ? 'Necesitas internet para mandar la tanda.' : e.message)));
+  } finally {
+    navegador.pop();
+    progreso.dispose();
+    ref.invalidate(estadoIaProvider);
+    ref.invalidate(tandasIaProvider(actividad.id));
+  }
+  return enviados;
 }

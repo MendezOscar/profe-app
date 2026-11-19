@@ -74,6 +74,25 @@ public sealed class GeneradorDePrueba : IGeneradorIa
                 : """{"titulo":"Examen de fracciones","instrucciones":"Lee con atención.","preguntas":[{"tipo":"opcion_multiple","enunciado":"¿Cuánto es 1/2 + 1/4?","opciones":["3/4","2/6","1/8","1"],"respuesta":"3/4","puntos":5},{"tipo":"verdadero_falso","enunciado":"1/2 es mayor que 1/3.","opciones":["x"],"respuesta":"Verdadero","puntos":5}]}""";
         return Task.FromResult(new RespuestaIa(texto, "modelo-de-prueba", 100, 50));
     }
+
+    /// <summary>Lotes creados; terminan en la primera revisión. Un id que empieza con "falla" no se cobra.</summary>
+    public static readonly ConcurrentDictionary<string, IReadOnlyList<(string Id, PeticionIa Peticion)>> Lotes = new();
+
+    public Task<string> CrearLoteAsync(IReadOnlyList<(string Id, PeticionIa Peticion)> peticiones, CancellationToken ct)
+    {
+        var id = $"lote_{Guid.NewGuid():N}";
+        Lotes[id] = peticiones;
+        return Task.FromResult(id);
+    }
+
+    public async Task<IReadOnlyList<(string Id, RespuestaIa? Respuesta)>?> ResultadosLoteAsync(string lote, CancellationToken ct)
+    {
+        if (!Lotes.TryRemove(lote, out var peticiones)) return null;
+        var resultados = new List<(string, RespuestaIa?)>();
+        foreach (var (id, p) in peticiones)
+            resultados.Add((id, id.StartsWith("falla") ? null : await GenerarAsync(p, ct)));
+        return resultados;
+    }
 }
 
 /// <summary>

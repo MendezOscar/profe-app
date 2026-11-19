@@ -246,6 +246,10 @@ public static class AdminEndpoints
             .WithSummary("Examen con clave de respuestas.");
         ia.MapPost("/calificar", async (CalificarIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.CalificarAsync(r, ct)).ToHttp())
             .WithSummary("Sugiere la nota de un trabajo escrito a partir de fotos.");
+        ia.MapPost("/calificar/tanda", async (CalificarTandaIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.CalificarTandaAsync(r, ct)).ToHttp())
+            .WithSummary("Manda a calificar varios trabajos juntos (a mitad de costo); los resultados llegan en minutos.");
+        ia.MapGet("/calificar/tandas", async (string actividad, IAsistenteIaService s, CancellationToken ct) => Results.Ok(await s.TandasAsync(actividad, ct)))
+            .WithSummary("Tandas de una actividad con sus sugerencias.");
         ia.MapPost("/comentario", async (ComentarioIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.ComentarioAsync(r, ct)).ToHttp())
             .WithSummary("Comentario del desempeño de un alumno, sin su nombre.");
 

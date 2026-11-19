@@ -91,6 +91,23 @@ public sealed record CalificarIaRequest(
 /// <summary>Sugerencia para el docente: la nota (de 0 a los puntos de la actividad) y por qué.</summary>
 public sealed record CalificacionIaDto(decimal Nota, string Justificacion);
 
+/// <summary>
+/// Calificar varios trabajos de una actividad con la misma clave. <c>ActividadId</c>: id de la
+/// actividad en la app. <c>Trabajos</c>: de 1 a 10; cada uno con el id del alumno (no su nombre)
+/// y de 1 a 4 fotos JPEG en base64.
+/// </summary>
+public sealed record CalificarTandaIaRequest(
+    string? ActividadId, string? Asignatura, string? Grado, string? Actividad, string? Descripcion, decimal Puntos,
+    string? Criterios, IReadOnlyList<TrabajoTandaIaDto>? Trabajos);
+
+public sealed record TrabajoTandaIaDto(string? AlumnoId, IReadOnlyList<string>? Imagenes);
+
+/// <summary><c>Estado</c>: procesando, lista o fallida. <c>Resultados</c>: vacío mientras procesa.</summary>
+public sealed record TandaIaDto(Guid Id, string Estado, int Trabajos, DateTimeOffset Creada, IReadOnlyList<ResultadoTandaIaDto> Resultados);
+
+/// <summary><c>Nota</c> null: no se pudo calificar; <c>Justificacion</c> dice por qué.</summary>
+public sealed record ResultadoTandaIaDto(string AlumnoId, decimal? Nota, string Justificacion);
+
 // ── Preguntas de la dirección sobre los datos ────────────────────────────────
 
 public sealed record TurnoIaDto(string Pregunta, string Respuesta);

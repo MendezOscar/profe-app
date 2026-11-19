@@ -12,6 +12,12 @@ public interface IAsistenteIaService
     Task<Result<ExamenIaDto>> ExamenAsync(ExamenIaRequest request, CancellationToken ct = default);
     Task<Result<ComentarioIaDto>> ComentarioAsync(ComentarioIaRequest request, CancellationToken ct = default);
     Task<Result<CalificacionIaDto>> CalificarAsync(CalificarIaRequest request, CancellationToken ct = default);
+
+    /// <summary>Manda a calificar en tanda (hasta 10 trabajos por envío); los resultados llegan en minutos.</summary>
+    Task<Result<TandaIaDto>> CalificarTandaAsync(CalificarTandaIaRequest request, CancellationToken ct = default);
+
+    /// <summary>Las tandas de los últimos 7 días de una actividad, con sus resultados si ya están.</summary>
+    Task<IReadOnlyList<TandaIaDto>> TandasAsync(string actividad, CancellationToken ct = default);
 }
 
 /// <summary>
@@ -31,6 +37,15 @@ public interface IGeneradorIa
 {
     bool Disponible { get; }
     Task<RespuestaIa> GenerarAsync(PeticionIa peticion, CancellationToken ct);
+
+    /// <summary>Manda varias peticiones en un lote (mitad de precio, tarda minutos). Devuelve el id del lote.</summary>
+    Task<string> CrearLoteAsync(IReadOnlyList<(string Id, PeticionIa Peticion)> peticiones, CancellationToken ct);
+
+    /// <summary>
+    /// Null mientras el lote sigue en proceso. Al terminar, la respuesta de cada petición (null si
+    /// falló o venció: no se cobra) y el lote se borra en Anthropic.
+    /// </summary>
+    Task<IReadOnlyList<(string Id, RespuestaIa? Respuesta)>?> ResultadosLoteAsync(string lote, CancellationToken ct);
 }
 
 /// <summary>Asistente del centro (plan Pro del centro): boletas, informe de dirección y comunicados.</summary>
