@@ -27,6 +27,7 @@ public sealed class CentroIaService(
     public const int LimiteBoletas = 3000;
     public const int LimiteInformes = 30;
     public const int LimiteComunicados = 100;
+    public const int LimitePreguntas = 300;
 
     private const string SinPro = "El asistente con IA es parte del plan Pro del centro.";
 
@@ -38,7 +39,8 @@ public sealed class CentroIaService(
         return new EstadoIaCentroDto(Habilitada(institucion), ia.Disponible,
             usos.GetValueOrDefault(FuncionesIa.Boleta), LimiteBoletas,
             usos.GetValueOrDefault(FuncionesIa.Informe), LimiteInformes,
-            usos.GetValueOrDefault(FuncionesIa.Comunicado), LimiteComunicados);
+            usos.GetValueOrDefault(FuncionesIa.Comunicado), LimiteComunicados,
+            usos.GetValueOrDefault(FuncionesIa.Pregunta), LimitePreguntas);
     }
 
     // ── Comentarios de boleta ────────────────────────────────────────────────
@@ -183,6 +185,97 @@ public sealed class CentroIaService(
         if (!resultado.IsSuccess) return resultado;
         var c = resultado.Value;
         return new ComunicadoIaDto(ClienteIa.Texto(c.Titulo, 160) ?? "Comunicado", ClienteIa.Texto(c.Cuerpo, 4000) ?? "");
+    }
+
+    // ── Preguntas de la dirección ────────────────────────────────────────────
+
+    private static readonly string[] Meses =
+        ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+    public async Task<Result<RespuestaIaDto>> PreguntarAsync(PreguntaIaRequest r, CancellationToken ct = default)
+    {
+        var pregunta = ClienteIa.Texto(r.Pregunta, 500);
+        if (pregunta is null) return Result<RespuestaIaDto>.Fail(Error.Validation("Escribe tu pregunta (hasta 500 caracteres)."));
+        var (institucion, _) = await centro.ContextoAsync(ct);
+        if (institucion is null) return Result<RespuestaIaDto>.Fail(Error.Forbidden(EstructuraCentroService.SinCentro));
+        if (Permiso(institucion) is { } sin) return Result<RespuestaIaDto>.Fail(sin);
+        if ((await UsosAsync(institucion.Id, ct)).GetValueOrDefault(FuncionesIa.Pregunta) >= LimitePreguntas)
+            return Result<RespuestaIaDto>.Fail(Error.Validation($"Ya se usaron las {LimitePreguntas} preguntas de este mes."));
+
+        var datos = await DatosCentroAsync(institucion.Id, ct);
+        if (datos is null) return Result<RespuestaIaDto>.Fail(Error.Validation("Falta el año lectivo actual con secciones y alumnos."));
+        var sistema = ClienteIa.Contexto + "\n\nRespondes preguntas de la dirección de un centro educativo usando SOLO los datos " +
+            "de abajo (cifras del año actual hasta hoy). Responde en pocas oraciones o una lista corta, con las cifras que " +
+            "respaldan la respuesta. Si los datos no alcanzan para responder, dilo y sugiere dónde verlo en ProfeApp (Reportes, " +
+            "Asistencia, Incidencias o Estadísticas docentes). No tienes nombres de alumnos: si te los piden, explica que por " +
+            "privacidad se ven en esas pestañas. Sin tablas en formato markdown.\n\nDATOS DEL CENTRO\n" + datos;
+        var historial = (r.Historial ?? []).TakeLast(6)
+            .Select(t => (ClienteIa.Texto(t.Pregunta, 500) ?? "", ClienteIa.Texto(t.Respuesta, 3000) ?? ""))
+            .Where(t => t.Item1.Length > 0 && t.Item2.Length > 0).ToList();
+        var texto = await ia.TextoAsync(FuncionesIa.Pregunta,
+            new PeticionIa(sistema, pregunta, null, 3000, Breve: false, Historial: historial), currentUser.RequireUserId(), institucion.Id, ct);
+        return texto.IsSuccess ? new RespuestaIaDto(texto.Value.Trim()) : Result<RespuestaIaDto>.Fail(texto.Error!);
+    }
+
+    /// <summary>
+    /// Cifras del año por sección y por mes, y el avance de cada docente. Nombres de docentes
+    /// sí (son el personal del centro); de alumnos, nunca.
+    /// </summary>
+    private async Task<string?> DatosCentroAsync(Guid institucionId, CancellationToken ct)
+    {
+        var reporte = await reportes.ResumenAsync(ct);
+        if (!reporte.IsSuccess || reporte.Value.Anio is null) return null;
+        var r = reporte.Value;
+        var anio = await db.AniosLectivos.AsNoTracking().FirstAsync(a => a.InstitucionId == institucionId && a.Actual, ct);
+        var l = new List<string> { $"Hoy: {clock.Today:yyyy-MM-dd}. Año lectivo {r.Anio}, del {anio.Inicio:yyyy-MM-dd} al {anio.Fin:yyyy-MM-dd}." };
+
+        var m = r.Matricula;
+        l.Add($"Matrícula activa: {m.Activos}; nuevos {m.Nuevos}, reingresos {m.Reingresos}, traslados entrantes {m.TrasladosEntrantes}, retirados {m.Retirados}, trasladados {m.Trasladados}.");
+        l.Add("Por sección (activos, mujeres, hombres, cupo, retirados):");
+        l.AddRange(m.PorSeccion.Select(s => $"- {s.Seccion} ({s.Jornada}): {s.Activos}, F {s.Femenino}, M {s.Masculino}, cupo {s.Cupo?.ToString() ?? "sin cupo"}, retirados {s.Retirados}"));
+
+        l.Add("Rendimiento con lo cerrado (sección · asignatura · docente: aprobados de evaluados, promedio):");
+        foreach (var s in r.Rendimiento)
+            foreach (var a in s.Asignaturas)
+                l.Add($"- {s.Seccion} · {a.Asignatura} · {a.Docente}: {a.Aprobados} de {a.Evaluados}, promedio {a.Promedio?.ToString() ?? "sin notas"}");
+        l.Add($"Alumnos en riesgo: {r.Riesgo.Count}. Por sección: {string.Join(", ", r.Riesgo.GroupBy(x => x.Seccion).Select(g => $"{g.Key} {g.Count()}"))}");
+
+        // Lista del día por sección y mes.
+        var ids = m.PorSeccion.Select(s => s.SeccionId).ToList();
+        var nombre = m.PorSeccion.ToDictionary(s => s.SeccionId, s => s.Seccion);
+        var tomas = await db.TomasAsistenciaDiaria.AsNoTracking().Where(t => ids.Contains(t.SeccionId) && t.Fecha >= anio.Inicio)
+            .Select(t => new { t.Id, t.SeccionId, t.Fecha }).ToListAsync(ct);
+        var tomaIds = tomas.Select(t => t.Id).ToList();
+        var marcas = (await db.MarcasAsistenciaDiaria.AsNoTracking().Where(x => tomaIds.Contains(x.TomaId))
+            .Select(x => new { x.TomaId, x.Estado }).ToListAsync(ct)).ToLookup(x => x.TomaId, x => x.Estado);
+        l.Add("Lista del día por sección y mes (días con lista, ausencias, tardes, justificadas):");
+        foreach (var g in tomas.GroupBy(t => (t.SeccionId, t.Fecha.Year, t.Fecha.Month)).OrderBy(g => nombre[g.Key.SeccionId]).ThenBy(g => g.Key.Year).ThenBy(g => g.Key.Month))
+        {
+            var estados = g.SelectMany(t => marcas[t.Id]).ToList();
+            l.Add($"- {nombre[g.Key.SeccionId]}, {Meses[g.Key.Month - 1]} {g.Key.Year}: {g.Count()} días, {estados.Count(e => e == "A")} ausencias, {estados.Count(e => e == "T")} tardes, {estados.Count(e => e == "J")} justificadas");
+        }
+
+        var incidencias = await db.Incidencias.AsNoTracking().Where(i => i.InstitucionId == institucionId && i.Fecha >= anio.Inicio)
+            .Select(i => new { i.SeccionId, i.Fecha, i.Gravedad, i.Cerrada }).ToListAsync(ct);
+        l.Add("Incidencias por sección y mes (leves, graves, muy graves; abiertas):");
+        foreach (var g in incidencias.GroupBy(i => (Seccion: i.SeccionId is { } s && nombre.TryGetValue(s, out var n) ? n : "sin sección", i.Fecha.Year, i.Fecha.Month))
+                     .OrderBy(g => g.Key.Seccion).ThenBy(g => g.Key.Year).ThenBy(g => g.Key.Month))
+            l.Add($"- {g.Key.Seccion}, {Meses[g.Key.Month - 1]} {g.Key.Year}: {g.Count(i => i.Gravedad == "leve")}, {g.Count(i => i.Gravedad == "grave")}, {g.Count(i => i.Gravedad == "muy_grave")}; abiertas {g.Count(i => !i.Cerrada)}");
+        var excusas = await db.Excusas.AsNoTracking().Where(e => e.InstitucionId == institucionId && e.Hasta >= anio.Inicio)
+            .Select(e => e.Desde).ToListAsync(ct);
+        l.Add("Excusas y permisos registrados por mes: " +
+              string.Join(", ", excusas.GroupBy(d => (d.Year, d.Month)).OrderBy(g => g.Key).Select(g => $"{Meses[g.Key.Month - 1]} {g.Key.Year} {g.Count()}")));
+
+        var docentes = await reportes.DocentesAsync(ct);
+        if (docentes.IsSuccess)
+        {
+            l.Add($"Docentes (días hábiles del año hasta hoy: {docentes.Value.DiasHabiles}). Nombre: asignaturas asignadas, cuadros en la app, parciales cerrados, listas de clase en 30 días, días con lista del día si es guía, incidencias registradas, aprobados de evaluados, promedio, último trabajo:");
+            foreach (var d in docentes.Value.Docentes.Where(d => d.Activo))
+                l.Add($"- {d.Nombre}: {d.AsignaturasCarga}, {d.CuadrosEnApp}, {d.ParcialesCerrados}, {d.ListasRecientes}, " +
+                      $"{(d.DiasListaDelDia is { } dl ? dl.ToString() : "no es guía")}, {d.Incidencias}, {d.Aprobados} de {d.Evaluados}, " +
+                      $"{d.Promedio?.ToString() ?? "sin notas"}, {(d.UltimoTrabajo is { } u ? $"hace {(clock.Now - u).Days} días" : "nunca")}");
+        }
+        return string.Join("\n", l);
     }
 
     // ── Apoyo ────────────────────────────────────────────────────────────────

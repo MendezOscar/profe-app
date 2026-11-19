@@ -1,5 +1,10 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image/image.dart' as img;
+import 'package:image_picker/image_picker.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/informes/compartir.dart';
@@ -509,4 +514,153 @@ Future<void> comentarioIa(BuildContext context, WidgetRef ref, PlanParcial plan,
     ),
   );
   if (ok == true && texto.text.trim().isNotEmpty) await guardar(texto.text.trim());
+}
+
+// ── Calificar desde una foto ─────────────────────────────────────────────────
+
+/// Foto lista para la IA: orientada y con su lado mayor en 1568 px (JPEG).
+Uint8List? _reducirTrabajo(Uint8List bytes) {
+  final original = img.decodeImage(bytes);
+  if (original == null) return null;
+  final orientada = img.bakeOrientation(original);
+  final ancho = orientada.width >= orientada.height;
+  final mayor = ancho ? orientada.width : orientada.height;
+  final reducida = mayor <= 1568
+      ? orientada
+      : img.copyResize(orientada, width: ancho ? 1568 : null, height: ancho ? null : 1568, interpolation: img.Interpolation.average);
+  return img.encodeJpg(reducida, quality: 80);
+}
+
+/// Toma o elige las fotos del trabajo (hasta 4 páginas), pide la sugerencia y devuelve la nota
+/// que el docente acepta, o null. [criterios] es la clave de la actividad, que se recuerda
+/// mientras el docente está en la pantalla.
+Future<double?> calificarConFotoIa(
+  BuildContext context,
+  WidgetRef ref,
+  PlanParcial plan,
+  Actividad actividad, {
+  required String? criterios,
+  required ValueChanged<String> alCriterios,
+}) async {
+  if (!await _puedeUsar(context, ref) || !context.mounted) return null;
+  final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
+  if (!context.mounted) return null;
+
+  // La clave se pide una vez por actividad: ayuda mucho a la IA.
+  var clave = criterios;
+  if (clave == null) {
+    final campo = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: const RoundedRectangleBorder(),
+        title: const Text('Clave o criterios'),
+        content: TextField(
+          controller: campo,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 8,
+          maxLength: 3000,
+          decoration: const InputDecoration(
+            helperText: 'Opcional, pero mejora mucho la sugerencia. Se usa para todos los alumnos de esta actividad.',
+            helperMaxLines: 3,
+            hintText: '1) 3/4  2) Verdadero  3) Explica con un dibujo…',
+            alignLabelWithHint: true,
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Seguir')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return null;
+    clave = campo.text.trim();
+    alCriterios(clave);
+  }
+
+  final picker = ImagePicker();
+  final fotos = <Uint8List>[];
+  while (fotos.length < 4) {
+    if (!context.mounted) return null;
+    final origen = await showModalBottomSheet<ImageSource>(
+      context: context,
+      showDragHandle: true,
+      shape: const RoundedRectangleBorder(),
+      builder: (context) => SafeArea(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(Espacio.l, 0, Espacio.l, Espacio.s),
+            child: Text(fotos.isEmpty
+                ? 'Foto del trabajo, de frente y con buena luz. Tapa el nombre del alumno si puedes.'
+                : '${fotos.length} ${fotos.length == 1 ? 'página' : 'páginas'}. ¿Agregas otra?'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_camera_outlined),
+            title: const Text('Tomar foto'),
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library_outlined),
+            title: const Text('Elegir de la galería'),
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+          if (fotos.isNotEmpty)
+            ListTile(
+              leading: const Icon(iconoIa),
+              title: const Text('Listo, calificar'),
+              onTap: () => Navigator.pop(context),
+            ),
+        ]),
+      ),
+    );
+    if (origen == null) break;
+    final elegida = await picker.pickImage(source: origen);
+    if (elegida == null) continue;
+    final lista = await compute(_reducirTrabajo, await elegida.readAsBytes());
+    if (lista != null) fotos.add(lista);
+  }
+  if (fotos.isEmpty || !context.mounted) return null;
+
+  final r = await _pedir(context, ref, '/ia/calificar', {
+    'asignatura': clase.asignatura,
+    'grado': clase.gradoSeccion,
+    'actividad': actividad.titulo,
+    'descripcion': actividad.descripcion,
+    'puntos': actividad.puntos,
+    'criterios': clave,
+    'imagenes': [for (final f in fotos) base64Encode(f)],
+  });
+  if (r == null || !context.mounted) return null;
+  final nota = TextEditingController(text: formatoPuntos(_num(r['nota'])));
+  final usar = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: const RoundedRectangleBorder(),
+      title: const Text('Nota sugerida'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: nota,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(labelText: 'Nota', suffixText: '/ ${formatoPuntos(actividad.puntos)}'),
+          ),
+          const SizedBox(height: Espacio.m),
+          Text('${r['justificacion']}'),
+          const SizedBox(height: Espacio.s),
+          Text('Es una sugerencia: la nota la decides tú.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Descartar')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Usar esta nota')),
+      ],
+    ),
+  );
+  if (usar != true) return null;
+  final valor = double.tryParse(nota.text.replaceAll(',', '.'));
+  return valor == null || valor < 0 || valor > actividad.puntos ? null : valor;
 }

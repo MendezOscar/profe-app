@@ -29,7 +29,9 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>ProfeApp solo abre la fototeca si eliges desde ahí el cuadro de SACE que quieres importar. No lee ni guarda tus fotos.</string>
+	<string>ProfeApp abre la fototeca solo cuando eliges una imagen: el cuadro de SACE que quieres importar, la foto de un alumno para su carnet o el trabajo de un alumno para calificarlo con el asistente. No lee ni guarda tus otras fotos.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>ProfeApp usa la cámara solo cuando tomas una foto: la del alumno para su carnet o la de un trabajo escrito para calificarlo con el asistente.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

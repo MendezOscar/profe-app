@@ -63,6 +63,8 @@ public sealed class GeneradorDePrueba : IGeneradorIa
         var requeridos = p.Esquema?["required"].GetRawText() ?? "";
         var texto = p.Esquema is null
             ? "El estudiante muestra compromiso con las tareas. Debe reforzar el examen."
+            : requeridos.Contains("legible")
+                ? """{"legible":true,"nota":7.3,"justificacion":"Resolvió bien la suma; falla la simplificación."}"""
             : requeridos.Contains("resumen")
                 ? """{"resumen":"El centro avanza bien.","fortalezas":["Asistencia alta"],"alertas":["Matemáticas baja"],"recomendaciones":["Tutorías"]}"""
             : requeridos.Contains("cuerpo")

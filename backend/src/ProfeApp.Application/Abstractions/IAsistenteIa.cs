@@ -11,10 +11,17 @@ public interface IAsistenteIaService
     Task<Result<PlanIaDto>> PlanAsync(PlanIaRequest request, CancellationToken ct = default);
     Task<Result<ExamenIaDto>> ExamenAsync(ExamenIaRequest request, CancellationToken ct = default);
     Task<Result<ComentarioIaDto>> ComentarioAsync(ComentarioIaRequest request, CancellationToken ct = default);
+    Task<Result<CalificacionIaDto>> CalificarAsync(CalificarIaRequest request, CancellationToken ct = default);
 }
 
-/// <summary>Una petición al modelo. <c>Esquema</c>: JSON Schema de la respuesta; null = texto libre.</summary>
-public sealed record PeticionIa(string Sistema, string Usuario, IReadOnlyDictionary<string, JsonElement>? Esquema, int MaxTokens, bool Breve);
+/// <summary>
+/// Una petición al modelo. <c>Esquema</c>: JSON Schema de la respuesta; null = texto libre.
+/// <c>Imagenes</c>: fotos JPEG que van antes del texto. <c>Historial</c>: turnos anteriores
+/// (pregunta, respuesta) de una conversación.
+/// </summary>
+public sealed record PeticionIa(
+    string Sistema, string Usuario, IReadOnlyDictionary<string, JsonElement>? Esquema, int MaxTokens, bool Breve,
+    IReadOnlyList<byte[]>? Imagenes = null, IReadOnlyList<(string Pregunta, string Respuesta)>? Historial = null);
 
 /// <summary><c>Rechazada</c>: el modelo declinó responder (filtros de seguridad).</summary>
 public sealed record RespuestaIa(string Texto, string Modelo, int TokensEntrada, int TokensSalida, bool Rechazada = false);
@@ -38,4 +45,7 @@ public interface ICentroIaService
     Task<Result> EditarComentarioAsync(Guid seccionId, Guid alumnoId, EditarComentarioRequest request, CancellationToken ct = default);
     Task<Result<InformeIaDto>> InformeAsync(CancellationToken ct = default);
     Task<Result<ComunicadoIaDto>> ComunicadoAsync(ComunicadoIaRequest request, CancellationToken ct = default);
+
+    /// <summary>Responde preguntas de la dirección con las cifras del centro (sin nombres de alumnos).</summary>
+    Task<Result<RespuestaIaDto>> PreguntarAsync(PreguntaIaRequest request, CancellationToken ct = default);
 }

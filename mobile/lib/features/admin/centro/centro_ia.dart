@@ -382,3 +382,153 @@ Future<(String, String)?> redactarComunicadoIa(BuildContext context, WidgetRef r
     return null;
   }
 }
+
+// ── Preguntas sobre los datos ────────────────────────────────────────────────
+
+const _sugeridas = [
+  '¿Qué sección faltó más este mes?',
+  '¿En qué asignaturas hay más reprobados?',
+  '¿Qué docentes van atrasados con sus parciales?',
+  '¿Cómo ha cambiado la asistencia mes a mes?',
+  '¿Qué secciones tienen más incidencias graves?',
+];
+
+/// Conversación de la dirección con la IA sobre las cifras del centro.
+class PreguntasIaPage extends ConsumerStatefulWidget {
+  const PreguntasIaPage({super.key});
+
+  @override
+  ConsumerState<PreguntasIaPage> createState() => _PreguntasIaPageState();
+}
+
+class _PreguntasIaPageState extends ConsumerState<PreguntasIaPage> {
+  final _turnos = <(String, String)>[];
+  final _campo = TextEditingController();
+  final _scroll = ScrollController();
+  String? _pendiente;
+
+  @override
+  void dispose() {
+    _campo.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  Future<void> _preguntar(String texto) async {
+    final pregunta = texto.trim();
+    if (pregunta.isEmpty || _pendiente != null) return;
+    _campo.clear();
+    setState(() => _pendiente = pregunta);
+    _alFinal();
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final r = await ref.read(apiClientProvider).post('/centro/ia/pregunta', body: {
+        'pregunta': pregunta,
+        'historial': [for (final (p, res) in _turnos.reversed.take(6).toList().reversed) {'pregunta': p, 'respuesta': res}],
+      }, parse: (d) => d as Map<String, dynamic>);
+      if (!mounted) return;
+      setState(() => _turnos.add((pregunta, '${r['texto']}')));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(_mensaje(e))));
+      _campo.text = pregunta;
+    } finally {
+      if (mounted) setState(() => _pendiente = null);
+      ref.invalidate(estadoIaCentroProvider);
+      _alFinal();
+    }
+  }
+
+  void _alFinal() => WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scroll.hasClients) _scroll.animateTo(_scroll.position.maxScrollExtent, duration: Durations.medium2, curve: Curves.easeOut);
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    Widget burbuja(String texto, {required bool mia}) => Align(
+          alignment: mia ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            constraints: const BoxConstraints(maxWidth: 560),
+            margin: const EdgeInsets.only(bottom: Espacio.s),
+            padding: const EdgeInsets.all(Espacio.m),
+            color: mia ? scheme.primaryContainer : scheme.surfaceContainerHighest,
+            child: SelectableText(texto, style: TextStyle(color: mia ? scheme.onPrimaryContainer : scheme.onSurface)),
+          ),
+        );
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Preguntar a la IA')),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView(
+              controller: _scroll,
+              padding: const EdgeInsets.all(Espacio.l),
+              children: [
+                Text('Pregunta sobre la matrícula, la asistencia, las notas cerradas, la convivencia o el avance de los docentes '
+                    'este año. La IA usa las cifras del centro, sin nombres de alumnos. Verifica en Reportes antes de decidir.',
+                    style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
+                const SizedBox(height: Espacio.m),
+                if (_turnos.isEmpty && _pendiente == null)
+                  Wrap(
+                    spacing: Espacio.xs,
+                    runSpacing: Espacio.xs,
+                    children: [for (final s in _sugeridas) ActionChip(label: Text(s), onPressed: () => _preguntar(s))],
+                  ),
+                for (final (p, r) in _turnos) ...[burbuja(p, mia: true), burbuja(r, mia: false)],
+                if (_pendiente != null) ...[
+                  burbuja(_pendiente!, mia: true),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Padding(
+                      padding: EdgeInsets.all(Espacio.s),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+                        SizedBox(width: Espacio.s),
+                        Text('Revisando las cifras del centro…'),
+                      ]),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.s, Espacio.s),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _campo,
+                      enabled: _pendiente == null,
+                      maxLength: 500,
+                      minLines: 1,
+                      maxLines: 4,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: _preguntar,
+                      decoration: const InputDecoration(hintText: 'Escribe tu pregunta', counterText: ''),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Preguntar',
+                    onPressed: _pendiente == null ? () => _preguntar(_campo.text) : null,
+                    icon: const Icon(Icons.send),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Abre el chat si el centro tiene el plan Pro.
+Future<void> abrirPreguntasIa(BuildContext context, WidgetRef ref) async {
+  if (!await puedeUsarIaCentro(context, ref) || !context.mounted) return;
+  await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const PreguntasIaPage()));
+}

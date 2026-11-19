@@ -64,6 +64,11 @@ class ReportesTab extends ConsumerWidget {
                             icon: const Icon(iconoIa),
                             label: const Text('Informe con IA'),
                           ),
+                          OutlinedButton.icon(
+                            onPressed: () => abrirPreguntasIa(context, ref),
+                            icon: const Icon(Icons.forum_outlined),
+                            label: const Text('Preguntar a la IA'),
+                          ),
                         ],
                       ),
                       _Matricula(r['matricula'] as Map<String, dynamic>),

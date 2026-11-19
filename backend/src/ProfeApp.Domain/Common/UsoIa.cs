@@ -25,4 +25,6 @@ public static class FuncionesIa
     public const string Boleta = "boleta";
     public const string Informe = "informe";
     public const string Comunicado = "comunicado";
+    public const string Calificar = "calificar";
+    public const string Pregunta = "pregunta";
 }

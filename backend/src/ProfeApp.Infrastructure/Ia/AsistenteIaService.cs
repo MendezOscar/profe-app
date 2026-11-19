@@ -24,6 +24,11 @@ public sealed class AsistenteIaService(
     /// <summary>Comentarios de alumnos por docente al mes (son cortos y baratos).</summary>
     public const int LimiteComentarios = 400;
 
+    /// <summary>Trabajos calificados desde una foto por docente al mes.</summary>
+    public const int LimiteCalificaciones = 300;
+
+    private const int MaxFoto = 2 * 1024 * 1024;
+
     private const string Contexto = ClienteIa.Contexto;
 
     private static readonly string[] TiposPregunta = ["opcion_multiple", "verdadero_falso", "respuesta_corta", "desarrollo"];
@@ -31,8 +36,9 @@ public sealed class AsistenteIaService(
     public async Task<EstadoIaDto> EstadoAsync(CancellationToken ct = default)
     {
         var (habilitada, _) = await HabilitadaAsync(ct);
-        var (generaciones, comentarios) = await UsadosAsync(ct);
-        return new EstadoIaDto(habilitada, ia.Disponible, generaciones, LimiteGeneraciones, comentarios, LimiteComentarios);
+        var (generaciones, comentarios, calificaciones) = await UsadosAsync(ct);
+        return new EstadoIaDto(habilitada, ia.Disponible, generaciones, LimiteGeneraciones, comentarios, LimiteComentarios,
+            calificaciones, LimiteCalificaciones);
     }
 
     // ── Plan del parcial ─────────────────────────────────────────────────────
@@ -146,6 +152,63 @@ public sealed class AsistenteIaService(
             : Result<ComentarioIaDto>.Fail(resultado.Error!);
     }
 
+    // ── Calificar desde una foto ─────────────────────────────────────────────
+
+    public async Task<Result<CalificacionIaDto>> CalificarAsync(CalificarIaRequest r, CancellationToken ct = default)
+    {
+        var actividad = Texto(r.Actividad, 160);
+        if (actividad is null) return Result<CalificacionIaDto>.Fail(Error.Validation("Falta la actividad."));
+        if (r.Puntos is <= 0 or > 100) return Result<CalificacionIaDto>.Fail(Error.Validation("La actividad debe valer de 1 a 100 puntos."));
+        var fotos = new List<byte[]>();
+        foreach (var b64 in (r.Imagenes ?? []).Take(5))
+        {
+            byte[] foto;
+            try { foto = Convert.FromBase64String(b64); }
+            catch (FormatException) { return Result<CalificacionIaDto>.Fail(Error.Validation("Una de las fotos no se pudo leer.")); }
+            if (foto.Length is < 4 or > MaxFoto || foto[0] != 0xFF || foto[1] != 0xD8)
+                return Result<CalificacionIaDto>.Fail(Error.Validation("Las fotos deben ser JPG de hasta 2 MB."));
+            fotos.Add(foto);
+        }
+        if (fotos.Count is < 1 or > 4) return Result<CalificacionIaDto>.Fail(Error.Validation("Envía de 1 a 4 fotos del trabajo."));
+
+        var permiso = await PuedeAsync(FuncionesIa.Calificar, ct);
+        if (permiso is not null) return Result<CalificacionIaDto>.Fail(permiso);
+
+        var usuario =
+            $"Asignatura: {Texto(r.Asignatura, 120) ?? "no indicada"}\nGrado: {Texto(r.Grado, 120) ?? "no indicado"}\n" +
+            $"Actividad: {actividad}\nValor: {r.Puntos} puntos\n" +
+            (Texto(r.Descripcion, 1000) is { } d ? $"Descripción de la actividad: {d}\n" : "") +
+            (Texto(r.Criterios, 3000) is { } c ? $"Criterios o clave del docente:\n{c}\n" : "Sin clave: evalúa con lo que se espera para el grado.\n");
+        var sistema = Contexto + "\n\nAyudas a un docente a calificar el trabajo escrito de un estudiante a partir de fotos. " +
+            "Lee el trabajo, compáralo con los criterios o la clave del docente y sugiere una nota entre 0 y el valor de la " +
+            "actividad, en múltiplos de 0.5. En la justificación (de 2 a 4 oraciones, para el docente) di qué está bien, qué " +
+            "falta o está mal y por qué esa nota. No menciones nombres que aparezcan en la hoja. Si las fotos no se leen o no " +
+            "son un trabajo escolar, marca legible como falso.";
+        var resultado = await LlamarAsync<CalificacionLeida>(FuncionesIa.Calificar,
+            new PeticionIa(sistema, usuario, EsquemaCalificacion, 3000, Breve: false, Imagenes: fotos), ct);
+        if (!resultado.IsSuccess) return Result<CalificacionIaDto>.Fail(resultado.Error!);
+        var leida = resultado.Value;
+        if (!leida.Legible)
+            return Result<CalificacionIaDto>.Fail(Error.Validation("No se pudo leer el trabajo en las fotos. Toma otra con buena luz y de frente."));
+        var nota = Math.Clamp(Math.Round(leida.Nota * 2, MidpointRounding.AwayFromZero) / 2, 0, r.Puntos);
+        return new CalificacionIaDto(nota, leida.Justificacion.Trim());
+    }
+
+    private sealed record CalificacionLeida(bool Legible, decimal Nota, string Justificacion);
+
+    private static readonly Dictionary<string, JsonElement> EsquemaCalificacion = Esquema(new
+    {
+        type = "object",
+        additionalProperties = false,
+        required = new[] { "legible", "nota", "justificacion" },
+        properties = new
+        {
+            legible = new { type = "boolean" },
+            nota = new { type = "number" },
+            justificacion = new { type = "string" },
+        },
+    });
+
     // ── Apoyo ────────────────────────────────────────────────────────────────
 
     /// <summary>Pro por su cuenta personal o por su centro.</summary>
@@ -164,13 +227,14 @@ public sealed class AsistenteIaService(
         return ClienteIa.InicioDelMes(clock.Today);
     }
 
-    private async Task<(int Generaciones, int Comentarios)> UsadosAsync(CancellationToken ct)
+    private async Task<(int Generaciones, int Comentarios, int Calificaciones)> UsadosAsync(CancellationToken ct)
     {
         var yo = currentUser.RequireUserId();
         var desde = InicioDelMes();
         var usos = await db.UsosIa.Where(u => u.UsuarioId == yo && u.CreatedAt >= desde)
-            .GroupBy(u => u.Funcion == FuncionesIa.Comentario).Select(g => new { g.Key, N = g.Count() }).ToListAsync(ct);
-        return (usos.FirstOrDefault(u => !u.Key)?.N ?? 0, usos.FirstOrDefault(u => u.Key)?.N ?? 0);
+            .GroupBy(u => u.Funcion).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        return (usos.GetValueOrDefault(FuncionesIa.Plan) + usos.GetValueOrDefault(FuncionesIa.Examen),
+            usos.GetValueOrDefault(FuncionesIa.Comentario), usos.GetValueOrDefault(FuncionesIa.Calificar));
     }
 
     private async Task<Error?> PuedeAsync(string funcion, CancellationToken ct)
@@ -178,10 +242,13 @@ public sealed class AsistenteIaService(
         if (!ia.Disponible) return Error.Forbidden("El asistente con IA no está disponible en este momento.");
         var (habilitada, _) = await HabilitadaAsync(ct);
         if (!habilitada) return Error.Forbidden("El asistente con IA es parte del plan Pro.");
-        var (generaciones, comentarios) = await UsadosAsync(ct);
-        return funcion == FuncionesIa.Comentario
-            ? comentarios >= LimiteComentarios ? Error.Validation($"Ya usaste los {LimiteComentarios} comentarios de este mes.") : null
-            : generaciones >= LimiteGeneraciones ? Error.Validation($"Ya usaste las {LimiteGeneraciones} generaciones de este mes.") : null;
+        var (generaciones, comentarios, calificaciones) = await UsadosAsync(ct);
+        return funcion switch
+        {
+            FuncionesIa.Comentario => comentarios >= LimiteComentarios ? Error.Validation($"Ya usaste los {LimiteComentarios} comentarios de este mes.") : null,
+            FuncionesIa.Calificar => calificaciones >= LimiteCalificaciones ? Error.Validation($"Ya usaste las {LimiteCalificaciones} calificaciones con foto de este mes.") : null,
+            _ => generaciones >= LimiteGeneraciones ? Error.Validation($"Ya usaste las {LimiteGeneraciones} generaciones de este mes.") : null,
+        };
     }
 
     private async Task<Result<T>> LlamarAsync<T>(string funcion, PeticionIa peticion, CancellationToken ct)

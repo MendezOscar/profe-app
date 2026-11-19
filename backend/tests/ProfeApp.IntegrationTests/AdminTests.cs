@@ -372,7 +372,19 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
         comentario.GetProperty("texto").GetString().Should().StartWith("El estudiante");
         GeneradorDePrueba.Peticiones.Last().Usuario.Should().Contain("64").And.NotContain("Profe IA");
 
+        byte[] jpg = [0xFF, 0xD8, 0xFF, 0xE0, 1, 2, 3, 0xFF, 0xD9];
+        var calificada = await ReadAsync(await docente.PostAsJsonAsync("/api/v1/ia/calificar", new
+        {
+            asignatura = "Matemáticas", grado = "7.º grado", actividad = "Tarea 1", descripcion = "Fracciones", puntos = 10m,
+            criterios = "1/2 + 1/4 = 3/4", imagenes = new[] { Convert.ToBase64String(jpg) },
+        }));
+        calificada.GetProperty("nota").GetDecimal().Should().Be(7.5m, "se redondea a medios puntos");
+        GeneradorDePrueba.Peticiones.Last().Imagenes.Should().ContainSingle();
+        (await docente.PostAsJsonAsync("/api/v1/ia/calificar", new { actividad = "Tarea 1", puntos = 10m, imagenes = new[] { "AAAA" } }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest, "no es una foto JPG");
+
         var estado = await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"));
+        estado.GetProperty("calificaciones").GetInt32().Should().Be(1);
         estado.GetProperty("generaciones").GetInt32().Should().Be(2);
         estado.GetProperty("comentarios").GetInt32().Should().Be(1);
         (await docente.PostAsJsonAsync("/api/v1/ia/examen", new { asignatura = "Mate", temas = "x", preguntas = 2, puntos = 10m, tipos = new[] { "desarrollo" } }))

@@ -14,6 +14,7 @@ import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
 import '../../ui/estado_error.dart';
 import '../../ui/estado_vacio.dart';
+import '../ia/asistente_ia.dart';
 
 /// Captura de una actividad: bajar por la lista escribiendo con el teclado numérico
 /// ("Siguiente" o Enter pasa al próximo alumno). Todo se guarda al escribir.
@@ -129,6 +130,17 @@ class _CapturaState extends ConsumerState<_Captura> {
     });
     _cambios = true;
     await ref.read(planesRepositoryProvider).calificar(_actividad.id, alumno.id, valor);
+  }
+
+  /// Clave o criterios de la actividad para el asistente; se pide la primera vez.
+  String? _criteriosIa;
+
+  Future<void> _conFoto(AlumnoPlan alumno) async {
+    final nota = await calificarConFotoIa(context, ref, _plan, _actividad,
+        criterios: _criteriosIa, alCriterios: (c) => _criteriosIa = c);
+    if (nota == null || !mounted) return;
+    _controllers[alumno.id]!.text = formatoPuntos(nota);
+    await _guardar(alumno, formatoPuntos(nota));
   }
 
   /// "Todos entregaron completo" o "los que faltan no entregaron": llena sólo lo vacío.
@@ -330,7 +342,16 @@ class _CapturaState extends ConsumerState<_Captura> {
                         ? null
                         : Text('Debe ser de 0 a ${formatoPuntos(_actividad.puntos)}. No se guardó.',
                             style: text.bodySmall?.copyWith(color: scheme.error)),
-                    trailing: SizedBox(
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!_soloLectura)
+                          IconButton(
+                            tooltip: 'Calificar con foto (IA)',
+                            icon: const Icon(Icons.document_scanner_outlined),
+                            onPressed: () => _conFoto(alumno),
+                          ),
+                        SizedBox(
                       width: 88,
                       child: Semantics(
           label: 'Nota de ${alumno.nombre}',
@@ -357,6 +378,8 @@ class _CapturaState extends ConsumerState<_Captura> {
                         onSubmitted: (_) => _siguiente(visibles, i),
                       ),
         ),
+                    ),
+                      ],
                     ),
                   );
                 },

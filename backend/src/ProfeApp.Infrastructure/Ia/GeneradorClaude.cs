@@ -34,6 +34,31 @@ public sealed class GeneradorClaude : IGeneradorIa
 
     public bool Disponible => _cliente is not null;
 
+    /// <summary>Turnos anteriores como texto, y al final la petición con sus fotos antes del texto.</summary>
+    private static List<BetaMessageParam> Mensajes(PeticionIa p)
+    {
+        var mensajes = new List<BetaMessageParam>();
+        foreach (var (pregunta, respuesta) in p.Historial ?? [])
+        {
+            mensajes.Add(new BetaUserMessageParam { Content = pregunta });
+            mensajes.Add(new BetaAssistantMessageParam { Content = respuesta });
+        }
+        if (p.Imagenes is not { Count: > 0 } fotos)
+        {
+            mensajes.Add(new BetaUserMessageParam { Content = p.Usuario });
+            return mensajes;
+        }
+        var bloques = new List<BetaContentBlockParam>();
+        foreach (var foto in fotos)
+            bloques.Add(new BetaImageBlockParam
+            {
+                Source = new BetaBase64ImageSource { Data = Convert.ToBase64String(foto), MediaType = MediaType.ImageJpeg },
+            });
+        bloques.Add(new BetaTextBlockParam { Text = p.Usuario });
+        mensajes.Add(new BetaUserMessageParam { Content = bloques });
+        return mensajes;
+    }
+
     public async Task<RespuestaIa> GenerarAsync(PeticionIa p, CancellationToken ct)
     {
         if (_cliente is null) throw new InvalidOperationException("El asistente con IA no está configurado.");
@@ -50,7 +75,7 @@ public sealed class GeneradorClaude : IGeneradorIa
                 Effort = p.Breve ? Effort.Low : Effort.Medium,
                 Format = p.Esquema is null ? null : new BetaJsonOutputFormat { Schema = new Dictionary<string, System.Text.Json.JsonElement>(p.Esquema) },
             },
-            Messages = [new BetaUserMessageParam { Content = p.Usuario }],
+            Messages = Mensajes(p),
         };
         var respuesta = await _cliente.Beta.Messages.Create(parametros, ct);
         var texto = string.Concat(respuesta.Content.Select(b => b.Value).OfType<BetaTextBlock>().Select(t => t.Text));

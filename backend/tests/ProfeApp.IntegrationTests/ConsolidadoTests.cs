@@ -195,6 +195,15 @@ public class ConsolidadoTests(ApiFixture fixture) : ApiTestBase(fixture)
         GeneradorDePrueba.Peticiones.Last().Usuario.Should().Contain("MATEMÁTICAS").And.NotContain("Beto").And.NotContain("Profe Mate");
         var borrador = await ReadAsync(await c.PostAsJsonAsync("/api/v1/centro/ia/comunicado", new { puntos = "Reunión el viernes 3 pm", destinatarios = (string?)null }));
         borrador.GetProperty("titulo").GetString().Should().Be("Reunión de padres");
+        var respuesta = await ReadAsync(await c.PostAsJsonAsync("/api/v1/centro/ia/pregunta", new
+        {
+            pregunta = "¿Cómo va Matemáticas?", historial = new[] { new { pregunta = "Hola", respuesta = "Hola, ¿en qué te ayudo?" } },
+        }));
+        respuesta.GetProperty("texto").GetString().Should().NotBeNullOrWhiteSpace();
+        var consulta = GeneradorDePrueba.Peticiones.Last();
+        consulta.Sistema.Should().Contain("MATEMÁTICAS").And.Contain("Profe Mate").And.NotContain("Beto").And.NotContain("0801201400002");
+        consulta.Historial.Should().ContainSingle();
+
         var estado = await ReadAsync(await c.GetAsync("/api/v1/centro/ia/estado"));
         estado.GetProperty("boletas").GetInt32().Should().Be(5, "3 la primera vez y 2 al rehacer");
         estado.GetProperty("informes").GetInt32().Should().Be(1);

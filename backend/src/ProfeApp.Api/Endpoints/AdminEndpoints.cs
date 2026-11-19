@@ -176,6 +176,8 @@ public static class AdminEndpoints
             (await s.EditarComentarioAsync(id, alumnoId, r, ct)).ToHttp());
         centro.MapPost("/ia/informe", async (ICentroIaService s, CancellationToken ct) => (await s.InformeAsync(ct)).ToHttp())
             .WithSummary("Informe del año para la dirección, con IA, a partir de los reportes.");
+        centro.MapPost("/ia/pregunta", async (PreguntaIaRequest r, ICentroIaService s, CancellationToken ct) => (await s.PreguntarAsync(r, ct)).ToHttp())
+            .WithSummary("Responde preguntas de la dirección con las cifras del centro (sin nombres de alumnos).");
         centro.MapPost("/ia/comunicado", async (ComunicadoIaRequest r, ICentroIaService s, CancellationToken ct) => (await s.ComunicadoAsync(r, ct)).ToHttp())
             .WithSummary("Borrador de comunicado a partir de los puntos clave.");
 
@@ -242,6 +244,8 @@ public static class AdminEndpoints
             .WithSummary("Rubros y actividades del parcial a partir de los temas.");
         ia.MapPost("/examen", async (ExamenIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.ExamenAsync(r, ct)).ToHttp())
             .WithSummary("Examen con clave de respuestas.");
+        ia.MapPost("/calificar", async (CalificarIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.CalificarAsync(r, ct)).ToHttp())
+            .WithSummary("Sugiere la nota de un trabajo escrito a partir de fotos.");
         ia.MapPost("/comentario", async (ComentarioIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.ComentarioAsync(r, ct)).ToHttp())
             .WithSummary("Comentario del desempeño de un alumno, sin su nombre.");
 

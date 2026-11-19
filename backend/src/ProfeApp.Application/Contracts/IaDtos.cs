@@ -4,7 +4,9 @@ namespace ProfeApp.Application.Contracts;
 /// Si el docente tiene el asistente (plan Pro) y cuánto le queda este mes.
 /// <c>Disponible</c> falso: el servidor no tiene la IA configurada.
 /// </summary>
-public sealed record EstadoIaDto(bool Habilitada, bool Disponible, int Generaciones, int LimiteGeneraciones, int Comentarios, int LimiteComentarios);
+public sealed record EstadoIaDto(
+    bool Habilitada, bool Disponible, int Generaciones, int LimiteGeneraciones, int Comentarios, int LimiteComentarios,
+    int Calificaciones = 0, int LimiteCalificaciones = 0);
 
 // ── Plan del parcial ─────────────────────────────────────────────────────────
 
@@ -54,7 +56,8 @@ public sealed record ComentarioIaDto(string Texto);
 
 /// <summary>Uso del mes del centro y sus topes.</summary>
 public sealed record EstadoIaCentroDto(
-    bool Habilitada, bool Disponible, int Boletas, int LimiteBoletas, int Informes, int LimiteInformes, int Comunicados, int LimiteComunicados);
+    bool Habilitada, bool Disponible, int Boletas, int LimiteBoletas, int Informes, int LimiteInformes, int Comunicados, int LimiteComunicados,
+    int Preguntas = 0, int LimitePreguntas = 0);
 
 /// <summary><c>EnProceso</c>: la IA todavía está redactando los de esta sección y parcial.</summary>
 public sealed record ComentariosSeccionDto(Guid SeccionId, int Parcial, bool EnProceso, IReadOnlyList<ComentarioAlumnoDto> Alumnos);
@@ -74,3 +77,25 @@ public sealed record InformeIaDto(string Resumen, IReadOnlyList<string> Fortalez
 public sealed record ComunicadoIaRequest(string? Puntos, string? Destinatarios);
 
 public sealed record ComunicadoIaDto(string Titulo, string Cuerpo);
+
+// ── Calificar desde una foto (docente) ───────────────────────────────────────
+
+/// <summary>
+/// <c>Imagenes</c>: de 1 a 4 fotos JPEG en base64 del trabajo del alumno. <c>Criterios</c>:
+/// clave de respuestas o lo que se pide para la nota completa (opcional, recomendado).
+/// </summary>
+public sealed record CalificarIaRequest(
+    string? Asignatura, string? Grado, string? Actividad, string? Descripcion, decimal Puntos, string? Criterios,
+    IReadOnlyList<string>? Imagenes);
+
+/// <summary>Sugerencia para el docente: la nota (de 0 a los puntos de la actividad) y por qué.</summary>
+public sealed record CalificacionIaDto(decimal Nota, string Justificacion);
+
+// ── Preguntas de la dirección sobre los datos ────────────────────────────────
+
+public sealed record TurnoIaDto(string Pregunta, string Respuesta);
+
+/// <summary><c>Historial</c>: las preguntas y respuestas anteriores de la conversación (hasta 6).</summary>
+public sealed record PreguntaIaRequest(string? Pregunta, IReadOnlyList<TurnoIaDto>? Historial);
+
+public sealed record RespuestaIaDto(string Texto);
