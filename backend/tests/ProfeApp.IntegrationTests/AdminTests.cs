@@ -384,13 +384,11 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
             .StatusCode.Should().Be(HttpStatusCode.BadRequest, "no es una foto JPG");
 
         var estado = await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"));
-        estado.GetProperty("calificaciones").GetInt32().Should().Be(1);
-        estado.GetProperty("generaciones").GetInt32().Should().Be(2);
-        estado.GetProperty("comentarios").GetInt32().Should().Be(1);
+        estado.GetProperty("creditos").GetDecimal().Should().Be(9.5m, "plan 3 + examen 4 + comentario ½ + foto de una página 2");
         (await docente.PostAsJsonAsync("/api/v1/ia/examen", new { asignatura = "Mate", temas = "x", preguntas = 2, puntos = 10m, tipos = new[] { "desarrollo" } }))
             .StatusCode.Should().Be(HttpStatusCode.BadRequest, "mínimo 3 preguntas");
 
-        estado.GetProperty("limiteGeneraciones").GetInt32().Should().Be(60);
+        estado.GetProperty("limiteCreditos").GetInt32().Should().Be(140);
         (await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{id}/plan", new
             {
                 pro.planNombre, pro.monto, pro.pagadoHasta, pro.diasGracia, pro.comoPagar, pro.conIa, iaMultiplicador = 9,
@@ -400,10 +398,8 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
             {
                 pro.planNombre, pro.monto, pro.pagadoHasta, pro.diasGracia, pro.comoPagar, pro.conIa, iaMultiplicador = 2,
             }))).GetProperty("iaMultiplicador").GetInt32().Should().Be(2);
-        estado.GetProperty("limiteCalificaciones").GetInt32().Should().Be(150);
         var doble = await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"));
-        doble.GetProperty("limiteGeneraciones").GetInt32().Should().Be(120);
-        doble.GetProperty("limiteCalificaciones").GetInt32().Should().Be(300);
+        doble.GetProperty("limiteCreditos").GetInt32().Should().Be(280);
 
         var costos = await ReadAsync(await plataforma.GetAsync("/api/v1/plataforma/ia/costos"));
         costos.GetProperty("usos").GetInt32().Should().BeGreaterThanOrEqualTo(4);
@@ -413,7 +409,7 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
-    public async Task Calificar_en_tanda_cuesta_la_mitad_del_tope_y_deja_las_sugerencias()
+    public async Task Calificar_en_tanda_cuesta_un_credito_por_trabajo_y_deja_las_sugerencias()
     {
         var plataforma = await PlataformaAsync();
         var correo = $"profe-tanda-{Guid.NewGuid():N}@prueba.hn";
@@ -441,8 +437,8 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
         var tanda = await ReadAsync(await docente.PostAsJsonAsync("/api/v1/ia/calificar/tanda", Tanda("alumno-1", "alumno-2", "falla-3")));
         tanda.GetProperty("estado").GetString().Should().Be("procesando");
         GeneradorDePrueba.Lotes.Values.SelectMany(l => l).Should().Contain(p => p.Peticion.Sistema.Contains("3/4"), "la clave va en el sistema, igual para todos");
-        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("calificaciones").GetInt32()
-            .Should().Be(2, "3 trabajos en camino cuentan como 1.5, redondeado hacia arriba");
+        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("creditos").GetDecimal()
+            .Should().Be(3m, "los 3 trabajos en camino apartan un crédito cada uno");
 
         await new ProfeApp.Infrastructure.Ia.ServicioTandas(Fixture.Services.GetRequiredService<IServiceScopeFactory>(),
             Microsoft.Extensions.Logging.Abstractions.NullLogger<ProfeApp.Infrastructure.Ia.ServicioTandas>.Instance).RevisarAsync(default);
@@ -453,8 +449,8 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
         var resultados = tandas[0].GetProperty("resultados").EnumerateArray().ToDictionary(r => r.GetProperty("alumnoId").GetString()!);
         resultados["alumno-1"].GetProperty("nota").GetDecimal().Should().Be(7.5m);
         resultados["falla-3"].GetProperty("nota").ValueKind.Should().Be(JsonValueKind.Null);
-        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("calificaciones").GetInt32()
-            .Should().Be(1, "solo se cobran los 2 que la IA calificó: medio cada uno");
+        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("creditos").GetDecimal()
+            .Should().Be(2m, "solo se cobran los 2 que la IA calificó");
 
         var costos = await ReadAsync(await plataforma.GetAsync("/api/v1/plataforma/ia/costos"));
         costos.GetProperty("porFuncion").EnumerateArray().Select(f => f.GetProperty("funcion").GetString()).Should().Contain("calificar_tanda");

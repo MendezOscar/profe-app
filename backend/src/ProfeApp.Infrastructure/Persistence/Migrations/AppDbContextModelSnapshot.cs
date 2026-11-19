@@ -1687,6 +1687,15 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("lote");
 
+                    b.Property<int>("Medios")
+                        .HasColumnType("integer")
+                        .HasColumnName("medios");
+
+                    b.Property<string>("Paginas")
+                        .IsRequired()
+                        .HasColumnType("jsonb")
+                        .HasColumnName("paginas");
+
                     b.Property<decimal>("Puntos")
                         .HasPrecision(6, 2)
                         .HasColumnType("numeric(6,2)")
@@ -1747,6 +1756,10 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("InstitucionId")
                         .HasColumnType("uuid")
                         .HasColumnName("institucion_id");
+
+                    b.Property<int>("Medios")
+                        .HasColumnType("integer")
+                        .HasColumnName("medios");
 
                     b.Property<string>("Modelo")
                         .IsRequired()

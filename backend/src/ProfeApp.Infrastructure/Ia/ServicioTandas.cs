@@ -63,10 +63,13 @@ public sealed class ServicioTandas(IServiceScopeFactory scopes, ILogger<Servicio
                 continue;
             }
 
+            var paginas = JsonSerializer.Deserialize<Dictionary<string, int>>(tanda.Paginas) ?? [];
             var sugerencias = new List<ResultadoTandaIaDto>();
             foreach (var (alumno, r) in resultados)
             {
-                if (r is not null) db.UsosIa.Add(ClienteIa.Uso(FuncionesIa.CalificarTanda, r, tanda.UsuarioId, tanda.InstitucionId));
+                if (r is not null)
+                    db.UsosIa.Add(ClienteIa.Uso(FuncionesIa.CalificarTanda, r, tanda.UsuarioId, tanda.InstitucionId,
+                        CreditosIa.Trabajo(FuncionesIa.CalificarTanda, paginas.GetValueOrDefault(alumno, 1))));
                 sugerencias.Add(Sugerencia(alumno, r, tanda.Puntos));
             }
             tanda.Resultados = JsonSerializer.Serialize(sugerencias, ClienteIa.Json);

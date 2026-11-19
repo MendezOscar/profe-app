@@ -29,11 +29,15 @@ final estadoIaProvider = FutureProvider.autoDispose<Map<String, dynamic>?>((ref)
 const iconoIa = Icons.auto_awesome_outlined;
 
 /// Antes de abrir el asistente: sin plan Pro o sin internet se explica y no sigue.
-Future<bool> _puedeUsar(BuildContext context, WidgetRef ref, String uso, String nombre) async {
+/// [creditos]: lo que gasta la función (examen 4, plan 3, foto 2, trabajo en tanda 1, comentario ½).
+Future<bool> _puedeUsar(BuildContext context, WidgetRef ref, double creditos) async {
   final estado = await ref.read(estadoIaProvider.future);
   if (!context.mounted) return false;
   final (titulo, mensaje) = switch (estado) {
-    null => ('Sin conexión', 'El asistente necesita internet. Lo demás de la app sigue funcionando sin conexión.'),
+    null => (
+        'No se pudo consultar el asistente',
+        'Revisa tu internet o intenta de nuevo en un momento. Lo demás de la app sigue funcionando sin conexión.'
+      ),
     {'habilitada': false} => (
         'Asistente del plan Pro',
         'El asistente propone el plan del parcial, exámenes con su clave y comentarios para cada alumno. '
@@ -42,7 +46,7 @@ Future<bool> _puedeUsar(BuildContext context, WidgetRef ref, String uso, String 
     {'disponible': false} => ('No disponible', 'El asistente no está disponible en este momento. Intenta más tarde.'),
     _ => (null, null),
   };
-  if (titulo == null) return await consentimientoIa(context) && context.mounted && await revisarTopeIa(context, estado!, uso, nombre);
+  if (titulo == null) return await consentimientoIa(context) && context.mounted && await revisarTopeIa(context, estado!, creditos);
   await showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
@@ -92,28 +96,36 @@ Future<bool> consentimientoIa(BuildContext context) async {
   return true;
 }
 
-/// Con el tope del mes alcanzado lo explica y no sigue; desde el 80 % avisa cuánto queda.
-/// [uso] es la clave del conteo en el estado (p. ej. 'comentarios', con su 'limiteComentarios').
-Future<bool> revisarTopeIa(BuildContext context, Map<String, dynamic> estado, String uso, String nombre) async {
-  final usado = estado[uso] as int? ?? 0;
-  final limite = estado['limite${uso[0].toUpperCase()}${uso.substring(1)}'] as int? ?? 0;
+/// Créditos con medio decimal solo si hace falta: 87 o 87.5.
+String formatoCreditos(num n) => n == n.roundToDouble() ? '${n.round()}' : n.toStringAsFixed(1);
+
+/// Si el saldo del mes no alcanza para lo que gasta la función lo explica y no sigue; desde
+/// el 80 % usado avisa cuánto queda. El estado trae 'creditos' (usados) y 'limiteCreditos'.
+Future<bool> revisarTopeIa(BuildContext context, Map<String, dynamic> estado, double creditos) async {
+  final usado = (estado['creditos'] as num?)?.toDouble() ?? 0;
+  final limite = (estado['limiteCreditos'] as num?)?.toDouble() ?? 0;
   if (limite <= 0) return true;
-  if (usado >= limite) {
+  final quedan = limite - usado;
+  if (quedan < creditos) {
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         shape: const RoundedRectangleBorder(),
         icon: const Icon(iconoIa),
-        title: const Text('Tope del mes alcanzado'),
-        content: Text('Ya se usaron $limite de $limite $nombre de este mes. Se renueva el día 1; '
-            'si necesitas más, escríbenos a ProfeApp. Lo demás de la app sigue funcionando igual.'),
+        title: const Text('No alcanzan los créditos'),
+        content: Text(quedan <= 0
+            ? 'Ya se usaron los ${formatoCreditos(limite)} créditos de IA de este mes. Se renuevan el día 1; '
+                'si necesitas más, escríbenos a ProfeApp. Lo demás de la app sigue funcionando igual.'
+            : 'Esto usa ${formatoCreditos(creditos)} créditos y quedan ${formatoCreditos(quedan)} de '
+                '${formatoCreditos(limite)} este mes. Se renuevan el día 1; si necesitas más, escríbenos a ProfeApp.'),
         actions: [FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Entendido'))],
       ),
     );
     return false;
   }
   if (usado >= limite * 0.8) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Este mes te quedan ${limite - usado} de $limite $nombre.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Este mes quedan ${formatoCreditos(quedan)} de ${formatoCreditos(limite)} créditos de IA.')));
   }
   return true;
 }
@@ -156,7 +168,7 @@ double _num(Object? v) => (v as num).toDouble();
 
 /// Propone rubros (si el parcial no tiene) y actividades; el docente elige cuáles agregar.
 Future<void> sugerirPlanIa(BuildContext context, WidgetRef ref, PlanParcial plan) async {
-  if (!await _puedeUsar(context, ref, 'generaciones', 'planes y exámenes') || !context.mounted) return;
+  if (!await _puedeUsar(context, ref, 3) || !context.mounted) return;
   final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
   if (!context.mounted) return;
 
@@ -350,7 +362,7 @@ const _tipos = {
 
 /// Genera un examen con su clave; se imprime en PDF y, si se quiere, queda como actividad.
 Future<void> generarExamenIa(BuildContext context, WidgetRef ref, PlanParcial plan) async {
-  if (!await _puedeUsar(context, ref, 'generaciones', 'planes y exámenes') || !context.mounted) return;
+  if (!await _puedeUsar(context, ref, 4) || !context.mounted) return;
   final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
   if (!context.mounted) return;
 
@@ -536,7 +548,7 @@ class _RevisarExamen extends ConsumerWidget {
 /// y lo guarda como observación si el docente quiere.
 Future<void> comentarioIa(BuildContext context, WidgetRef ref, PlanParcial plan, AlumnoPlan alumno,
     {required Future<void> Function(String texto) guardar}) async {
-  if (!await _puedeUsar(context, ref, 'comentarios', 'comentarios') || !context.mounted) return;
+  if (!await _puedeUsar(context, ref, 0.5) || !context.mounted) return;
   final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
   if (!context.mounted) return;
 
@@ -717,7 +729,7 @@ Future<double?> calificarConFotoIa(
   required String? criterios,
   required ValueChanged<String> alCriterios,
 }) async {
-  if (!await _puedeUsar(context, ref, 'calificaciones', 'calificaciones con foto') || !context.mounted) return null;
+  if (!await _puedeUsar(context, ref, 2) || !context.mounted) return null;
   final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
   if (!context.mounted) return null;
 
@@ -772,7 +784,7 @@ final tandasIaProvider = FutureProvider.autoDispose.family<List<Map<String, dyna
 
 /// Antes de tomar las fotos de la tanda: plan Pro, permiso, tope y la clave. Devuelve la clave o null.
 Future<String?> prepararTandaIa(BuildContext context, WidgetRef ref, {required String? criterios}) async {
-  if (!await _puedeUsar(context, ref, 'calificaciones', 'calificaciones con foto') || !context.mounted) return null;
+  if (!await _puedeUsar(context, ref, 1) || !context.mounted) return null;
   return criterios ?? await _pedirClave(context);
 }
 

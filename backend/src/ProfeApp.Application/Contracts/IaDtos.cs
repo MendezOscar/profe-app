@@ -1,12 +1,10 @@
 namespace ProfeApp.Application.Contracts;
 
 /// <summary>
-/// Si el docente tiene el asistente (plan Pro) y cuánto le queda este mes.
+/// Si el docente tiene el asistente (plan Pro) y cuántos créditos usó este mes de su saldo.
 /// <c>Disponible</c> falso: el servidor no tiene la IA configurada.
 /// </summary>
-public sealed record EstadoIaDto(
-    bool Habilitada, bool Disponible, int Generaciones, int LimiteGeneraciones, int Comentarios, int LimiteComentarios,
-    int Calificaciones = 0, int LimiteCalificaciones = 0);
+public sealed record EstadoIaDto(bool Habilitada, bool Disponible, decimal Creditos, int LimiteCreditos);
 
 // ── Plan del parcial ─────────────────────────────────────────────────────────
 
@@ -54,10 +52,8 @@ public sealed record ComentarioIaDto(string Texto);
 
 // ── Centro (plan Pro) ────────────────────────────────────────────────────────
 
-/// <summary>Uso del mes del centro y sus topes.</summary>
-public sealed record EstadoIaCentroDto(
-    bool Habilitada, bool Disponible, int Boletas, int LimiteBoletas, int Informes, int LimiteInformes, int Comunicados, int LimiteComunicados,
-    int Preguntas = 0, int LimitePreguntas = 0);
+/// <summary>Créditos que usó la dirección este mes; el saldo es de 25 por docente activo.</summary>
+public sealed record EstadoIaCentroDto(bool Habilitada, bool Disponible, decimal Creditos, int LimiteCreditos, int Docentes);
 
 /// <summary><c>EnProceso</c>: la IA todavía está redactando los de esta sección y parcial.</summary>
 public sealed record ComentariosSeccionDto(Guid SeccionId, int Parcial, bool EnProceso, IReadOnlyList<ComentarioAlumnoDto> Alumnos);

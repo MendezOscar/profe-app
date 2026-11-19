@@ -12,38 +12,20 @@ namespace ProfeApp.Infrastructure.Ia;
 /// Asistente del docente con plan Pro. Arma la petición, valida lo que vuelve y anota el uso
 /// (sin el texto) para el tope del mes. No recibe nombres ni identidades de alumnos.
 /// </summary>
-public sealed class AsistenteIaService(
+public sealed partial class AsistenteIaService(
     AppDbContext db,
     ClienteIa ia,
     ICurrentUser currentUser,
     IClock clock) : IAsistenteIaService
 {
-    /// <summary>Planes del parcial y exámenes por docente al mes.</summary>
-    public const int LimiteGeneraciones = 60;
-
-    /// <summary>Comentarios de alumnos por docente al mes (son cortos y baratos).</summary>
-    public const int LimiteComentarios = 400;
-
-    /// <summary>
-    /// Trabajos calificados desde una foto por docente al mes (es lo que más cuesta). En tanda cada
-    /// trabajo cuenta como medio, porque el lote cuesta la mitad: el costo máximo es el mismo.
-    /// </summary>
-    public const int LimiteCalificaciones = 150;
+    /// <summary>Se agrega a los avisos de saldo agotado.</summary>
+    public const string Ampliar = " Se renueva el día 1; si necesitas más, escríbenos a ProfeApp.";
 
     /// <summary>Trabajos por envío de una tanda (cuida el tamaño de la petición).</summary>
     public const int TrabajosPorTanda = 10;
 
     /// <summary>Días que se guardan las sugerencias de una tanda.</summary>
     public const int DiasTanda = 7;
-
-    /// <summary>
-    /// Con el Pro del centro (y sin Pro propio) el docente tiene la mitad de los topes: el centro
-    /// paga por docente bastante menos que un Pro personal.
-    /// </summary>
-    public const int DivisorCentro = 2;
-
-    /// <summary>Se agrega a los avisos de tope alcanzado.</summary>
-    public const string Ampliar = " Se renueva el día 1; si necesitas más, escríbenos a ProfeApp.";
 
     private const int MaxFoto = 2 * 1024 * 1024;
 
@@ -53,10 +35,8 @@ public sealed class AsistenteIaService(
 
     public async Task<EstadoIaDto> EstadoAsync(CancellationToken ct = default)
     {
-        var (habilitada, _, topes) = await HabilitadaAsync(ct);
-        var (generaciones, comentarios, calificaciones) = await UsadosAsync(ct);
-        return new EstadoIaDto(habilitada, ia.Disponible, generaciones, topes.Generaciones, comentarios, topes.Comentarios,
-            calificaciones, topes.Calificaciones);
+        var (habilitada, _, saldo) = await HabilitadaAsync(ct);
+        return new EstadoIaDto(habilitada, ia.Disponible, CreditosIa.Creditos(await UsadosAsync(ct)), saldo / 2);
     }
 
     // ── Plan del parcial ─────────────────────────────────────────────────────
@@ -71,7 +51,7 @@ public sealed class AsistenteIaService(
         if (r.Total is <= 0 or > 1000) return Result<PlanIaDto>.Fail(Error.Validation("El total de puntos no es válido."));
         var rubros = (r.Rubros ?? []).Where(x => !string.IsNullOrWhiteSpace(x.Nombre)).Take(15).ToList();
 
-        var permiso = await PuedeAsync(FuncionesIa.Plan, ct);
+        var permiso = await PuedeAsync(CreditosIa.Medios(FuncionesIa.Plan), ct);
         if (permiso is not null) return Result<PlanIaDto>.Fail(permiso);
 
         var usuario =
@@ -118,7 +98,7 @@ public sealed class AsistenteIaService(
         var tipos = (r.Tipos ?? []).Where(TiposPregunta.Contains).Distinct().ToList();
         if (tipos.Count == 0) return Result<ExamenIaDto>.Fail(Error.Validation("Elige al menos un tipo de pregunta."));
 
-        var permiso = await PuedeAsync(FuncionesIa.Examen, ct);
+        var permiso = await PuedeAsync(CreditosIa.Medios(FuncionesIa.Examen), ct);
         if (permiso is not null) return Result<ExamenIaDto>.Fail(permiso);
 
         var usuario =
@@ -150,7 +130,7 @@ public sealed class AsistenteIaService(
         if (rubros.Count == 0 && r.Nota is null)
             return Result<ComentarioIaDto>.Fail(Error.Validation("El alumno aún no tiene notas en este parcial."));
 
-        var permiso = await PuedeAsync(FuncionesIa.Comentario, ct);
+        var permiso = await PuedeAsync(CreditosIa.Medios(FuncionesIa.Comentario), ct);
         if (permiso is not null) return Result<ComentarioIaDto>.Fail(permiso);
 
         var usuario =
@@ -180,12 +160,13 @@ public sealed class AsistenteIaService(
         var (fotos, error) = Fotos(r.Imagenes);
         if (error is not null) return Result<CalificacionIaDto>.Fail(error);
 
-        var permiso = await PuedeAsync(FuncionesIa.Calificar, ct);
+        var medios = CreditosIa.Trabajo(FuncionesIa.Calificar, fotos.Count);
+        var permiso = await PuedeAsync(medios, ct);
         if (permiso is not null) return Result<CalificacionIaDto>.Fail(permiso);
 
         var resultado = await LlamarAsync<CalificacionLeida>(FuncionesIa.Calificar,
             new PeticionIa(SistemaCalificar, DatosActividad(r.Asignatura, r.Grado, actividad, r.Puntos, r.Descripcion, r.Criterios),
-                EsquemaCalificacion, 3000, Breve: false, Imagenes: fotos), ct);
+                EsquemaCalificacion, 3000, Breve: false, Imagenes: fotos), ct, medios);
         if (!resultado.IsSuccess) return Result<CalificacionIaDto>.Fail(resultado.Error!);
         var leida = resultado.Value;
         if (!leida.Legible)
@@ -239,26 +220,25 @@ public sealed class AsistenteIaService(
         if (trabajos.Count is < 1 or > TrabajosPorTanda)
             return Result<TandaIaDto>.Fail(Error.Validation($"Envía de 1 a {TrabajosPorTanda} trabajos a la vez."));
         var peticiones = new List<(string, PeticionIa)>();
+        var paginas = new Dictionary<string, int>();
         // La clave va en el sistema: es igual para todos los trabajos de la tanda.
         var sistema = SistemaCalificar + "\n\n" + DatosActividad(r.Asignatura, r.Grado, actividad, r.Puntos, r.Descripcion, r.Criterios);
         foreach (var t in trabajos)
         {
             var alumno = Texto(t.AlumnoId, 64);
-            if (alumno is null || peticiones.Any(p => p.Item1 == alumno))
+            if (alumno is null || !IdValido().IsMatch(alumno) || paginas.ContainsKey(alumno))
                 return Result<TandaIaDto>.Fail(Error.Validation("Cada trabajo debe ser de un alumno distinto."));
             var (fotos, error) = Fotos(t.Imagenes);
             if (error is not null) return Result<TandaIaDto>.Fail(error);
             peticiones.Add((alumno, new PeticionIa(sistema, "Califica este trabajo.", EsquemaCalificacion, 3000, Breve: false, Imagenes: fotos)));
+            paginas[alumno] = fotos.Count;
         }
 
         if (!ia.Disponible) return Result<TandaIaDto>.Fail(Error.Forbidden("El asistente con IA no está disponible en este momento."));
-        var (habilitada, institucion, topes) = await HabilitadaAsync(ct);
+        var (habilitada, institucion, saldo) = await HabilitadaAsync(ct);
         if (!habilitada) return Result<TandaIaDto>.Fail(Error.Forbidden("El asistente con IA es parte del plan Pro."));
-        var quedan = topes.Calificaciones * 2 - await MediasAsync(ct);
-        if (peticiones.Count > quedan)
-            return Result<TandaIaDto>.Fail(Error.Validation(quedan <= 0
-                ? $"Ya usaste las {topes.Calificaciones} calificaciones con foto de este mes.{Ampliar}"
-                : $"Este mes te quedan {quedan} trabajos en tanda; manda menos.{Ampliar}"));
+        var medios = paginas.Values.Sum(n => CreditosIa.Trabajo(FuncionesIa.CalificarTanda, n));
+        if (await NoAlcanzaAsync(medios, saldo, ct) is { } falta) return Result<TandaIaDto>.Fail(falta);
 
         string lote;
         try
@@ -272,7 +252,8 @@ public sealed class AsistenteIaService(
         var tanda = new TandaIa
         {
             UsuarioId = currentUser.RequireUserId(), InstitucionId = institucion, Actividad = actividadId, Lote = lote,
-            Trabajos = peticiones.Count, Puntos = r.Puntos,
+            Trabajos = peticiones.Count, Puntos = r.Puntos, Medios = medios,
+            Paginas = JsonSerializer.Serialize(paginas, ClienteIa.Json),
         };
         db.TandasIa.Add(tanda);
         await db.SaveChangesAsync(ct);
@@ -307,13 +288,11 @@ public sealed class AsistenteIaService(
 
     // ── Apoyo ────────────────────────────────────────────────────────────────
 
-    private sealed record Topes(int Generaciones, int Comentarios, int Calificaciones);
-
     /// <summary>
-    /// Pro por su cuenta personal (topes completos) o por su centro (la mitad), cada uno por su
-    /// multiplicador; si tiene los dos, vale el mayor.
+    /// Pro por su cuenta personal (140 créditos) o por su centro (75), cada uno por su
+    /// multiplicador; si tiene los dos, vale el mayor. El saldo va en medios créditos.
     /// </summary>
-    private async Task<(bool Habilitada, Guid? Institucion, Topes Topes)> HabilitadaAsync(CancellationToken ct)
+    private async Task<(bool Habilitada, Guid? Institucion, int Saldo)> HabilitadaAsync(CancellationToken ct)
     {
         var yo = currentUser.RequireUserId();
         var cuenta = await db.Users.AsNoTracking().Where(u => u.Id == yo)
@@ -324,65 +303,53 @@ public sealed class AsistenteIaService(
         var porCuenta = cuenta.TenantId is { } t
             ? await db.Tenants.IgnoreQueryFilters().Where(x => x.Id == t && x.IsActive && x.ConIa).Select(x => (int?)x.IaMultiplicador).FirstOrDefaultAsync(ct)
             : null;
-        int Tope(int baseMes) => Math.Max(
-            porCuenta is { } c ? baseMes * Math.Max(1, c) : 0,
-            porCentro is { } i ? baseMes / DivisorCentro * Math.Max(1, i) : 0);
-        var topes = new Topes(Tope(LimiteGeneraciones), Tope(LimiteComentarios), Tope(LimiteCalificaciones));
-        return (porCentro is not null || porCuenta is not null, cuenta.InstitucionId, topes);
+        var saldo = Math.Max(
+            porCuenta is { } c ? CreditosIa.SaldoDocente * Math.Max(1, c) : 0,
+            porCentro is { } m ? CreditosIa.SaldoDocenteCentro * Math.Max(1, m) : 0);
+        return (porCentro is not null || porCuenta is not null, cuenta.InstitucionId, saldo);
     }
 
-    private DateTimeOffset InicioDelMes()
-    {
-        return ClienteIa.InicioDelMes(clock.Today);
-    }
+    private DateTimeOffset InicioDelMes() => ClienteIa.InicioDelMes(clock.Today);
 
-    private async Task<(int Generaciones, int Comentarios, int Calificaciones)> UsadosAsync(CancellationToken ct)
+    /// <summary>Medios créditos usados este mes, más los apartados por tandas en proceso.</summary>
+    private async Task<int> UsadosAsync(CancellationToken ct)
     {
         var yo = currentUser.RequireUserId();
         var desde = InicioDelMes();
-        var usos = await db.UsosIa.Where(u => u.UsuarioId == yo && u.CreatedAt >= desde)
-            .GroupBy(u => u.Funcion).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        var medias = 2 * usos.GetValueOrDefault(FuncionesIa.Calificar) + usos.GetValueOrDefault(FuncionesIa.CalificarTanda) +
-                     await PendientesAsync(yo, desde, ct);
-        return (usos.GetValueOrDefault(FuncionesIa.Plan) + usos.GetValueOrDefault(FuncionesIa.Examen),
-            usos.GetValueOrDefault(FuncionesIa.Comentario), (medias + 1) / 2);
+        var usados = await db.UsosIa
+            .Where(u => u.UsuarioId == yo && u.CreatedAt >= desde && CreditosIa.DelDocente.Contains(u.Funcion))
+            .SumAsync(u => u.Medios, ct);
+        var apartados = await db.TandasIa
+            .Where(t => t.UsuarioId == yo && t.Estado == EstadosTanda.Procesando && t.CreatedAt >= desde)
+            .SumAsync(t => t.Medios, ct);
+        return usados + apartados;
     }
 
-    /// <summary>Calificaciones del mes en medios: una con foto vale 2, una en tanda (o en camino) vale 1.</summary>
-    private async Task<int> MediasAsync(CancellationToken ct)
+    private async Task<Error?> NoAlcanzaAsync(int medios, int saldo, CancellationToken ct)
     {
-        var yo = currentUser.RequireUserId();
-        var desde = InicioDelMes();
-        var usos = await db.UsosIa.Where(u => u.UsuarioId == yo && u.CreatedAt >= desde &&
-                                              (u.Funcion == FuncionesIa.Calificar || u.Funcion == FuncionesIa.CalificarTanda))
-            .GroupBy(u => u.Funcion).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
-        return 2 * usos.GetValueOrDefault(FuncionesIa.Calificar) + usos.GetValueOrDefault(FuncionesIa.CalificarTanda) +
-               await PendientesAsync(yo, desde, ct);
+        var quedan = saldo - await UsadosAsync(ct);
+        if (medios <= quedan) return null;
+        return Error.Validation(quedan <= 0
+            ? $"Ya usaste los {saldo / 2} créditos de IA de este mes.{Ampliar}"
+            : $"No te alcanzan los créditos: esto usa {CreditosIa.Creditos(medios)} y te quedan {CreditosIa.Creditos(quedan)} de {saldo / 2}.{Ampliar}");
     }
 
-    /// <summary>Trabajos de tandas que siguen en proceso: se apartan del tope desde que se mandan.</summary>
-    private Task<int> PendientesAsync(Guid yo, DateTimeOffset desde, CancellationToken ct) =>
-        db.TandasIa.Where(t => t.UsuarioId == yo && t.Estado == EstadosTanda.Procesando && t.CreatedAt >= desde)
-            .SumAsync(t => t.Trabajos, ct);
-
-    private async Task<Error?> PuedeAsync(string funcion, CancellationToken ct)
+    private async Task<Error?> PuedeAsync(int medios, CancellationToken ct)
     {
         if (!ia.Disponible) return Error.Forbidden("El asistente con IA no está disponible en este momento.");
-        var (habilitada, _, t) = await HabilitadaAsync(ct);
+        var (habilitada, _, saldo) = await HabilitadaAsync(ct);
         if (!habilitada) return Error.Forbidden("El asistente con IA es parte del plan Pro.");
-        var (generaciones, comentarios, calificaciones) = await UsadosAsync(ct);
-        return funcion switch
-        {
-            FuncionesIa.Comentario => comentarios >= t.Comentarios ? Error.Validation($"Ya usaste los {t.Comentarios} comentarios de este mes.{Ampliar}") : null,
-            FuncionesIa.Calificar => calificaciones >= t.Calificaciones ? Error.Validation($"Ya usaste las {t.Calificaciones} calificaciones con foto de este mes.{Ampliar}") : null,
-            _ => generaciones >= t.Generaciones ? Error.Validation($"Ya usaste las {t.Generaciones} generaciones de este mes.{Ampliar}") : null,
-        };
+        return await NoAlcanzaAsync(medios, saldo, ct);
     }
 
-    private async Task<Result<T>> LlamarAsync<T>(string funcion, PeticionIa peticion, CancellationToken ct)
+    /// <summary>El id del alumno va como id de la petición en el lote: letras, números, - y _.</summary>
+    [System.Text.RegularExpressions.GeneratedRegex("^[A-Za-z0-9_-]{1,64}$")]
+    private static partial System.Text.RegularExpressions.Regex IdValido();
+
+    private async Task<Result<T>> LlamarAsync<T>(string funcion, PeticionIa peticion, CancellationToken ct, int? medios = null)
     {
         var (_, institucion, _) = await HabilitadaAsync(ct);
-        return await ia.JsonAsync<T>(funcion, peticion, currentUser.RequireUserId(), institucion, ct);
+        return await ia.JsonAsync<T>(funcion, peticion, currentUser.RequireUserId(), institucion, ct, medios);
     }
 
     private async Task<Result<string>> LlamarAsync(string funcion, PeticionIa peticion, CancellationToken ct)

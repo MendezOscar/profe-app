@@ -20,7 +20,8 @@ public sealed class ClienteIa(AppDbContext db, IGeneradorIa generador, ILogger<C
     public Task<string> CrearLoteAsync(IReadOnlyList<(string Id, PeticionIa Peticion)> peticiones, CancellationToken ct) =>
         generador.CrearLoteAsync(peticiones, ct);
 
-    public async Task<Result<string>> TextoAsync(string funcion, PeticionIa peticion, Guid usuario, Guid? institucion, CancellationToken ct)
+    public async Task<Result<string>> TextoAsync(string funcion, PeticionIa peticion, Guid usuario, Guid? institucion, CancellationToken ct,
+        int? medios = null)
     {
         RespuestaIa respuesta;
         try
@@ -33,7 +34,7 @@ public sealed class ClienteIa(AppDbContext db, IGeneradorIa generador, ILogger<C
             return Result<string>.Fail(Error.Validation("La IA no respondió. Intenta de nuevo en un momento."));
         }
 
-        db.UsosIa.Add(Uso(funcion, respuesta, usuario, institucion));
+        db.UsosIa.Add(Uso(funcion, respuesta, usuario, institucion, medios));
         await db.SaveChangesAsync(ct);
 
         return respuesta.Rechazada || string.IsNullOrWhiteSpace(respuesta.Texto)
@@ -41,9 +42,10 @@ public sealed class ClienteIa(AppDbContext db, IGeneradorIa generador, ILogger<C
             : respuesta.Texto;
     }
 
-    public async Task<Result<T>> JsonAsync<T>(string funcion, PeticionIa peticion, Guid usuario, Guid? institucion, CancellationToken ct)
+    public async Task<Result<T>> JsonAsync<T>(string funcion, PeticionIa peticion, Guid usuario, Guid? institucion, CancellationToken ct,
+        int? medios = null)
     {
-        var texto = await TextoAsync(funcion, peticion, usuario, institucion, ct);
+        var texto = await TextoAsync(funcion, peticion, usuario, institucion, ct, medios);
         if (!texto.IsSuccess) return Result<T>.Fail(texto.Error!);
         try
         {
@@ -56,8 +58,9 @@ public sealed class ClienteIa(AppDbContext db, IGeneradorIa generador, ILogger<C
         }
     }
 
-    public static UsoIa Uso(string funcion, RespuestaIa r, Guid usuario, Guid? institucion) => new()
+    public static UsoIa Uso(string funcion, RespuestaIa r, Guid usuario, Guid? institucion, int? medios = null) => new()
     {
+        Medios = medios ?? CreditosIa.Medios(funcion),
         UsuarioId = usuario,
         InstitucionId = institucion,
         Funcion = funcion,

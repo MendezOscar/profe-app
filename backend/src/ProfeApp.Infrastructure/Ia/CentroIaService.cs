@@ -24,24 +24,15 @@ public sealed class CentroIaService(
     ICurrentUser currentUser,
     IClock clock) : ICentroIaService
 {
-    public const int LimiteBoletas = 3000;
-    public const int LimiteInformes = 30;
-    public const int LimiteComunicados = 100;
-    public const int LimitePreguntas = 300;
-
     private const string SinPro = "El asistente con IA es parte del plan Pro del centro.";
 
     public async Task<Result<EstadoIaCentroDto>> EstadoAsync(CancellationToken ct = default)
     {
         var (institucion, _) = await centro.ContextoAsync(ct);
         if (institucion is null) return Result<EstadoIaCentroDto>.Fail(Error.Forbidden(EstructuraCentroService.SinCentro));
-        var usos = await UsosAsync(institucion.Id, ct);
-        var x = Multiplicador(institucion);
+        var (docentes, saldo) = await SaldoAsync(institucion, ct);
         return new EstadoIaCentroDto(Habilitada(institucion), ia.Disponible,
-            usos.GetValueOrDefault(FuncionesIa.Boleta), LimiteBoletas * x,
-            usos.GetValueOrDefault(FuncionesIa.Informe), LimiteInformes * x,
-            usos.GetValueOrDefault(FuncionesIa.Comunicado), LimiteComunicados * x,
-            usos.GetValueOrDefault(FuncionesIa.Pregunta), LimitePreguntas * x);
+            CreditosIa.Creditos(await UsadosAsync(institucion.Id, ct)), saldo / 2, docentes);
     }
 
     // ── Comentarios de boleta ────────────────────────────────────────────────
@@ -66,10 +57,8 @@ public sealed class CentroIaService(
             return Result<ComentariosSeccionDto>.Fail(Error.NotFound("La sección"));
 
         var alumnos = await db.Matriculas.CountAsync(m => m.SeccionId == seccionId && m.Estado == EstadosMatricula.Activa, ct);
-        var usados = (await UsosAsync(institucion.Id, ct)).GetValueOrDefault(FuncionesIa.Boleta);
-        var tope = LimiteBoletas * Multiplicador(institucion);
-        if (usados + alumnos > tope)
-            return Result<ComentariosSeccionDto>.Fail(Error.Validation($"Este mes quedan {Math.Max(0, tope - usados)} comentarios de boleta y la sección tiene {alumnos} alumnos.{AsistenteIaService.Ampliar}"));
+        if (await NoAlcanzaAsync(institucion, alumnos * CreditosIa.Medios(FuncionesIa.Boleta), ct) is { } falta)
+            return Result<ComentariosSeccionDto>.Fail(falta);
 
         cola.Encolar(new TrabajoBoletas(institucion.Id, institucion.Nombre, seccionId, r.Parcial, r.Todos, currentUser.RequireUserId()));
         return await ArmarComentariosAsync(seccionId, r.Parcial, ct);
@@ -127,8 +116,8 @@ public sealed class CentroIaService(
         var (institucion, _) = await centro.ContextoAsync(ct);
         if (institucion is null) return Result<InformeIaDto>.Fail(Error.Forbidden(EstructuraCentroService.SinCentro));
         if (Permiso(institucion) is { } sin) return Result<InformeIaDto>.Fail(sin);
-        if ((await UsosAsync(institucion.Id, ct)).GetValueOrDefault(FuncionesIa.Informe) >= LimiteInformes * Multiplicador(institucion))
-            return Result<InformeIaDto>.Fail(Error.Validation($"Ya se usaron los {LimiteInformes * Multiplicador(institucion)} informes de este mes.{AsistenteIaService.Ampliar}"));
+        if (await NoAlcanzaAsync(institucion, CreditosIa.Medios(FuncionesIa.Informe), ct) is { } falta)
+            return Result<InformeIaDto>.Fail(falta);
 
         var reporte = await reportes.ResumenAsync(ct);
         if (!reporte.IsSuccess) return Result<InformeIaDto>.Fail(reporte.Error!);
@@ -175,8 +164,8 @@ public sealed class CentroIaService(
         var (institucion, error) = await centro.EditorAsync(ct);
         if (institucion is null) return Result<ComunicadoIaDto>.Fail(error!);
         if (Permiso(institucion) is { } sin) return Result<ComunicadoIaDto>.Fail(sin);
-        if ((await UsosAsync(institucion.Id, ct)).GetValueOrDefault(FuncionesIa.Comunicado) >= LimiteComunicados * Multiplicador(institucion))
-            return Result<ComunicadoIaDto>.Fail(Error.Validation($"Ya se usaron los {LimiteComunicados * Multiplicador(institucion)} borradores de este mes.{AsistenteIaService.Ampliar}"));
+        if (await NoAlcanzaAsync(institucion, CreditosIa.Medios(FuncionesIa.Comunicado), ct) is { } falta)
+            return Result<ComunicadoIaDto>.Fail(falta);
 
         var sistema = ClienteIa.Contexto + "\n\nRedacta un comunicado del centro a las familias a partir de los puntos que da la " +
             "dirección. Título corto (hasta 80 caracteres) y un mensaje cordial y claro, de 1 a 3 párrafos breves, que incluya " +
@@ -201,8 +190,8 @@ public sealed class CentroIaService(
         var (institucion, _) = await centro.ContextoAsync(ct);
         if (institucion is null) return Result<RespuestaIaDto>.Fail(Error.Forbidden(EstructuraCentroService.SinCentro));
         if (Permiso(institucion) is { } sin) return Result<RespuestaIaDto>.Fail(sin);
-        if ((await UsosAsync(institucion.Id, ct)).GetValueOrDefault(FuncionesIa.Pregunta) >= LimitePreguntas * Multiplicador(institucion))
-            return Result<RespuestaIaDto>.Fail(Error.Validation($"Ya se usaron las {LimitePreguntas * Multiplicador(institucion)} preguntas de este mes.{AsistenteIaService.Ampliar}"));
+        if (await NoAlcanzaAsync(institucion, CreditosIa.Medios(FuncionesIa.Pregunta), ct) is { } falta)
+            return Result<RespuestaIaDto>.Fail(falta);
 
         var datos = await DatosCentroAsync(institucion.Id, ct);
         if (datos is null) return Result<RespuestaIaDto>.Fail(Error.Validation("Falta el año lectivo actual con secciones y alumnos."));
@@ -291,11 +280,34 @@ public sealed class CentroIaService(
         : !Habilitada(i) ? Error.Forbidden(SinPro)
         : null;
 
-    private async Task<Dictionary<string, int>> UsosAsync(Guid institucionId, CancellationToken ct)
+    /// <summary>Medios créditos que usó la dirección este mes (lo de los docentes va por su saldo).</summary>
+    private async Task<int> UsadosAsync(Guid institucionId, CancellationToken ct)
     {
         var desde = ClienteIa.InicioDelMes(clock.Today);
-        return await db.UsosIa.Where(u => u.InstitucionId == institucionId && u.CreatedAt >= desde)
-            .GroupBy(u => u.Funcion).Select(g => new { g.Key, N = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.N, ct);
+        return await db.UsosIa
+            .Where(u => u.InstitucionId == institucionId && u.CreatedAt >= desde && CreditosIa.DeLaDireccion.Contains(u.Funcion))
+            .SumAsync(u => u.Medios, ct);
+    }
+
+    /// <summary>25 créditos por docente activo (al menos uno), por el multiplicador del centro.</summary>
+    private async Task<(int Docentes, int Saldo)> SaldoAsync(Institucion i, CancellationToken ct)
+    {
+        var docentes = await (from u in db.Users.AsNoTracking()
+                              join ur in db.UserRoles on u.Id equals ur.UserId
+                              join r in db.Roles on ur.RoleId equals r.Id
+                              where r.Name == Roles.Docente && u.InstitucionId == i.Id && u.IsActive
+                              select u.Id).CountAsync(ct);
+        return (docentes, CreditosIa.SaldoDireccionPorDocente * Math.Max(1, docentes) * Multiplicador(i));
+    }
+
+    private async Task<Error?> NoAlcanzaAsync(Institucion i, int medios, CancellationToken ct)
+    {
+        var (_, saldo) = await SaldoAsync(i, ct);
+        var quedan = saldo - await UsadosAsync(i.Id, ct);
+        if (medios <= quedan) return null;
+        return Error.Validation(quedan <= 0
+            ? $"El centro ya usó los {saldo / 2} créditos de IA de este mes.{AsistenteIaService.Ampliar}"
+            : $"No alcanzan los créditos: esto usa {CreditosIa.Creditos(medios)} y al centro le quedan {CreditosIa.Creditos(quedan)} de {saldo / 2}.{AsistenteIaService.Ampliar}");
     }
 
     private static readonly Dictionary<string, JsonElement> EsquemaInforme = ClienteIa.Esquema(new

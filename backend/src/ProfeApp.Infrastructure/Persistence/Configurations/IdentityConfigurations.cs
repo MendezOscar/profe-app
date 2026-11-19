@@ -80,6 +80,7 @@ public class TandaIaConfig : IEntityTypeConfiguration<ProfeApp.Domain.Common.Tan
         b.Property(x => x.Estado).HasMaxLength(20).IsRequired();
         b.Property(x => x.Puntos).HasPrecision(6, 2);
         b.Property(x => x.Resultados).HasColumnType("jsonb");
+        b.Property(x => x.Paginas).HasColumnType("jsonb");
         b.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
         b.HasIndex(x => new { x.UsuarioId, x.Actividad });
         b.HasIndex(x => x.Estado);
