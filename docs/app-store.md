@@ -149,80 +149,37 @@ Garaj se rechazó por la 2.1 con este campo vacío. Esto va completo desde el pr
 
 ```
 QUÉ ES
-ProfeApp es una herramienta de trabajo para docentes de secundaria de Honduras. El Ministerio de
-Educación usa un sistema web llamado SACE donde cada docente descarga un archivo de Excel por
-asignatura (el "cuadro"), lo llena con las notas y faltas del parcial y lo vuelve a subir.
-ProfeApp importa ese archivo, deja calificar por puntos y pasar lista sin internet, y al cerrar
-el parcial escribe la nota y las faltas en el mismo archivo para subirlo a SACE. ProfeApp es
-independiente: no está afiliada a la Secretaría de Educación ni se conecta a SACE.
+Herramienta de trabajo para docentes y centros educativos de Honduras. El Ministerio usa el sistema web SACE: cada docente descarga un Excel por asignatura (el "cuadro"), lo llena con notas y faltas y lo vuelve a subir. ProfeApp importa ese archivo, deja calificar por puntos y pasar lista sin internet, y al cerrar el parcial escribe nota y faltas en el mismo archivo. Es independiente: no está afiliada a la Secretaría de Educación ni se conecta a SACE.
 
-QUIÉN LA USA Y CÓMO SE ENTRA
-No hay registro público: las cuentas las crea ProfeApp para cada docente, o el administrador de
-un centro educativo para sus docentes. Hay dos tipos de cuenta en la app:
-
-1) Docente (la principal)
-   Usuario: <correo de la cuenta de revisión docente>
-   Contraseña: <contraseña>
-   Tiene tres secciones de ejemplo (Química 10-1 y 10-2, Física 11-1; alumnos ficticios) con
-   tres parciales cerrados y el cuarto en curso.
-   Qué revisar: Inicio → tocar la asignatura → pestañas Plan, Actividades, Notas y
-   Estadísticas; el ícono de lista arriba para pasar lista; el ícono de tabla para el cuadro de
-   SACE y exportarlo; la campana de Inicio para los avisos.
+CUENTAS (no hay registro público; las crea ProfeApp o el centro)
+1) Docente
+Usuario: <correo de la cuenta de revisión docente>
+Contraseña: <contraseña>
+Secciones de ejemplo con alumnos ficticios. Revisar: Inicio → una asignatura → Plan, Actividades, Notas y Estadísticas; ícono de lista para pasar lista; ícono de tabla para el cuadro de SACE.
 
 2) Administrador de centro
-   Usuario: <correo de la cuenta de revisión del centro>
-   Contraseña: <contraseña>
-   Gestiona todo el centro (datos ficticios): Inicio con el tablero del día, docentes, año
-   lectivo, grados, secciones y horarios, asistencia, excusas, incidencias, alumnos con su
-   carnet, comunicados a las familias, reportes y estadísticas de los docentes.
-
-Existe además una cuenta interna de plataforma que solo usa el equipo de ProfeApp para crear
-centros; no es para usuarios.
+Usuario: <correo de la cuenta de revisión del centro>
+Contraseña: <contraseña>
+Gestiona el centro (datos ficticios): tablero, docentes, secciones, horarios, asistencia, excusas, incidencias, alumnos con carnet, comunicados, reportes.
 
 ELIMINAR LA CUENTA
-Docente: pestaña Cuenta → Eliminar mi cuenta. Administrador: menú de la cuenta (arriba a la
-derecha) → Eliminar mi cuenta. Pide la contraseña, se confirma y se borra en el momento, con
-todos los datos en el servidor y en el dispositivo.
+Docente: Cuenta → Eliminar mi cuenta. Administrador: menú de la cuenta → Eliminar mi cuenta. Pide la contraseña y borra en el momento, en el servidor y en el dispositivo.
 
-PAGOS (regla 3.1)
-En la app no se compra nada: no hay compras dentro de la app, ni precios, ni enlaces para
-comprar. El servicio lo contrata por fuera de la app el centro educativo para sus docentes
-(3.1.3(c), servicios para empresas u organizaciones) o el propio docente, que también lo usa
-desde el navegador (3.1.3(f), app gratuita que acompaña una herramienta web). La app no mueve
-dinero ni tiene pasarela de pago. Si el servicio de la cuenta vence, la app solo informa la
-fecha y que lo nuevo no se respalda; no muestra precios, datos de pago ni enlaces para pagar.
+PAGOS (3.1)
+No se compra nada en la app: sin compras, precios ni enlaces para pagar. El servicio se contrata por fuera: el centro para sus docentes (3.1.3(c)) o el docente, que también lo usa desde el navegador (3.1.3(f)). Si vence, la app solo informa la fecha.
 
 SERVICIOS EXTERNOS
-API propia en Render, base de datos PostgreSQL en Aiven y el sitio y panel web en Cloudflare
-Pages. Las notificaciones push (solo para las cuentas de familia: comunicados del centro y faltas)
-van por Firebase Cloud Messaging. El asistente con IA usa la API de Anthropic (Claude) desde
-nuestro servidor. Ninguno es de publicidad, analítica ni pagos. Enlaces salientes: WhatsApp de
-soporte y las páginas de privacidad, términos y ayuda.
+API propia en Render, base de datos en Aiven, web en Cloudflare. Push solo para cuentas de familia (comunicados y faltas) por Firebase Cloud Messaging. El asistente con IA usa la API de Anthropic (Claude) desde nuestro servidor. Nada de publicidad, analítica ni pagos.
 
-ASISTENTE CON IA (regla 5.1.2(i))
-Las dos cuentas de revisión tienen el plan Pro activo. Antes del primer uso, la app explica qué se
-envía a Anthropic y pide permiso explícito ("Acepto" / "Ahora no"); sin aceptar no se envía nada.
-Solo se envían temas, notas, asistencia o la foto del trabajo: nunca nombres ni identidades de
-alumnos, y las fotos no se guardan. El asistente solo propone; nada se guarda sin que la persona
-lo acepte.
-   Docente: en una asignatura, pestaña Plan → "Sugerir el plan con IA"; Actividades → "Generar examen con IA";
-   al calificar una actividad, el ícono de escáner junto a un alumno ("Calificar con foto (IA)").
-   Centro: Reportes → "Preguntar a la IA" e "Informe con IA".
+ASISTENTE CON IA (5.1.2(i))
+Las dos cuentas tienen el plan Pro activo. Antes del primer uso la app explica qué se envía a Anthropic y pide permiso ("Acepto" / "Ahora no"); sin aceptar no se envía nada. Nunca se envían nombres ni identidades de alumnos, y las fotos no se guardan. El asistente solo propone.
+Docente: Plan → "Sugerir el plan con IA"; Actividades → "Generar examen con IA"; al calificar, el ícono de escáner junto a un alumno ("Calificar con foto (IA)").
+Centro: Reportes → "Preguntar a la IA" e "Informe con IA".
 
 CÁMARA Y FOTOS
-La cámara se pide solo al tomar la foto del carnet de un alumno o la de un trabajo para calificar
-con IA. La fototeca, para elegir esas mismas fotos.
+Solo para la foto del carnet de un alumno o la de un trabajo para calificar con IA.
 
-DIFERENCIAS REGIONALES
-Ninguna. Solo español, porque el producto es para el sistema educativo de Honduras.
-
-INDUSTRIA REGULADA O CONTENIDO DE TERCEROS
-No aplica. Los archivos de SACE los descarga el propio docente con su usuario; ProfeApp no los
-obtiene por su cuenta.
-
-PROBADA EN
-iPhone 12 Pro con iOS 27 y iPad (pantalla ancha, misma app). El video adjunto recorre la app en
-el iPhone desde el inicio de sesión hasta eliminar la cuenta.
+Solo español, sin diferencias regionales. Probada en iPhone 12 Pro con iOS 27 y en iPad.
 ```
 
 > Si el revisor elimina una cuenta de revisión, hay que volver a crearla antes de responderle

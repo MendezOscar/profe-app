@@ -104,6 +104,7 @@ las grandes.
 | Paso | Estado |
 | --- | --- |
 | `.ipa` y `.aab` firmados contra producción | Hechos |
-| Plan Pro activo en las dos cuentas de revisión | **Falta** (Plataforma) |
-| Privacidad de App Store y Seguridad de los datos de Play con las filas ⭐ | **Falta** (consolas) |
+| Plan Pro activo en las dos cuentas de revisión | Hecho |
+| Privacidad de App Store y Seguridad de los datos de Play con las filas ⭐ | Hecho |
 | Notas para el revisor y novedades | Escritas en [app-store.md](app-store.md) |
+| Enviada a revisión en App Store y Google Play | Hecho, 19 de noviembre de 2026 (en revisión) |
