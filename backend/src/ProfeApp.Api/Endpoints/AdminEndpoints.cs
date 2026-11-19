@@ -221,6 +221,16 @@ public static class AdminEndpoints
                 (await s.RegistrarIncidenciaDocenteAsync(r, ct)).ToHttp())
             .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
 
+        // Asistente con IA del docente (plan Pro): propone, el docente decide.
+        var ia = app.MapGroup("/api/v1/ia").WithTags("IA").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
+        ia.MapGet("/estado", async (IAsistenteIaService s, CancellationToken ct) => Results.Ok(await s.EstadoAsync(ct)));
+        ia.MapPost("/plan", async (PlanIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.PlanAsync(r, ct)).ToHttp())
+            .WithSummary("Rubros y actividades del parcial a partir de los temas.");
+        ia.MapPost("/examen", async (ExamenIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.ExamenAsync(r, ct)).ToHttp())
+            .WithSummary("Examen con clave de respuestas.");
+        ia.MapPost("/comentario", async (ComentarioIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.ComentarioAsync(r, ct)).ToHttp())
+            .WithSummary("Comentario del desempeño de un alumno, sin su nombre.");
+
         // El docente ve lo que su centro le asignó.
         app.MapGet("/api/v1/mi-centro/carga", async (IMiCargaService s, CancellationToken ct) => Results.Ok(await s.ObtenerAsync(ct)))
             .WithTags("Centro").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario)

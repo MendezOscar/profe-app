@@ -85,6 +85,8 @@ Si la web se publica en otro dominio que no sea `profeapphn.com`, hay que cambia
 - Para compilar la app hacen falta `mobile/android/app/google-services.json` y `mobile/ios/Runner/GoogleService-Info.plist` (Firebase → Configuración del proyecto → Tus apps). No van al repo: están en `.gitignore`.
 - La clave APNs (`.p8`) está subida en Firebase → Cloud Messaging; el App ID tiene Push Notifications activado.
 
+**Asistente con IA (plan Pro):** variable de Render `Anthropic__ApiKey` con una clave de la API de Anthropic (console.anthropic.com → API Keys). Sin ella la API arranca igual y el asistente dice «no disponible». Modelo `claude-opus-5-5` (en `Ia/GeneradorClaude.cs`); si el modelo declina una petición, Anthropic la reintenta con otro (fallbacks `default`). Poner un **límite de gasto mensual** en la consola de Anthropic. El uso queda en la tabla `usos_ia` (tokens por docente y centro, sin el texto); topes en `AsistenteIaService` (60 planes o exámenes y 400 comentarios por docente al mes). El Pro se activa en Plataforma → plan de la cuenta → «Plan Pro: asistente con IA».
+
 ## 3. Cloudflare Pages (web)
 
 Pages compila la web desde GitHub en cada push a `main`. Su imagen no trae Flutter: lo instala [scripts/cloudflare-build.sh](../scripts/cloudflare-build.sh).

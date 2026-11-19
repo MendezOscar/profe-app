@@ -15,6 +15,7 @@ class Cobro {
     this.comoPagar,
     this.nivel,
     this.topeAsignaturas,
+    this.conIa = false,
   });
 
   final EstadoCobro estado;
@@ -30,6 +31,9 @@ class Cobro {
   /// basico, docente o plus; null sin tope (o docente de un centro).
   final String? nivel;
   final int? topeAsignaturas;
+
+  /// Plan Pro: asistente con IA.
+  final bool conIa;
 
   bool get soloLectura => estado == EstadoCobro.soloLectura;
 
@@ -50,6 +54,7 @@ class Cobro {
         comoPagar: json['comoPagar'] as String?,
         nivel: json['nivel'] as String?,
         topeAsignaturas: json['topeAsignaturas'] as int?,
+        conIa: json['conIa'] as bool? ?? false,
       );
 
   static String? _iso(DateTime? d) => d == null
@@ -68,6 +73,7 @@ class Cobro {
         'comoPagar': comoPagar,
         'nivel': nivel,
         'topeAsignaturas': topeAsignaturas,
+        'conIa': conIa,
       };
 }
 

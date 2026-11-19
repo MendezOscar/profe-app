@@ -1590,6 +1590,68 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                     b.ToTable("dispositivos_push", (string)null);
                 });
 
+            modelBuilder.Entity("ProfeApp.Domain.Common.UsoIa", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Funcion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("funcion");
+
+                    b.Property<Guid?>("InstitucionId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("institucion_id");
+
+                    b.Property<string>("Modelo")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("modelo");
+
+                    b.Property<int>("TokensEntrada")
+                        .HasColumnType("integer")
+                        .HasColumnName("tokens_entrada");
+
+                    b.Property<int>("TokensSalida")
+                        .HasColumnType("integer")
+                        .HasColumnName("tokens_salida");
+
+                    b.Property<DateTimeOffset?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("updated_by");
+
+                    b.Property<Guid>("UsuarioId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("usuario_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_usos_ia");
+
+                    b.HasIndex("InstitucionId", "CreatedAt")
+                        .HasDatabaseName("ix_usos_ia_institucion_id_created_at");
+
+                    b.HasIndex("UsuarioId", "CreatedAt")
+                        .HasDatabaseName("ix_usos_ia_usuario_id_created_at");
+
+                    b.ToTable("usos_ia", (string)null);
+                });
+
             modelBuilder.Entity("ProfeApp.Domain.Cuadros.Clase", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1940,6 +2002,10 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)")
                         .HasColumnName("como_pagar");
 
+                    b.Property<bool>("ConIa")
+                        .HasColumnType("boolean")
+                        .HasColumnName("con_ia");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -2079,6 +2145,10 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
                         .HasColumnName("como_pagar");
+
+                    b.Property<bool>("ConIa")
+                        .HasColumnType("boolean")
+                        .HasColumnName("con_ia");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -2731,6 +2801,16 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_dispositivos_push_asp_net_users_usuario_id");
+                });
+
+            modelBuilder.Entity("ProfeApp.Domain.Common.UsoIa", b =>
+                {
+                    b.HasOne("ProfeApp.Infrastructure.Identity.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_usos_ia_asp_net_users_usuario_id");
                 });
 
             modelBuilder.Entity("ProfeApp.Domain.Cuadros.ClaseAlumno", b =>

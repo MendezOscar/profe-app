@@ -56,3 +56,16 @@ public class DispositivoPushConfig : IEntityTypeConfiguration<ProfeApp.Domain.Co
         b.HasIndex(x => x.UsuarioId);
     }
 }
+
+public class UsoIaConfig : IEntityTypeConfiguration<ProfeApp.Domain.Common.UsoIa>
+{
+    public void Configure(EntityTypeBuilder<ProfeApp.Domain.Common.UsoIa> b)
+    {
+        b.ToTable("usos_ia");
+        b.Property(x => x.Funcion).HasMaxLength(20).IsRequired();
+        b.Property(x => x.Modelo).HasMaxLength(60).IsRequired();
+        b.HasOne<AppUser>().WithMany().HasForeignKey(x => x.UsuarioId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.UsuarioId, x.CreatedAt });
+        b.HasIndex(x => new { x.InstitucionId, x.CreatedAt });
+    }
+}

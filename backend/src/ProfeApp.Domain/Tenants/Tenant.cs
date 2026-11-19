@@ -15,6 +15,9 @@ public class Tenant : BaseEntity, ICobrable
     /// <summary>basico, docente o plus (ver <see cref="NivelesDocente"/>). Null = sin tope.</summary>
     public string? Nivel { get; set; }
 
+    /// <summary>Plan Pro: asistente con IA (plan del parcial, exámenes, comentarios).</summary>
+    public bool ConIa { get; set; }
+
     public string? PlanNombre { get; set; }
     public decimal Monto { get; set; }
     public DateOnly? PagadoHasta { get; set; }

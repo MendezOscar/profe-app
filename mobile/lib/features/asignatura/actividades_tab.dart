@@ -13,6 +13,7 @@ import '../../ui/shell.dart';
 import 'parcial_cerrado.dart';
 import 'plan_tab.dart';
 import '../../theme/tokens.dart';
+import '../ia/asistente_ia.dart';
 
 /// Actividades del parcial agrupadas por rubro. Tocar una abre la captura de notas.
 class ActividadesTab extends ConsumerWidget {
@@ -53,10 +54,21 @@ class ActividadesTab extends ConsumerWidget {
                   'Puedes cambiarlos o borrarlos cuando quieras.',
               accion: plan.cerrado
                   ? null
-                  : FilledButton.icon(
-                      onPressed: () => editarActividad(context, ref, plan),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Nueva actividad'),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        FilledButton.icon(
+                          onPressed: () => editarActividad(context, ref, plan),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Nueva actividad'),
+                        ),
+                        const SizedBox(height: Espacio.s),
+                        OutlinedButton.icon(
+                          onPressed: () => generarExamenIa(context, ref, plan),
+                          icon: const Icon(iconoIa),
+                          label: const Text('Generar examen con IA'),
+                        ),
+                      ],
                     ),
             )
           : ContenidoCentrado(
@@ -72,6 +84,15 @@ class ActividadesTab extends ConsumerWidget {
                         onPressed: () => calificarVarias(context, plan),
                         icon: const Icon(Icons.library_add_check_outlined),
                         label: const Text('Calificar varias a la vez'),
+                      ),
+                    ),
+                  if (!plan.cerrado)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.l, 0),
+                      child: TextButton.icon(
+                        onPressed: () => generarExamenIa(context, ref, plan),
+                        icon: const Icon(iconoIa),
+                        label: const Text('Generar examen con IA'),
                       ),
                     ),
                   for (final rubro in plan.rubros) ...[

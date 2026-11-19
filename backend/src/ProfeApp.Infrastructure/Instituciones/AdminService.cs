@@ -224,7 +224,7 @@ public sealed class AdminService(
         var docentes = filas.Select(f => new DocentePlataformaDto(
                 f.Id, f.FullName, f.Email!, f.Tenant.IsActive, f.CreatedAt, f.LastLoginAt,
                 asignaturas.GetValueOrDefault(f.Tenant.Id),
-                CobroService.Describir(SituacionCobro.Para(f.Tenant, clock.Today), esCentro: false, f.Tenant.Nivel),
+                CobroService.Describir(SituacionCobro.Para(f.Tenant, clock.Today), esCentro: false, f.Tenant.Nivel) with { ConIa = f.Tenant.ConIa },
                 pagos.GetValueOrDefault(f.Tenant.Id)))
             .ToList();
         return new PaginaDocentes(docentes, total, (pagina + 1) * DocentesPorPagina < total);
@@ -247,6 +247,7 @@ public sealed class AdminService(
         cuenta.DiasGracia = request.DiasGracia;
         cuenta.ComoPagar = Limpio(request.ComoPagar);
         if (cuenta is Tenant espacio) espacio.Nivel = request.Nivel;
+        if (request.ConIa is { } conIa) cuenta.ConIa = conIa;
         await db.SaveChangesAsync(ct);
         cobros.Olvidar(cuentaId);
         return Describir(cuenta);
@@ -452,7 +453,7 @@ public sealed class AdminService(
             .ToDictionaryAsync(x => x.Key, x => (DateOnly?)x.Ultimo, ct);
 
     private CobroDto Describir(ICobrable cuenta) =>
-        CobroService.Describir(SituacionCobro.Para(cuenta, clock.Today), cuenta is Institucion, (cuenta as Tenant)?.Nivel);
+        CobroService.Describir(SituacionCobro.Para(cuenta, clock.Today), cuenta is Institucion, (cuenta as Tenant)?.Nivel) with { ConIa = cuenta.ConIa };
 
     /// <summary>Contraseña temporal nueva; se cierran sus sesiones.</summary>
     private async Task<Result<CuentaCreada>> ReponerAsync(AppUser usuario, CancellationToken ct)

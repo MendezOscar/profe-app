@@ -9,6 +9,7 @@ import '../../ui/barra_puntos.dart';
 import '../../ui/estado_vacio.dart';
 import '../../ui/shell.dart';
 import '../clases/importar_cuadros.dart';
+import '../ia/asistente_ia.dart';
 import 'parcial_cerrado.dart';
 import '../../theme/tokens.dart';
 
@@ -125,10 +126,21 @@ class PlanTab extends ConsumerWidget {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.s, Espacio.l, Espacio.xxl),
               sliver: SliverToBoxAdapter(
-                child: OutlinedButton.icon(
-                  onPressed: () => editarRubro(context, ref, plan),
-                  icon: const Icon(Icons.add),
-                  label: const Text('Agregar rubro'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => editarRubro(context, ref, plan),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Agregar rubro'),
+                    ),
+                    const SizedBox(height: Espacio.s),
+                    TextButton.icon(
+                      onPressed: () => sugerirPlanIa(context, ref, plan),
+                      icon: const Icon(iconoIa),
+                      label: const Text('Sugerir actividades con IA'),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -179,6 +191,12 @@ class _SinPlan extends ConsumerWidget {
             onPressed: usarPlantilla,
             icon: const Icon(Icons.view_list),
             label: const Text('Usar una rúbrica'),
+          ),
+          const SizedBox(height: Espacio.s),
+          OutlinedButton.icon(
+            onPressed: () => sugerirPlanIa(context, ref, plan),
+            icon: const Icon(iconoIa),
+            label: const Text('Sugerir el plan con IA'),
           ),
           for (final p in otros) ...[
             const SizedBox(height: Espacio.s),

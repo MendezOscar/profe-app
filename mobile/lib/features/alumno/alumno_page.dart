@@ -14,6 +14,7 @@ import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
 import '../../ui/estado_error.dart';
 import '../../ui/shell.dart';
+import '../ia/asistente_ia.dart';
 
 /// Ficha de un alumno en una asignatura: cómo va en el parcial, sus observaciones y el
 /// informe para el padre o la madre, que se comparte por WhatsApp como PDF.
@@ -121,7 +122,22 @@ class _Ficha extends ConsumerWidget {
             const SizedBox(height: Espacio.xl),
             const Divider(height: 2),
             const SizedBox(height: Espacio.l),
-            Text('Observaciones', style: text.titleMedium),
+            Row(
+              children: [
+                Expanded(child: Text('Observaciones', style: text.titleMedium)),
+                TextButton.icon(
+                  onPressed: () => comentarioIa(context, ref, plan, alumno, guardar: (texto) async {
+                    await ref.read(planesRepositoryProvider).guardarObservacion(plan.claseId, alumno.id,
+                        fecha: DateUtils.dateOnly(DateTime.now()), tipo: TipoObservacion.nota, texto: texto);
+                    ref.invalidate(observacionesProvider(alumno.id));
+                    ref.invalidate(conteoObservacionesProvider(plan.claseId));
+                    ref.read(syncControllerProvider.notifier).programar();
+                  }),
+                  icon: const Icon(iconoIa),
+                  label: const Text('Comentario con IA'),
+                ),
+              ],
+            ),
             const SizedBox(height: Espacio.xs),
             Text('Conducta, participación o acuerdos con el padre. Solo las ves tú, salvo que las incluyas en el informe.',
                 style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),

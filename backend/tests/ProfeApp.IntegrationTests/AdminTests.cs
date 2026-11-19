@@ -329,4 +329,53 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
 
         login.StatusCode.Should().Be(HttpStatusCode.OK);
     }
+
+    [Fact]
+    public async Task El_asistente_con_IA_es_del_plan_Pro_no_recibe_nombres_y_tiene_tope()
+    {
+        var plataforma = await PlataformaAsync();
+        var correo = $"profe-ia-{Guid.NewGuid():N}@prueba.hn";
+        var cuenta = await ReadAsync(await plataforma.PostAsJsonAsync("/api/v1/plataforma/docentes", new { email = correo, nombre = "Profe IA" }));
+        var id = cuenta.GetProperty("usuarioId").GetGuid();
+        (await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{id}/plan", Plan(Hoy.AddMonths(1)))).IsSuccessStatusCode.Should().BeTrue();
+        var docente = await EntrarConTemporalAsync(correo, cuenta.GetProperty("claveTemporal").GetString()!);
+
+        var plan = new
+        {
+            asignatura = "Matemáticas", grado = "7.º grado", parcial = "Parcial I", temas = "Fracciones", semanas = 4, total = 100m,
+            rubros = new[] { new { nombre = "tareas", puntos = 30m }, new { nombre = "Examen", puntos = 70m } },
+        };
+        (await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"))).GetProperty("habilitada").GetBoolean().Should().BeFalse();
+        (await docente.PostAsJsonAsync("/api/v1/ia/plan", plan)).StatusCode.Should().Be(HttpStatusCode.Forbidden, "no tiene el plan Pro");
+
+        var pro = new { planNombre = "Docente Pro", monto = 100m, pagadoHasta = Hoy.AddMonths(1), diasGracia = 0, comoPagar = (string?)null, conIa = true };
+        (await ReadAsync(await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{id}/plan", pro))).GetProperty("conIa").GetBoolean().Should().BeTrue();
+
+        // Respeta los rubros del docente (nombre y puntos) y descarta los que la IA inventó.
+        var sugerido = await ReadAsync(await docente.PostAsJsonAsync("/api/v1/ia/plan", plan));
+        var rubros = sugerido.GetProperty("rubros");
+        rubros.EnumerateArray().Select(r => r.GetProperty("nombre").GetString()).Should().Equal("tareas", "Examen");
+        rubros[0].GetProperty("actividades")[0].GetProperty("semana").GetInt32().Should().Be(4, "la semana no pasa de la duración");
+
+        var examen = await ReadAsync(await docente.PostAsJsonAsync("/api/v1/ia/examen", new
+        {
+            asignatura = "Matemáticas", grado = "7.º grado", temas = "Fracciones", preguntas = 10, puntos = 10m,
+            tipos = new[] { "opcion_multiple", "verdadero_falso" },
+        }));
+        examen.GetProperty("preguntas")[1].GetProperty("opciones").GetArrayLength().Should().Be(0, "verdadero o falso no lleva opciones");
+
+        var comentario = await ReadAsync(await docente.PostAsJsonAsync("/api/v1/ia/comentario", new
+        {
+            asignatura = "Matemáticas", grado = "7.º grado", parcial = "Parcial I", nota = 64m, ausencias = 2, tardes = 1,
+            rubros = new[] { new { nombre = "Examen", obtenido = 40m, posible = 70m } }, enfoque = (string?)null,
+        }));
+        comentario.GetProperty("texto").GetString().Should().StartWith("El estudiante");
+        GeneradorDePrueba.Peticiones.Last().Usuario.Should().Contain("64").And.NotContain("Profe IA");
+
+        var estado = await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"));
+        estado.GetProperty("generaciones").GetInt32().Should().Be(2);
+        estado.GetProperty("comentarios").GetInt32().Should().Be(1);
+        (await docente.PostAsJsonAsync("/api/v1/ia/examen", new { asignatura = "Mate", temas = "x", preguntas = 2, puntos = 10m, tipos = new[] { "desarrollo" } }))
+            .StatusCode.Should().Be(HttpStatusCode.BadRequest, "mínimo 3 preguntas");
+    }
 }

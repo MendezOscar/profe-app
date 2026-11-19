@@ -709,6 +709,7 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
   late DateTime? _hasta = _c.pagadoHasta;
   late int _gracia = _c.diasGracia;
   late String? _nivel = _c.nivel;
+  late bool _conIa = _c.conIa;
   var _guardando = false;
   String? _error;
 
@@ -821,6 +822,15 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
                 hintText: 'Banco, cuenta y a nombre de quién. Se muestra sólo en la web.',
               ),
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _conIa,
+              onChanged: (v) => setState(() => _conIa = v),
+              title: const Text('Plan Pro: asistente con IA'),
+              subtitle: Text(widget.cuenta.esCentro
+                  ? 'Todos los docentes del centro pueden usarlo.'
+                  : 'Plan del parcial, exámenes y comentarios de alumnos, con tope mensual.'),
+            ),
             if (_error != null) ...[
               const SizedBox(height: Espacio.s),
               Text(_error!, style: TextStyle(color: scheme.error)),
@@ -849,6 +859,7 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
         'diasGracia': _gracia,
         'comoPagar': _comoPagar.text.trim(),
         if (!widget.cuenta.esCentro) 'nivel': _nivel,
+        'conIa': _conIa,
       });
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {

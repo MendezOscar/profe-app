@@ -7,7 +7,7 @@ namespace ProfeApp.Application.Contracts;
 public sealed record CobroDto(
     string Estado, string? PlanNombre, decimal Monto, DateOnly? PagadoHasta, int DiasGracia,
     DateOnly? BloqueaEn, int? DiasRestantes, bool SoloLectura, string Mensaje, string? ComoPagar,
-    string? Nivel = null, int? TopeAsignaturas = null);
+    string? Nivel = null, int? TopeAsignaturas = null, bool ConIa = false);
 
 public sealed record InstitucionDto(
     Guid Id, string Nombre, string Plan, int MaxDocentes, int Docentes, bool Activa, CobroDto Cobro,
@@ -19,9 +19,12 @@ public sealed record CrearInstitucionRequest(
 /// <summary>El cupo de la licencia. El cobro va por <see cref="PlanCobroRequest"/>.</summary>
 public sealed record ActualizarInstitucionRequest(string Plan, int MaxDocentes);
 
-/// <summary>Lo que la plataforma fija a una cuenta. <c>Nivel</c> sólo para el docente personal.</summary>
+/// <summary>
+/// Lo que la plataforma fija a una cuenta. <c>Nivel</c> sólo para el docente personal.
+/// <c>ConIa</c>: plan Pro (null = no cambia).
+/// </summary>
 public sealed record PlanCobroRequest(
-    string? PlanNombre, decimal Monto, DateOnly? PagadoHasta, int DiasGracia, string? ComoPagar, string? Nivel = null);
+    string? PlanNombre, decimal Monto, DateOnly? PagadoHasta, int DiasGracia, string? ComoPagar, string? Nivel = null, bool? ConIa = null);
 
 /// <summary>
 /// Sin <c>PagadoHasta</c>, el servidor suma los períodos al vencimiento que ya tenía (o a

@@ -21,6 +21,9 @@ public class Institucion : BaseEntity, ICobrable
     /// <summary>Suspendido, ni el centro ni sus docentes entran.</summary>
     public bool Activa { get; set; } = true;
 
+    /// <summary>Plan Pro: sus docentes usan el asistente con IA.</summary>
+    public bool ConIa { get; set; }
+
     public string? PlanNombre { get; set; }
     public decimal Monto { get; set; }
     public DateOnly? PagadoHasta { get; set; }

@@ -19,6 +19,9 @@ public interface ICobrable
 
     /// <summary>Banco, cuenta, a quién avisar del depósito.</summary>
     string? ComoPagar { get; set; }
+
+    /// <summary>Plan Pro: asistente con IA.</summary>
+    bool ConIa { get; set; }
 }
 
 public enum EstadoCobro

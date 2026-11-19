@@ -510,6 +510,76 @@ class InformesPdf {
     return doc.save();
   }
 
+  // ── Examen ──────────────────────────────────────────────────────────────────
+
+  /// Examen para imprimir, con espacio para nombre y fecha. Con [conClave], la hoja del docente
+  /// con la respuesta de cada pregunta.
+  static Future<Uint8List> examen(Map<String, dynamic> e,
+      {required String asignatura, required String grado, bool conClave = false}) async {
+    await _cargar();
+    final doc = pw.Document(theme: _tema, title: '${e['titulo']}');
+    final preguntas = (e['preguntas'] as List).cast<Map<String, dynamic>>();
+    const letras = 'abcdefgh';
+    String pts(Object? v) => '${_puntos((v as num).toDouble())} ${v == 1 ? 'punto' : 'puntos'}';
+    final total = preguntas.fold<double>(0, (s, p) => s + (p['puntos'] as num).toDouble());
+
+    doc.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.letter,
+      margin: const pw.EdgeInsets.fromLTRB(48, 40, 48, 40),
+      header: (context) => context.pageNumber == 1
+          ? pw.SizedBox()
+          : pw.Text('${e['titulo']}${conClave ? ' · clave' : ''}', style: const pw.TextStyle(fontSize: 8, color: _suave)),
+      footer: (context) => pw.Align(
+        alignment: pw.Alignment.centerRight,
+        child: pw.Text('Página ${context.pageNumber} de ${context.pagesCount}', style: const pw.TextStyle(fontSize: 8, color: _suave)),
+      ),
+      build: (context) => [
+        _encabezado(conClave ? 'Clave: ${e['titulo']}' : '${e['titulo']}', [asignatura, grado, 'Valor: ${_puntos(total)} puntos']),
+        pw.SizedBox(height: 12),
+        if (!conClave) ...[
+          pw.Row(children: [
+            pw.Expanded(flex: 3, child: pw.Text('Nombre: ________________________________________', style: const pw.TextStyle(fontSize: 11))),
+            pw.Expanded(child: pw.Text('Fecha: __________', style: const pw.TextStyle(fontSize: 11))),
+          ]),
+          pw.SizedBox(height: 6),
+          pw.Text('Nota: _______ / ${_puntos(total)}', style: const pw.TextStyle(fontSize: 11)),
+          pw.SizedBox(height: 10),
+          pw.Text('${e['instrucciones']}', style: pw.TextStyle(fontSize: 10, fontStyle: pw.FontStyle.italic)),
+          pw.SizedBox(height: 6),
+        ],
+        for (final (i, p) in preguntas.indexed)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 10),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('${i + 1}. ${p['enunciado']} (${pts(p['puntos'])})', style: const pw.TextStyle(fontSize: 11, lineSpacing: 2)),
+                if (conClave)
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(left: 14, top: 3),
+                    child: pw.Text('Respuesta: ${p['respuesta']}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: _azul)),
+                  )
+                else if (p['tipo'] == 'opcion_multiple')
+                  for (final (j, o) in (p['opciones'] as List).indexed)
+                    pw.Padding(padding: const pw.EdgeInsets.only(left: 14, top: 3), child: pw.Text('${letras[j]}) $o', style: const pw.TextStyle(fontSize: 11)))
+                else if (p['tipo'] == 'verdadero_falso')
+                  pw.Padding(padding: const pw.EdgeInsets.only(left: 14, top: 3), child: pw.Text('(   ) Verdadero      (   ) Falso', style: const pw.TextStyle(fontSize: 11)))
+                else
+                  for (var l = 0; l < (p['tipo'] == 'desarrollo' ? 5 : 2); l++)
+                    pw.Container(
+                      width: double.infinity,
+                      height: 18,
+                      margin: const pw.EdgeInsets.only(left: 14),
+                      decoration: const pw.BoxDecoration(border: pw.Border(bottom: pw.BorderSide(color: _suave, width: 0.5))),
+                    ),
+              ],
+            ),
+          ),
+      ],
+    ));
+    return doc.save();
+  }
+
   // ── Carnet estudiantil ──────────────────────────────────────────────────────
 
   /// Carnets tamaño tarjeta (85.6 × 54 mm), 8 por hoja carta para recortar. [c] es lo que
