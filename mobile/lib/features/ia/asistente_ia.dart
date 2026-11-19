@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/informes/compartir.dart';
@@ -40,7 +41,7 @@ Future<bool> _puedeUsar(BuildContext context, WidgetRef ref, String uso, String 
     {'disponible': false} => ('No disponible', 'El asistente no está disponible en este momento. Intenta más tarde.'),
     _ => (null, null),
   };
-  if (titulo == null) return revisarTopeIa(context, estado!, uso, nombre);
+  if (titulo == null) return await consentimientoIa(context) && context.mounted && await revisarTopeIa(context, estado!, uso, nombre);
   await showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(
@@ -52,6 +53,42 @@ Future<bool> _puedeUsar(BuildContext context, WidgetRef ref, String uso, String 
     ),
   );
   return false;
+}
+
+const _claveConsentimiento = 'ia_consentimiento_v1';
+
+/// La primera vez explica qué se envía a Anthropic y pide permiso (App Store 5.1.2(i)).
+/// Se recuerda en el dispositivo; sin aceptar no se usa el asistente.
+Future<bool> consentimientoIa(BuildContext context) async {
+  final prefs = await SharedPreferences.getInstance();
+  if (prefs.getBool(_claveConsentimiento) ?? false) return true;
+  if (!context.mounted) return false;
+  final acepta = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      shape: const RoundedRectangleBorder(),
+      icon: const Icon(iconoIa),
+      title: const Text('Antes de usar el asistente'),
+      content: const SingleChildScrollView(
+        child: Text(
+          'El asistente funciona con Claude, la inteligencia artificial de Anthropic. Para cada tarea, '
+          'ProfeApp le envía solo lo necesario: los temas, las notas, la asistencia, la conducta o la foto '
+          'del trabajo que vas a calificar.\n\n'
+          'Nunca se envía el nombre ni la identidad de los alumnos. Anthropic no usa estos datos para '
+          'entrenar sus modelos, y las fotos no se guardan.\n\n'
+          'El asistente solo propone: nada se guarda ni cambia sin que tú lo aceptes. Más detalle en la '
+          'política de privacidad (profeapphn.com/privacidad).',
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Ahora no')),
+        FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Acepto')),
+      ],
+    ),
+  );
+  if (acepta != true) return false;
+  await prefs.setBool(_claveConsentimiento, true);
+  return true;
 }
 
 /// Con el tope del mes alcanzado lo explica y no sigue; desde el 80 % avisa cuánto queda.

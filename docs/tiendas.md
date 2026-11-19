@@ -29,8 +29,11 @@ El sitio se arma con `scripts/cloudflare-build.sh`: `site/` va a la raíz y el p
 - **Privacidad, términos y ayuda dentro de la app**: en el login, en Cuenta y en el menú de los
   paneles de administración.
 - **Sin rastreo, publicidad ni SDK de terceros**: no hace falta App Tracking Transparency.
-- **Notificaciones locales, no push**: el recordatorio lo programa el teléfono; no hay
-  Firebase ni APNs.
+- **Notificaciones**: el recordatorio del docente es local. Desde la 1.2.0 las cuentas de familia
+  reciben push (comunicados y faltas) por Firebase Cloud Messaging; el permiso se pide solo a esas
+  cuentas.
+- **Asistente con IA (1.2.0)**: antes del primer uso pide permiso explícito para enviar datos a
+  Anthropic (App Store 5.1.2(i)); se recuerda en el dispositivo.
 - **Cifrado**: solo HTTPS. `ITSAppUsesNonExemptEncryption = false` en `Info.plist`.
 - **Sin registro público ni compras**: las cuentas las da ProfeApp o el centro. Nada que comprar
   en la app ni en la ficha (ver la regla 3.1 en [app-store.md](app-store.md)). El aviso de plan
@@ -95,3 +98,12 @@ las grandes.
 | Cuentas de revisión en producción | Hechas y con datos ficticios (credenciales en `CREDENCIALES.local.md`) |
 | Video en el iPhone para Apple | **Falta** |
 | Cuenta de Play Console y prueba cerrada de 14 días | **Falta** |
+
+## 1.2.0 (compilación 11), 19 de noviembre de 2026
+
+| Paso | Estado |
+| --- | --- |
+| `.ipa` y `.aab` firmados contra producción | Hechos |
+| Plan Pro activo en las dos cuentas de revisión | **Falta** (Plataforma) |
+| Privacidad de App Store y Seguridad de los datos de Play con las filas ⭐ | **Falta** (consolas) |
+| Notas para el revisor y novedades | Escritas en [app-store.md](app-store.md) |

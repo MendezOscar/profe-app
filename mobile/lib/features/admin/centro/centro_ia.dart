@@ -9,7 +9,7 @@ import '../../../core/informes/informes_pdf.dart';
 import '../../../core/providers.dart';
 import '../../../theme/tokens.dart';
 import '../../../ui/estado_error.dart';
-import '../../ia/asistente_ia.dart' show iconoIa, revisarTopeIa;
+import '../../ia/asistente_ia.dart' show consentimientoIa, iconoIa, revisarTopeIa;
 import '../centro_page.dart' show centroProvider;
 import 'consolidado_page.dart';
 
@@ -36,7 +36,7 @@ Future<bool> puedeUsarIaCentro(BuildContext context, WidgetRef ref, String uso, 
     {'disponible': false} => ('No disponible', 'El asistente no está disponible en este momento. Intenta más tarde.'),
     _ => (null, null),
   };
-  if (titulo == null) return revisarTopeIa(context, estado!, uso, nombre);
+  if (titulo == null) return await consentimientoIa(context) && context.mounted && await revisarTopeIa(context, estado!, uso, nombre);
   await showDialog<void>(
     context: context,
     builder: (context) => AlertDialog(

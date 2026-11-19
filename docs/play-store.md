@@ -202,7 +202,14 @@ suspensión.
 | Información personal → ID de usuario | Id interno de la cuenta | Sí | No | Funcionalidad, gestión de la cuenta | Sí |
 | Información personal → Otra información | Número de identidad de los alumnos, que viene en el cuadro | Sí | No | Funcionalidad | Sí |
 | Archivos y documentos | El cuadro de SACE (Excel) | Sí | No | Funcionalidad | Sí |
-| Ubicación, contactos, mensajes, fotos, audio, salud, finanzas, actividad, ID del dispositivo | — | No | — | — | — |
+| Fotos y videos → Fotos ⭐ | Foto del alumno para el carnet (se guarda); la del trabajo que se califica con IA se procesa y no se guarda | Sí | No | Funcionalidad | No |
+| Mensajes → Otros mensajes en la app ⭐ | Comunicados del centro a las familias | Sí | No | Funcionalidad | No |
+| ID del dispositivo u otros IDs ⭐ | Token de notificaciones de las cuentas de familia (Firebase Cloud Messaging) | Sí | No | Funcionalidad | No |
+| Ubicación, contactos, audio, salud, finanzas, actividad | — | No | — | — | — |
+
+⭐ **Nuevo en la 1.2.0**: hay que editar el formulario ya enviado y agregarlos. «Compartir» sigue
+en No también con la IA: Anthropic procesa por cuenta de ProfeApp (proveedor de servicios), igual
+que Render o Aiven.
 
 En cada tipo de dato, la misma pantalla: ✅ Recopilados (no Compartidos); procesamiento
 **efímero: No** (se guarda en el servidor, es el respaldo); **necesaria**; para qué: ✅ Funciones
@@ -230,7 +237,9 @@ Cloudflare solo procesan por cuenta de ProfeApp: no cuenta como compartir.
 | `POST_NOTIFICATIONS` | El recordatorio de pendientes, solo si el docente lo activa (se pide en ese momento) |
 | `RECEIVE_BOOT_COMPLETED` | Que el recordatorio siga programado después de reiniciar el teléfono |
 
-Ninguno es «sensible» y no llevan formulario. No usa alarmas exactas
+Ninguno es «sensible» y no llevan formulario. Desde la 1.2.0 Firebase Cloud Messaging agrega los
+suyos (`WAKE_LOCK`, `VIBRATE`, `ACCESS_NETWORK_STATE` y `com.google.android.c2dm.permission.RECEIVE`), tampoco sensibles. La cámara
+se abre con la app de cámara del sistema (`image_picker`), sin permiso `CAMERA` propio. No usa alarmas exactas
 (`SCHEDULE_EXACT_ALARM`), ni ubicación, cámara, contactos, SMS, accesibilidad ni acceso a todos
 los archivos.
 

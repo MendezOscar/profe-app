@@ -93,8 +93,15 @@ siempre que la app (y su ficha) no inviten a comprar por fuera.
 
 ### Novedades de esta versión
 
+1.2.0 (compilación 11):
+
 ```
-Primera versión.
+Novedades para centros educativos y docentes:
+
+• Gestión del centro: matrícula importada de SACE, secciones, horarios sin choques, excusas y permisos que el docente ve al pasar lista, incidencias disciplinarias, carnet estudiantil con foto, boletas, reportes y estadísticas de los docentes.
+• App para las familias: notas, asistencia, horario, incidencias y comunicados del centro, con avisos al teléfono.
+• Asistente con IA (plan Pro): sugiere el plan del parcial, genera exámenes con su clave, sugiere la nota de un trabajo desde una foto y redacta comentarios. Siempre propone; tú decides. No se envían nombres de alumnos.
+• Mejoras y correcciones.
 ```
 
 ### Publicación
@@ -165,8 +172,9 @@ un centro educativo para sus docentes. Hay dos tipos de cuenta en la app:
 2) Administrador de centro
    Usuario: <correo de la cuenta de revisión del centro>
    Contraseña: <contraseña>
-   Ve los docentes de su centro (tres de ejemplo, ficticios) y su avance; los da de alta, los
-   desactiva y les restablece la contraseña.
+   Gestiona todo el centro (datos ficticios): Inicio con el tablero del día, docentes, año
+   lectivo, grados, secciones y horarios, asistencia, excusas, incidencias, alumnos con su
+   carnet, comunicados a las familias, reportes y estadísticas de los docentes.
 
 Existe además una cuenta interna de plataforma que solo usa el equipo de ProfeApp para crear
 centros; no es para usuarios.
@@ -186,9 +194,24 @@ fecha y que lo nuevo no se respalda; no muestra precios, datos de pago ni enlace
 
 SERVICIOS EXTERNOS
 API propia en Render, base de datos PostgreSQL en Aiven y el sitio y panel web en Cloudflare
-Pages. Ninguno es de publicidad, analítica ni pagos. Los avisos son notificaciones locales que
-programa el propio teléfono; no hay notificaciones push. Enlaces salientes: WhatsApp de soporte
-y las páginas de privacidad, términos y ayuda.
+Pages. Las notificaciones push (solo para las cuentas de familia: comunicados del centro y faltas)
+van por Firebase Cloud Messaging. El asistente con IA usa la API de Anthropic (Claude) desde
+nuestro servidor. Ninguno es de publicidad, analítica ni pagos. Enlaces salientes: WhatsApp de
+soporte y las páginas de privacidad, términos y ayuda.
+
+ASISTENTE CON IA (regla 5.1.2(i))
+Las dos cuentas de revisión tienen el plan Pro activo. Antes del primer uso, la app explica qué se
+envía a Anthropic y pide permiso explícito ("Acepto" / "Ahora no"); sin aceptar no se envía nada.
+Solo se envían temas, notas, asistencia o la foto del trabajo: nunca nombres ni identidades de
+alumnos, y las fotos no se guardan. El asistente solo propone; nada se guarda sin que la persona
+lo acepte.
+   Docente: en una asignatura, pestaña Plan → "Sugerir el plan con IA"; Actividades → "Generar examen con IA";
+   al calificar una actividad, el ícono de escáner junto a un alumno ("Calificar con foto (IA)").
+   Centro: Reportes → "Preguntar a la IA" e "Informe con IA".
+
+CÁMARA Y FOTOS
+La cámara se pide solo al tomar la foto del carnet de un alumno o la de un trabajo para calificar
+con IA. La fototeca, para elegir esas mismas fotos.
 
 DIFERENCIAS REGIONALES
 Ninguna. Solo español, porque el producto es para el sistema educativo de Honduras.
@@ -225,15 +248,21 @@ Apple pidió a Garaj una grabación en un aparato físico. Se adjunta desde el p
 Primera pregunta, «¿recopilas datos?»: **Sí** (mandar nombres y notas al servidor propio cuenta
 como recopilación).
 
+**Desde la 1.2.0 cambia** (centro, familias, carnet, avisos e IA): hay que **editar el cuestionario
+publicado** y agregar las filas marcadas con ⭐, y volver a pulsar **Publicar**.
+
 | Tipo (Apple) | Qué es en ProfeApp | Vinculado a la persona | Rastreo | Finalidad |
 | --- | --- | --- | --- | --- |
-| Información de contacto → Nombre | Nombre del docente | Sí | No | Funcionalidad de la app |
+| Información de contacto → Nombre | Del docente, del personal del centro, de los alumnos y de las familias | Sí | No | Funcionalidad de la app |
 | Información de contacto → Correo electrónico | Correo de la cuenta | Sí | No | Funcionalidad de la app |
-| Contenido del usuario → Otro contenido | Cuadros de SACE con nombres e identidad de los alumnos, notas, asistencia | Sí | No | Funcionalidad de la app |
+| Contenido del usuario → Fotos o videos ⭐ | Foto del alumno para el carnet (se guarda). La foto de un trabajo que se califica con IA se procesa y no se guarda | Sí | No | Funcionalidad de la app |
+| Contenido del usuario → Otro contenido | Cuadros de SACE con identidad de los alumnos, notas, asistencia, excusas, incidencias y comunicados ⭐ | Sí | No | Funcionalidad de la app |
 | Identificadores → ID de usuario | Id interno de la cuenta | Sí | No | Funcionalidad de la app |
+| Identificadores → ID del dispositivo ⭐ | Token de notificaciones de las cuentas de familia (Firebase Cloud Messaging) | Sí | No | Funcionalidad de la app |
 
 Todo lo demás (ubicación, contactos, salud, compras, historial, identificadores de publicidad,
-diagnóstico) **no** se recopila. Rastreo: **No**. Al terminar hay que pulsar **Publicar**: llenarlo
+diagnóstico) **no** se recopila. Los datos que van al asistente con IA (Anthropic) no son
+«rastreo» ni se usan para publicidad: Anthropic los procesa por cuenta de ProfeApp. Rastreo: **No**. Al terminar hay que pulsar **Publicar**: llenarlo
 no basta y el botón de enviar se niega.
 
 ## Lo que pide «Información de la app» (y bloquea el envío)
@@ -270,6 +299,11 @@ está. La app nunca pide permiso de fotos: el selector de archivos de iOS no lo 
 La app pide iOS 15 o superior (Apple lo exige para subir desde abril de 2027).
 
 ## Lista antes de mandar
+
+Para la **1.2.0 (11)**: plan Pro activo en las dos cuentas de revisión (Plataforma → plan de la
+cuenta → «Plan Pro»), cuestionario de privacidad editado y **publicado** con las filas ⭐, notas
+para el revisor con las secciones nuevas (servicios externos, asistente con IA, cámara) y las
+novedades de la versión.
 
 - [ ] App creada en App Store Connect con el bundle `hn.profeapp.profeapp`.
 - [ ] `.ipa` 1.0.0 (1) subido, apuntando a producción (`env/prod.json`).
