@@ -9,7 +9,7 @@ public class UsoIa : BaseEntity
     public Guid UsuarioId { get; set; }
     public Guid? InstitucionId { get; set; }
 
-    /// <summary>plan, examen o comentario.</summary>
+    /// <summary>plan, examen, comentario (docente); boleta, informe o comunicado (centro).</summary>
     public string Funcion { get; set; } = null!;
 
     public string Modelo { get; set; } = null!;
@@ -22,4 +22,7 @@ public static class FuncionesIa
     public const string Plan = "plan";
     public const string Examen = "examen";
     public const string Comentario = "comentario";
+    public const string Boleta = "boleta";
+    public const string Informe = "informe";
+    public const string Comunicado = "comunicado";
 }

@@ -49,3 +49,28 @@ public sealed record ComentarioIaRequest(
 public sealed record RubroNotaIaDto(string Nombre, decimal Obtenido, decimal Posible);
 
 public sealed record ComentarioIaDto(string Texto);
+
+// ── Centro (plan Pro) ────────────────────────────────────────────────────────
+
+/// <summary>Uso del mes del centro y sus topes.</summary>
+public sealed record EstadoIaCentroDto(
+    bool Habilitada, bool Disponible, int Boletas, int LimiteBoletas, int Informes, int LimiteInformes, int Comunicados, int LimiteComunicados);
+
+/// <summary><c>EnProceso</c>: la IA todavía está redactando los de esta sección y parcial.</summary>
+public sealed record ComentariosSeccionDto(Guid SeccionId, int Parcial, bool EnProceso, IReadOnlyList<ComentarioAlumnoDto> Alumnos);
+
+/// <summary><c>DeIa</c>: texto de la IA sin cambios; falso si lo escribió o editó una persona.</summary>
+public sealed record ComentarioAlumnoDto(Guid AlumnoId, string Nombre, string? Texto, bool DeIa);
+
+/// <summary><c>Todos</c>: rehace también los de la IA ya escritos (nunca los editados por una persona).</summary>
+public sealed record GenerarComentariosRequest(int Parcial, bool Todos);
+
+public sealed record EditarComentarioRequest(int Parcial, string? Texto);
+
+/// <summary>Informe del año para la dirección, con lo cerrado hasta hoy.</summary>
+public sealed record InformeIaDto(string Resumen, IReadOnlyList<string> Fortalezas, IReadOnlyList<string> Alertas, IReadOnlyList<string> Recomendaciones);
+
+/// <summary><c>Puntos</c>: lo que quiere decir el centro, en pocas palabras.</summary>
+public sealed record ComunicadoIaRequest(string? Puntos, string? Destinatarios);
+
+public sealed record ComunicadoIaDto(string Titulo, string Cuerpo);

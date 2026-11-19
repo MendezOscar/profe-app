@@ -9,6 +9,8 @@ import '../../../theme/tokens.dart';
 import '../../../ui/esqueleto.dart';
 import '../../../ui/estado_error.dart';
 import '../../../ui/estado_vacio.dart';
+import '../../ia/asistente_ia.dart' show iconoIa;
+import 'centro_ia.dart';
 
 final consolidadoProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, seccion) =>
     ref.watch(apiClientProvider).get('/centro/secciones/$seccion/consolidado', parse: (d) => d as Map<String, dynamic>));
@@ -96,6 +98,15 @@ class _Contenido extends ConsumerWidget {
                     },
               icon: const Icon(Icons.picture_as_pdf_outlined),
               label: const Text('Boletas de la sección'),
+            ),
+            OutlinedButton.icon(
+              onPressed: alumnos.isEmpty
+                  ? null
+                  : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                        builder: (_) => ComentariosBoletaPage(seccionId: seccionId, titulo: titulo),
+                      )),
+              icon: const Icon(iconoIa),
+              label: const Text('Comentarios de boleta'),
             ),
             OutlinedButton.icon(
               onPressed: asignaturas.isEmpty ? null : () => _cuadros(context, ref),

@@ -449,6 +449,19 @@ class InformesPdf {
                 style: const pw.TextStyle(fontSize: 11),
               ),
             ],
+            if ((a['comentario'] as String?)?.isNotEmpty ?? false) ...[
+              pw.SizedBox(height: 10),
+              pw.Container(
+                width: double.infinity,
+                padding: const pw.EdgeInsets.all(8),
+                color: _fondo,
+                child: pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
+                  pw.Text('OBSERVACIONES', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: _suave)),
+                  pw.SizedBox(height: 3),
+                  pw.Text(a['comentario'] as String, style: const pw.TextStyle(fontSize: 10, lineSpacing: 2)),
+                ]),
+              ),
+            ],
             pw.SizedBox(height: 6),
             pw.Text(
               'Nota mínima para aprobar: ${consolidado['notaMinima']}. La final es el promedio de los parciales; con final '
@@ -506,6 +519,41 @@ class InformesPdf {
           pw.Text('Sello del centro', style: const pw.TextStyle(fontSize: 9, color: _suave)),
         ],
       ),
+    ));
+    return doc.save();
+  }
+
+  // ── Informe con IA para la dirección ───────────────────────────────────────
+
+  static Future<Uint8List> informeDireccion(Map<String, dynamic> informe, {required String centro}) async {
+    await _cargar();
+    final doc = pw.Document(theme: _tema, title: 'Informe $centro', author: centro);
+    pw.Widget lista(String titulo, String clave) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.SizedBox(height: 14),
+            pw.Text(titulo, style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: _marino)),
+            for (final x in (informe[clave] as List).cast<String>())
+              pw.Padding(
+                padding: const pw.EdgeInsets.only(top: 5, left: 8),
+                child: pw.Bullet(text: x, style: const pw.TextStyle(fontSize: 11, lineSpacing: 2)),
+              ),
+          ],
+        );
+    doc.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.letter,
+      margin: const pw.EdgeInsets.all(48),
+      build: (context) => [
+        _encabezado('Informe para la dirección', [centro, _fecha(DateTime.now())]),
+        pw.SizedBox(height: 12),
+        pw.Text('${informe['resumen']}', style: const pw.TextStyle(fontSize: 11, lineSpacing: 3), textAlign: pw.TextAlign.justify),
+        lista('Fortalezas', 'fortalezas'),
+        lista('Alertas', 'alertas'),
+        lista('Recomendaciones', 'recomendaciones'),
+        pw.SizedBox(height: 18),
+        pw.Text('Redactado con el asistente de IA de ProfeApp a partir de los reportes del centro. Revisado por la dirección.',
+            style: const pw.TextStyle(fontSize: 8, color: _suave)),
+      ],
     ));
     return doc.save();
   }

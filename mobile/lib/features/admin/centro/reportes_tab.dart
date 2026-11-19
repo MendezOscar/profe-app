@@ -12,6 +12,8 @@ import '../../../ui/estado_error.dart';
 import '../../../ui/estado_vacio.dart';
 import 'comun_centro.dart';
 import 'matricula.dart';
+import '../../ia/asistente_ia.dart' show iconoIa;
+import 'centro_ia.dart';
 
 final reportesProvider = FutureProvider.autoDispose<Map<String, dynamic>>(
     (ref) => ref.watch(apiClientProvider).get('/centro/reportes', parse: (d) => d as Map<String, dynamic>));
@@ -56,6 +58,13 @@ class ReportesTab extends ConsumerWidget {
                       EncabezadoPestana(
                         titulo: 'Reportes ${r['anio']}',
                         ayuda: 'Con lo registrado hasta hoy: matrícula del centro, notas que cerraron los docentes y la lista del día.',
+                        acciones: [
+                          FilledButton.icon(
+                            onPressed: () => informeIa(context, ref),
+                            icon: const Icon(iconoIa),
+                            label: const Text('Informe con IA'),
+                          ),
+                        ],
                       ),
                       _Matricula(r['matricula'] as Map<String, dynamic>),
                       const SizedBox(height: Espacio.xl),

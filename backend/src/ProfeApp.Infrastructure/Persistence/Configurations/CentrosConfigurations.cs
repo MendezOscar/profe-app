@@ -291,3 +291,15 @@ public class MarcaCentroConfig : IEntityTypeConfiguration<MarcaCentro>
         b.HasIndex(x => x.InstitucionId).IsUnique();
     }
 }
+
+public class ComentarioBoletaConfig : IEntityTypeConfiguration<ComentarioBoleta>
+{
+    public void Configure(EntityTypeBuilder<ComentarioBoleta> b)
+    {
+        b.ToTable("comentarios_boleta");
+        b.Property(x => x.Texto).HasMaxLength(1000).IsRequired();
+        b.HasOne<Seccion>().WithMany().HasForeignKey(x => x.SeccionId).OnDelete(DeleteBehavior.Cascade);
+        b.HasOne<Alumno>().WithMany().HasForeignKey(x => x.AlumnoId).OnDelete(DeleteBehavior.Cascade);
+        b.HasIndex(x => new { x.SeccionId, x.AlumnoId, x.Parcial }).IsUnique();
+    }
+}

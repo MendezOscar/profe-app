@@ -51,6 +51,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
     public DbSet<Incidencia> Incidencias => Set<Incidencia>();
     public DbSet<FotoAlumno> FotosAlumno => Set<FotoAlumno>();
     public DbSet<MarcaCentro> MarcasCentro => Set<MarcaCentro>();
+    public DbSet<ComentarioBoleta> ComentariosBoleta => Set<ComentarioBoleta>();
     public DbSet<ProfeApp.Domain.Common.UsoIa> UsosIa => Set<ProfeApp.Domain.Common.UsoIa>();
     public DbSet<Domain.Common.DispositivoPush> DispositivosPush => Set<Domain.Common.DispositivoPush>();
 

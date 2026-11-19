@@ -25,3 +25,17 @@ public interface IGeneradorIa
     bool Disponible { get; }
     Task<RespuestaIa> GenerarAsync(PeticionIa peticion, CancellationToken ct);
 }
+
+/// <summary>Asistente del centro (plan Pro del centro): boletas, informe de dirección y comunicados.</summary>
+public interface ICentroIaService
+{
+    Task<Result<EstadoIaCentroDto>> EstadoAsync(CancellationToken ct = default);
+    Task<Result<ComentariosSeccionDto>> ComentariosAsync(Guid seccionId, int parcial, CancellationToken ct = default);
+
+    /// <summary>Pone en cola la redacción de los comentarios de la sección; vuelve enseguida.</summary>
+    Task<Result<ComentariosSeccionDto>> GenerarComentariosAsync(Guid seccionId, GenerarComentariosRequest request, CancellationToken ct = default);
+
+    Task<Result> EditarComentarioAsync(Guid seccionId, Guid alumnoId, EditarComentarioRequest request, CancellationToken ct = default);
+    Task<Result<InformeIaDto>> InformeAsync(CancellationToken ct = default);
+    Task<Result<ComunicadoIaDto>> ComunicadoAsync(ComunicadoIaRequest request, CancellationToken ct = default);
+}

@@ -165,6 +165,20 @@ public static class AdminEndpoints
                 (await s.CarnetsSeccionAsync(id, ct)).ToHttp())
             .RequireRateLimiting(Limites.Exportar);
 
+        // Asistente con IA del centro (plan Pro): comentarios de boleta, informe y comunicados.
+        centro.MapGet("/ia/estado", async (ICentroIaService s, CancellationToken ct) => (await s.EstadoAsync(ct)).ToHttp());
+        centro.MapGet("/secciones/{id:guid}/comentarios", async (Guid id, int? parcial, ICentroIaService s, CancellationToken ct) =>
+            (await s.ComentariosAsync(id, parcial ?? 1, ct)).ToHttp());
+        centro.MapPost("/secciones/{id:guid}/comentarios/generar", async (Guid id, GenerarComentariosRequest r, ICentroIaService s, CancellationToken ct) =>
+                (await s.GenerarComentariosAsync(id, r, ct)).ToHttp())
+            .WithSummary("Pone en cola la redacción con IA de los comentarios de boleta de la sección.");
+        centro.MapPut("/secciones/{id:guid}/comentarios/{alumnoId:guid}", async (Guid id, Guid alumnoId, EditarComentarioRequest r, ICentroIaService s, CancellationToken ct) =>
+            (await s.EditarComentarioAsync(id, alumnoId, r, ct)).ToHttp());
+        centro.MapPost("/ia/informe", async (ICentroIaService s, CancellationToken ct) => (await s.InformeAsync(ct)).ToHttp())
+            .WithSummary("Informe del año para la dirección, con IA, a partir de los reportes.");
+        centro.MapPost("/ia/comunicado", async (ComunicadoIaRequest r, ICentroIaService s, CancellationToken ct) => (await s.ComunicadoAsync(r, ct)).ToHttp())
+            .WithSummary("Borrador de comunicado a partir de los puntos clave.");
+
         centro.MapGet("/reportes", async (IReportesService s, CancellationToken ct) => (await s.ResumenAsync(ct)).ToHttp())
             .WithSummary("Matrícula, rendimiento, alumnos en riesgo y asistencia del año actual.");
         centro.MapGet("/tablero", async (IReportesService s, CancellationToken ct) => (await s.TableroAsync(ct)).ToHttp())

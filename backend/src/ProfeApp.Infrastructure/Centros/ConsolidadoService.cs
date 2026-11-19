@@ -60,6 +60,10 @@ public sealed class ConsolidadoService(AppDbContext db, EstructuraCentroService 
 
         var conducta = (await db.Conductas.AsNoTracking().Where(c => c.SeccionId == seccionId).ToListAsync(ct))
             .ToLookup(c => c.AlumnoId);
+        // En la boleta va el comentario del último parcial que lo tenga.
+        var comentarios = (await db.ComentariosBoleta.AsNoTracking().Where(c => c.SeccionId == seccionId)
+                .Select(c => new { c.AlumnoId, c.Parcial, c.Texto }).ToListAsync(ct))
+            .GroupBy(c => c.AlumnoId).ToDictionary(g => g.Key, g => g.OrderByDescending(c => c.Parcial).First().Texto);
         var estructuras = clases.Select(c => (c, Estructura: Estructura(c.Columnas))).ToList();
         var filas = alumnos.Select(a =>
         {
@@ -72,7 +76,8 @@ public sealed class ConsolidadoService(AppDbContext db, EstructuraCentroService 
                 return Calificar(parciales, V(x.Estructura.Recuperacion), inasistencias);
             }).ToList();
             var letras = Enumerable.Range(1, 4).Select(p => conducta[a.Id].FirstOrDefault(c => c.Parcial == p)?.Nota).ToList();
-            return new AlumnoConsolidadoDto(a.Id, a.Identidad, a.Nombre, a.Estado, notas, Resultado(notas), letras);
+            return new AlumnoConsolidadoDto(a.Id, a.Identidad, a.Nombre, a.Estado, notas, Resultado(notas), letras,
+                comentarios.GetValueOrDefault(a.Id));
         }).ToList();
 
         return new ConsolidadoDto(seccion.Id, seccion.Nombre, seccion.Jornada, nombreCentro, seccion.Anio, NotaMinima,

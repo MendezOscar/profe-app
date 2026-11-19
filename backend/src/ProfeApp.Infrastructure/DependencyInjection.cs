@@ -86,7 +86,11 @@ public static class DependencyInjection
         services.AddScoped<ICarnetService, Centros.CarnetService>();
         // Asistente con IA (plan Pro): Claude desde el servidor; sin clave queda apagado.
         services.AddSingleton<IGeneradorIa, Ia.GeneradorClaude>();
+        services.AddScoped<Ia.ClienteIa>();
         services.AddScoped<IAsistenteIaService, Ia.AsistenteIaService>();
+        services.AddScoped<ICentroIaService, Ia.CentroIaService>();
+        services.AddSingleton<Ia.ColaBoletas>();
+        services.AddHostedService<Ia.ServicioBoletas>();
 
         return services;
     }

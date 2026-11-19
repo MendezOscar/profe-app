@@ -60,9 +60,14 @@ public sealed class GeneradorDePrueba : IGeneradorIa
     public Task<RespuestaIa> GenerarAsync(PeticionIa p, CancellationToken ct)
     {
         Peticiones.Enqueue(p);
+        var requeridos = p.Esquema?["required"].GetRawText() ?? "";
         var texto = p.Esquema is null
             ? "El estudiante muestra compromiso con las tareas. Debe reforzar el examen."
-            : p.Esquema["required"].GetRawText().Contains("rubros")
+            : requeridos.Contains("resumen")
+                ? """{"resumen":"El centro avanza bien.","fortalezas":["Asistencia alta"],"alertas":["Matemáticas baja"],"recomendaciones":["Tutorías"]}"""
+            : requeridos.Contains("cuerpo")
+                ? """{"titulo":"Reunión de padres","cuerpo":"Les invitamos el viernes a las 3:00 p. m."}"""
+            : requeridos.Contains("rubros")
                 ? """{"rubros":[{"nombre":"Tareas","puntos":30,"actividades":[{"titulo":"Tarea 1","puntos":30,"descripcion":"Resolver ejercicios.","semana":9}]},{"nombre":"Inventado","puntos":10,"actividades":[]},{"nombre":"Examen","puntos":70,"actividades":[{"titulo":"Examen parcial","puntos":70,"descripcion":"Prueba escrita.","semana":4}]}]}"""
                 : """{"titulo":"Examen de fracciones","instrucciones":"Lee con atención.","preguntas":[{"tipo":"opcion_multiple","enunciado":"¿Cuánto es 1/2 + 1/4?","opciones":["3/4","2/6","1/8","1"],"respuesta":"3/4","puntos":5},{"tipo":"verdadero_falso","enunciado":"1/2 es mayor que 1/3.","opciones":["x"],"respuesta":"Verdadero","puntos":5}]}""";
         return Task.FromResult(new RespuestaIa(texto, "modelo-de-prueba", 100, 50));

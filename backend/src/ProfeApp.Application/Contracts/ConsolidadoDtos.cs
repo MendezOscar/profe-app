@@ -13,10 +13,10 @@ public sealed record ConsolidadoDto(
 public sealed record AsignaturaConsolidadoDto(Guid ClaseId, string Nombre, string Docente, IReadOnlyList<string> Parciales, bool ConArchivo);
 
 /// <summary><c>Notas</c> va en el orden de las asignaturas; null si el alumno no está en esa lista.</summary>
-/// <summary><c>Conducta</c>: la del maestro guía en los parciales I a IV (null si falta).</summary>
+/// <summary><c>Conducta</c>: la del maestro guía en los parciales I a IV (null si falta). <c>Comentario</c>: el del último parcial que lo tenga.</summary>
 public sealed record AlumnoConsolidadoDto(
     Guid AlumnoId, string Identidad, string Nombre, string EstadoMatricula,
-    IReadOnlyList<NotaAsignaturaDto?> Notas, string Resultado, IReadOnlyList<string?>? Conducta = null);
+    IReadOnlyList<NotaAsignaturaDto?> Notas, string Resultado, IReadOnlyList<string?>? Conducta = null, string? Comentario = null);
 
 /// <summary>
 /// <c>Parciales</c>: nota de cada parcial ya con nivelación (null si falta). <c>Estado</c>:

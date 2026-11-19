@@ -1,6 +1,5 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Common;
 using ProfeApp.Application.Contracts;
@@ -15,10 +14,9 @@ namespace ProfeApp.Infrastructure.Ia;
 /// </summary>
 public sealed class AsistenteIaService(
     AppDbContext db,
-    IGeneradorIa generador,
+    ClienteIa ia,
     ICurrentUser currentUser,
-    IClock clock,
-    ILogger<AsistenteIaService> log) : IAsistenteIaService
+    IClock clock) : IAsistenteIaService
 {
     /// <summary>Planes del parcial y exámenes por docente al mes.</summary>
     public const int LimiteGeneraciones = 60;
@@ -26,10 +24,7 @@ public sealed class AsistenteIaService(
     /// <summary>Comentarios de alumnos por docente al mes (son cortos y baratos).</summary>
     public const int LimiteComentarios = 400;
 
-    private const string Contexto =
-        "Trabajas para ProfeApp, una app de docentes de Honduras. Escribe en español de Honduras, claro y " +
-        "profesional. Sigue el Currículo Nacional Básico (CNB) de la Secretaría de Educación cuando aplique. " +
-        "El docente revisa todo lo que propones antes de usarlo.";
+    private const string Contexto = ClienteIa.Contexto;
 
     private static readonly string[] TiposPregunta = ["opcion_multiple", "verdadero_falso", "respuesta_corta", "desarrollo"];
 
@@ -37,7 +32,7 @@ public sealed class AsistenteIaService(
     {
         var (habilitada, _) = await HabilitadaAsync(ct);
         var (generaciones, comentarios) = await UsadosAsync(ct);
-        return new EstadoIaDto(habilitada, generador.Disponible, generaciones, LimiteGeneraciones, comentarios, LimiteComentarios);
+        return new EstadoIaDto(habilitada, ia.Disponible, generaciones, LimiteGeneraciones, comentarios, LimiteComentarios);
     }
 
     // ── Plan del parcial ─────────────────────────────────────────────────────
@@ -166,9 +161,7 @@ public sealed class AsistenteIaService(
 
     private DateTimeOffset InicioDelMes()
     {
-        var hoy = clock.Today;
-        // El mes empieza a la medianoche de Honduras; Postgres guarda en UTC.
-        return new DateTimeOffset(hoy.Year, hoy.Month, 1, 0, 0, 0, TimeSpan.FromHours(-6)).ToUniversalTime();
+        return ClienteIa.InicioDelMes(clock.Today);
     }
 
     private async Task<(int Generaciones, int Comentarios)> UsadosAsync(CancellationToken ct)
@@ -182,7 +175,7 @@ public sealed class AsistenteIaService(
 
     private async Task<Error?> PuedeAsync(string funcion, CancellationToken ct)
     {
-        if (!generador.Disponible) return Error.Forbidden("El asistente con IA no está disponible en este momento.");
+        if (!ia.Disponible) return Error.Forbidden("El asistente con IA no está disponible en este momento.");
         var (habilitada, _) = await HabilitadaAsync(ct);
         if (!habilitada) return Error.Forbidden("El asistente con IA es parte del plan Pro.");
         var (generaciones, comentarios) = await UsadosAsync(ct);
@@ -193,61 +186,21 @@ public sealed class AsistenteIaService(
 
     private async Task<Result<T>> LlamarAsync<T>(string funcion, PeticionIa peticion, CancellationToken ct)
     {
-        var texto = await LlamarAsync(funcion, peticion, ct);
-        if (!texto.IsSuccess) return Result<T>.Fail(texto.Error!);
-        try
-        {
-            return JsonSerializer.Deserialize<T>(texto.Value, Json)!;
-        }
-        catch (JsonException e)
-        {
-            log.LogWarning(e, "Respuesta de la IA que no se pudo leer ({Funcion})", funcion);
-            return Result<T>.Fail(Error.Validation("La IA respondió algo que no se pudo leer. Intenta de nuevo."));
-        }
+        var (_, institucion) = await HabilitadaAsync(ct);
+        return await ia.JsonAsync<T>(funcion, peticion, currentUser.RequireUserId(), institucion, ct);
     }
 
     private async Task<Result<string>> LlamarAsync(string funcion, PeticionIa peticion, CancellationToken ct)
     {
-        RespuestaIa respuesta;
-        try
-        {
-            respuesta = await generador.GenerarAsync(peticion, ct);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            log.LogError(e, "Falló la llamada a la IA ({Funcion})", funcion);
-            return Result<string>.Fail(Error.Validation("La IA no respondió. Intenta de nuevo en un momento."));
-        }
-
         var (_, institucion) = await HabilitadaAsync(ct);
-        db.UsosIa.Add(new UsoIa
-        {
-            UsuarioId = currentUser.RequireUserId(),
-            InstitucionId = institucion,
-            Funcion = funcion,
-            Modelo = respuesta.Modelo,
-            TokensEntrada = respuesta.TokensEntrada,
-            TokensSalida = respuesta.TokensSalida,
-        });
-        await db.SaveChangesAsync(ct);
-
-        return respuesta.Rechazada || string.IsNullOrWhiteSpace(respuesta.Texto)
-            ? Result<string>.Fail(Error.Validation("La IA no pudo con esta petición. Cambia los temas e intenta de nuevo."))
-            : respuesta.Texto;
+        return await ia.TextoAsync(funcion, peticion, currentUser.RequireUserId(), institucion, ct);
     }
 
-    private static string? Texto(string? valor, int maximo)
-    {
-        var t = (valor ?? "").Trim();
-        return t.Length == 0 ? null : t.Length > maximo ? t[..maximo] : t;
-    }
+    private static string? Texto(string? valor, int maximo) => ClienteIa.Texto(valor, maximo);
 
     private static string Clave(string nombre) => nombre.Trim().ToUpperInvariant();
 
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
-
-    private static Dictionary<string, JsonElement> Esquema(object schema) =>
-        JsonSerializer.SerializeToElement(schema).EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone());
+    private static Dictionary<string, JsonElement> Esquema(object schema) => ClienteIa.Esquema(schema);
 
     private static readonly Dictionary<string, JsonElement> EsquemaPlan = Esquema(new
     {

@@ -8,6 +8,8 @@ import '../../../ui/esqueleto.dart';
 import '../../../ui/estado_error.dart';
 import '../../../ui/estado_vacio.dart';
 import 'comun_centro.dart';
+import '../../ia/asistente_ia.dart' show iconoIa;
+import 'centro_ia.dart';
 
 final familiaProvider = FutureProvider.autoDispose.family<Map<String, dynamic>, String>((ref, alumno) =>
     ref.watch(apiClientProvider).get('/centro/alumnos/$alumno/familia', parse: (d) => d as Map<String, dynamic>));
@@ -245,6 +247,22 @@ class ComunicadosTab extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () async {
+                    final r = await redactarComunicadoIa(dialogo, ref,
+                        destinatarios: todo ? null : 'familias de ${elegidas.length} ${elegidas.length == 1 ? 'sección' : 'secciones'}');
+                    if (r == null) return;
+                    setState(() {
+                      titulo.text = r.$1;
+                      cuerpo.text = r.$2;
+                    });
+                  },
+                  icon: const Icon(iconoIa),
+                  label: const Text('Redactar con IA'),
+                ),
+              ),
               TextField(
                 controller: titulo,
                 autofocus: true,

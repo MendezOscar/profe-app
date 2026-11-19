@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using ProfeApp.Infrastructure.Persistence;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http.Json;
@@ -152,6 +154,50 @@ public class ConsolidadoTests(ApiFixture fixture) : ApiTestBase(fixture)
         conNotas.GetProperty("promedio").GetDecimal().Should().Be(66.7m);
         conNotas.GetProperty("cuadrosEnApp").GetInt32().Should().BeGreaterThan(0);
         stats.GetProperty("diasHabiles").GetInt32().Should().Be(0, "el año 2027 aún no empieza");
+
+        // Asistente del centro (plan Pro): sin Pro no hay; con Pro redacta en segundo plano.
+        (await c.PostAsJsonAsync($"/api/v1/centro/secciones/{a}/comentarios/generar", new { parcial = 2, todos = false }))
+            .StatusCode.Should().Be(HttpStatusCode.Forbidden);
+        var institucionId = (await ReadAsync(await c.GetAsync("/api/v1/centro"))).GetProperty("institucion").GetProperty("id").GetGuid();
+        using (var scope = Fixture.Services.CreateScope())
+            await scope.ServiceProvider.GetRequiredService<AppDbContext>().Instituciones
+                .Where(i => i.Id == institucionId).ExecuteUpdateAsync(x => x.SetProperty(i => i.ConIa, true));
+
+        async Task<JsonElement> ComentariosListosAsync()
+        {
+            for (var i = 0; i < 50; i++)
+            {
+                var r = await ReadAsync(await c.GetAsync($"/api/v1/centro/secciones/{a}/comentarios?parcial=2"));
+                if (!r.GetProperty("enProceso").GetBoolean()) return r;
+                await Task.Delay(100);
+            }
+            throw new TimeoutException();
+        }
+        var antes = GeneradorDePrueba.Peticiones.Count;
+        (await ReadAsync(await c.PostAsJsonAsync($"/api/v1/centro/secciones/{a}/comentarios/generar", new { parcial = 2, todos = false })))
+            .GetProperty("alumnos").GetArrayLength().Should().Be(3);
+        var listos = await ComentariosListosAsync();
+        listos.GetProperty("alumnos").EnumerateArray().Should().OnlyContain(x => x.GetProperty("deIa").GetBoolean());
+        var enviadas = GeneradorDePrueba.Peticiones.Skip(antes).Select(p => p.Usuario).ToList();
+        enviadas.Should().HaveCount(3).And.OnlyContain(u => u.Contains("MATEMÁTICAS") && !u.Contains("Ana") && !u.Contains("0801201400001"));
+
+        var primero = listos.GetProperty("alumnos")[0].GetProperty("alumnoId").GetGuid();
+        (await c.PutAsJsonAsync($"/api/v1/centro/secciones/{a}/comentarios/{primero}", new { parcial = 2, texto = "Escrito por la dirección." }))
+            .StatusCode.Should().Be(HttpStatusCode.NoContent);
+        await c.PostAsJsonAsync($"/api/v1/centro/secciones/{a}/comentarios/generar", new { parcial = 2, todos = true });
+        var rehechos = await ComentariosListosAsync();
+        rehechos.GetProperty("alumnos")[0].GetProperty("texto").GetString().Should().Be("Escrito por la dirección.", "lo editado no se reescribe");
+        (await ReadAsync(await c.GetAsync($"/api/v1/centro/secciones/{a}/consolidado")))
+            .GetProperty("alumnos")[0].GetProperty("comentario").GetString().Should().Be("Escrito por la dirección.");
+
+        var informe = await ReadAsync(await c.PostAsync("/api/v1/centro/ia/informe", null));
+        informe.GetProperty("recomendaciones").GetArrayLength().Should().BeGreaterThan(0);
+        GeneradorDePrueba.Peticiones.Last().Usuario.Should().Contain("MATEMÁTICAS").And.NotContain("Beto").And.NotContain("Profe Mate");
+        var borrador = await ReadAsync(await c.PostAsJsonAsync("/api/v1/centro/ia/comunicado", new { puntos = "Reunión el viernes 3 pm", destinatarios = (string?)null }));
+        borrador.GetProperty("titulo").GetString().Should().Be("Reunión de padres");
+        var estado = await ReadAsync(await c.GetAsync("/api/v1/centro/ia/estado"));
+        estado.GetProperty("boletas").GetInt32().Should().Be(5, "3 la primera vez y 2 al rehacer");
+        estado.GetProperty("informes").GetInt32().Should().Be(1);
 
         // Otro centro no ve este consolidado.
         var otro = await CentroAsync();
