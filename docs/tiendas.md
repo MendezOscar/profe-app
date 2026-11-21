@@ -117,4 +117,4 @@ Calificar en tanda y saldo de créditos de IA. Sin cambios en privacidad ni en S
 | --- | --- |
 | `.ipa` y `.aab` firmados contra producción | Hechos |
 | Novedades y nota del revisor (tanda) | Escritas en [app-store.md](app-store.md) |
-| Enviada a revisión en App Store y Google Play | **Falta** |
+| Enviada a revisión en App Store y Google Play | Hecho, 21 de noviembre de 2026 (en revisión) |

@@ -99,6 +99,8 @@ PODS:
   - GoogleUtilities/UserDefaults (8.1.5):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
+  - image_picker_ios (0.0.1):
+    - Flutter
   - in_app_review (2.0.0):
     - Flutter
   - nanopb (3.30910.0):
@@ -133,6 +135,7 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
+  - image_picker_ios (from `.symlinks/plugins/image_picker_ios/ios`)
   - in_app_review (from `.symlinks/plugins/in_app_review/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - share_plus (from `.symlinks/plugins/share_plus/ios`)
@@ -171,6 +174,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
   flutter_secure_storage:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
+  image_picker_ios:
+    :path: ".symlinks/plugins/image_picker_ios/ios"
   in_app_review:
     :path: ".symlinks/plugins/in_app_review/ios"
   path_provider_foundation:
@@ -201,6 +206,7 @@ SPEC CHECKSUMS:
   flutter_secure_storage: d33dac7ae2ea08509be337e775f6b59f1ff45f12
   GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
   GoogleUtilities: 7dc09b3fa9ecb5c2298b952313d14628b61b9da3
+  image_picker_ios: 4f2f91b01abdb52842a8e277617df877e40f905b
   in_app_review: 436034b18594851a7328d7f1c2ed5ec235b79cfc
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   path_provider_foundation: 0b743cbb62d8e47eab856f09262bb8c1ddcfe6ba
