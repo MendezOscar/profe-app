@@ -93,6 +93,15 @@ siempre que la app (y su ficha) no inviten a comprar por fuera.
 
 ### Novedades de esta versión
 
+1.2.1 (compilación 12), la misma para Google Play (cabe en sus 500 caracteres):
+
+```
+• Califica en tanda: toma los trabajos de toda la sección y mándalos juntos al asistente con IA; en unos minutos ves la nota sugerida junto a cada alumno y decides cuáles usar.
+• Saldo mensual de créditos de IA: la app te dice cuánto te queda y cuánto usa cada función.
+• Avisos más claros cuando el asistente no está disponible.
+• Mejoras y correcciones.
+```
+
 1.2.0 (compilación 11):
 
 ```
@@ -173,7 +182,7 @@ API propia en Render, base de datos en Aiven, web en Cloudflare. Push solo para 
 
 ASISTENTE CON IA (5.1.2(i))
 Las dos cuentas tienen el plan Pro activo. Antes del primer uso la app explica qué se envía a Anthropic y pide permiso ("Acepto" / "Ahora no"); sin aceptar no se envía nada. Nunca se envían nombres ni identidades de alumnos, y las fotos no se guardan. El asistente solo propone.
-Docente: Plan → "Sugerir el plan con IA"; Actividades → "Generar examen con IA"; al calificar, el ícono de escáner junto a un alumno ("Calificar con foto (IA)").
+Docente: Plan → "Sugerir el plan con IA"; Actividades → "Generar examen con IA"; al calificar, el ícono de escáner junto a un alumno ("Calificar con foto (IA)"), o el ícono de tanda arriba para tomar los trabajos de varios alumnos y mandarlos juntos (las notas sugeridas llegan en unos minutos).
 Centro: Reportes → "Preguntar a la IA" e "Informe con IA".
 
 CÁMARA Y FOTOS

@@ -44,3 +44,14 @@ DEMO_PASSWORD=<la del docente demo> node grabar.mjs   # ~8 min; deja los .mp4 en
 `ETAPAS=1,3 node grabar.mjs` graba solo esos videos (`p` prepara la sección 2 para el video 5;
 `l` solo inicia sesión). Si un toque cae fuera de lugar, las fotos de control quedan en
 `$TMPDIR/profeapp-videos/fotos`.
+
+## Video promocional del modo docente
+
+`promo-docente.mp4` (vertical, ~54 s, para Reels, TikTok, Shorts y estados de WhatsApp): textos
+animados de `scripts/videos-ayuda/promo.html` con tomas de los videos de ayuda dentro de un teléfono,
+voz Paulina y la misma música. Necesita los videos de ayuda ya grabados en `videos-ayuda/`; si se
+regrabaron, revisar los tramos (`clip`) de cada escena en `promo.mjs`.
+
+```sh
+cd scripts/videos-ayuda && node promo.mjs    # ~4 min; deja videos-ayuda/promo-docente.mp4
+```

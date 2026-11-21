@@ -107,4 +107,14 @@ las grandes.
 | Plan Pro activo en las dos cuentas de revisión | Hecho |
 | Privacidad de App Store y Seguridad de los datos de Play con las filas ⭐ | Hecho |
 | Notas para el revisor y novedades | Escritas en [app-store.md](app-store.md) |
-| Enviada a revisión en App Store y Google Play | Hecho, 19 de noviembre de 2026 (en revisión) |
+| Enviada a revisión en App Store y Google Play | Hecho, 19 de noviembre de 2026; publicada en las dos |
+
+## 1.2.1 (compilación 12), 21 de noviembre de 2026
+
+Calificar en tanda y saldo de créditos de IA. Sin cambios en privacidad ni en Seguridad de los datos.
+
+| Paso | Estado |
+| --- | --- |
+| `.ipa` y `.aab` firmados contra producción | Hechos |
+| Novedades y nota del revisor (tanda) | Escritas en [app-store.md](app-store.md) |
+| Enviada a revisión en App Store y Google Play | **Falta** |
