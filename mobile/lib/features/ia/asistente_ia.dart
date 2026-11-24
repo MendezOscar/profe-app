@@ -248,10 +248,12 @@ Future<_Programa?> _programaDe(WidgetRef ref, PlanParcial plan, String modalidad
     final parciales = await ref.read(parcialesProvider(plan.claseId).future);
     final total = parciales.isEmpty ? 1 : parciales.length;
     final k = parciales.indexWhere((p) => p.clave == plan.parcial.clave).clamp(0, total - 1);
+    // Básica no trae resultados de aprendizaje: no hay nada que marcar.
     final n = codigos.length;
-    final desde = (k * n / total).floor();
+    if (n == 0) return _Programa(datos, {});
+    final desde = (k * n / total).floor().clamp(0, n - 1);
     final hasta = ((k + 1) * n / total).floor().clamp(desde + 1, n);
-    return _Programa(datos, {if (n > 0) ...codigos.sublist(desde.clamp(0, n - 1), hasta)});
+    return _Programa(datos, {...codigos.sublist(desde, hasta)});
   } on ApiException {
     return null; // sin programa, como antes: con los temas del docente
   }
