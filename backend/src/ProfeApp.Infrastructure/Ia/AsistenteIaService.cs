@@ -31,6 +31,19 @@ public sealed partial class AsistenteIaService(
 
     private const string Contexto = ClienteIa.Contexto;
 
+    /// Tablas progresivas de evaluación y ponderación por parcial (Acuerdo 0158-SE-2025).
+    private const string Tabla0158 =
+        "- Básica I ciclo (1.° a 3.°): Actividades de aula 45, Actividades extra aula 10, Valores y actitudes 10, " +
+        "Expresiones artísticas, deportivas y humanísticas 5, Exámenes escritos/prácticos 30.\n" +
+        "- Básica II ciclo (4.° a 6.°): Actividades de aula 35, Actividades extra aula 10, Valores y actitudes 10, " +
+        "Expresiones artísticas, deportivas y humanísticas 5, Exámenes escritos/prácticos 40.\n" +
+        "- Básica III ciclo (7.° a 9.°): Actividades de aula 25, Actividades extra aula 10, Valores y actitudes 10, " +
+        "Expresiones artísticas, deportivas y humanísticas 5, Exámenes escritos/prácticos 50.\n" +
+        "- Media (10.° a 12.°, Ciencias y Humanidades y formación de fundamento del BTP): Actividades de aula 35, " +
+        "Actividades extra aula 10, Valores y actitudes 5, Examen escrito/práctico 50.\n" +
+        "- Formación específica (taller o laboratorio) del BTP: Actividades de taller/laboratorio 60, " +
+        "Actividades extra aula 10, Valores y actitudes 10, Examen escrito/práctico 20.";
+
     private static readonly string[] TiposPregunta = ["opcion_multiple", "verdadero_falso", "respuesta_corta", "desarrollo"];
 
     public async Task<EstadoIaDto> EstadoAsync(CancellationToken ct = default)
@@ -60,7 +73,9 @@ public sealed partial class AsistenteIaService(
             (rubros.Count > 0
                 ? "Usa exactamente estos rubros con sus puntos y reparte cada uno en actividades:\n" +
                   string.Join("\n", rubros.Select(x => $"- {Texto(x.Nombre, 80)}: {x.Puntos} puntos"))
-                : $"Propón de 3 a 5 rubros (por ejemplo tareas, trabajo en clase, proyecto, examen) que sumen {r.Total} puntos.");
+                : $"Usa como rubros los de la tabla oficial del Acuerdo 0158-SE-2025 que corresponde al grado, con sus puntos " +
+                  $"llevados a {r.Total} en la misma proporción:\n{Tabla0158}\nSi el grado no se puede ubicar en la tabla, " +
+                  $"propón de 3 a 5 rubros que sumen {r.Total} puntos.");
         var sistema = Contexto + "\n\nArma el plan de evaluación de un parcial: rubros con puntos y, en cada rubro, " +
             "actividades concretas con título corto, puntos, una descripción de una o dos oraciones para el estudiante y " +
             "la semana del parcial en que va. Los puntos de las actividades de un rubro suman exactamente los del rubro. " +

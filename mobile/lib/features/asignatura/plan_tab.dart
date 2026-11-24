@@ -162,8 +162,11 @@ class _SinPlan extends ConsumerWidget {
     final otros = parciales.where((p) => p.clave != plan.parcial.clave).toList();
 
     Future<void> usarPlantilla() async {
+      final clase = await ref.read(claseProvider(plan.claseId).future);
+      if (!context.mounted) return;
       final elegida = await elegirPlantilla(context, ref,
-          mensaje: 'Se copia a ${plan.parcial.titulo}. Después puedes ajustar rubros y puntos.');
+          mensaje: 'Se copia a ${plan.parcial.titulo}. Después puedes ajustar rubros y puntos.',
+          recomendada: Plantilla.oficialPara(clase.resumen.gradoSeccion));
       if (elegida == null) return;
       await repo.aplicarPlantilla(plan.claseId, [plan.parcial.clave], elegida.rubros);
       planCambiado(ref, plan.claseId, plan.parcial.clave);

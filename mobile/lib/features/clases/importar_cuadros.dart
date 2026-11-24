@@ -94,18 +94,30 @@ Future<void> importarCuadros(BuildContext context, WidgetRef ref) async {
 /// Aplica la plantilla elegida a todos los parciales de esas clases que todavía no tienen plan.
 Future<void> ofrecerPlan(BuildContext context, WidgetRef ref, List<String> claseIds) async {
   final cuantas = claseIds.length;
+  // La tabla oficial de cada una según su grado. Si no todas usan la misma, se ofrece
+  // aplicar a cada una la suya.
+  final clases = {for (final c in await ref.read(clasesProvider.future)) c.id: c};
+  final oficiales = {
+    for (final id in claseIds)
+      if (Plantilla.oficialPara(clases[id]?.gradoSeccion ?? '') case final p?) id: p,
+  };
+  final distintas = {for (final p in oficiales.values) p.id}.length > 1;
+  if (!context.mounted) return;
   final elegida = await elegirPlantilla(
     context,
     ref,
     mensaje: 'Se copia a ${cuantas == 1 ? 'la asignatura nueva' : 'las $cuantas asignaturas nuevas'}, en cada parcial. '
         'Después puedes cambiar rubros y puntos en cada una.',
+    recomendada: distintas ? _segunGrado : oficiales.values.firstOrNull,
   );
   if (elegida == null) return;
 
   final planes = ref.read(planesRepositoryProvider);
   for (final id in claseIds) {
+    final rubros = elegida.id == _segunGrado.id ? oficiales[id]?.rubros : elegida.rubros;
+    if (rubros == null) continue;
     final parciales = await planes.parciales(id);
-    await planes.aplicarPlantilla(id, parciales.map((p) => p.clave), elegida.rubros);
+    await planes.aplicarPlantilla(id, parciales.map((p) => p.clave), rubros);
   }
   ref.invalidate(planProvider);
   ref.invalidate(tableroProvider);
@@ -116,24 +128,35 @@ Future<void> ofrecerPlan(BuildContext context, WidgetRef ref, List<String> clase
   }
 }
 
-/// Hoja inferior con las plantillas del docente y las prearmadas.
-Future<Plantilla?> elegirPlantilla(BuildContext context, WidgetRef ref, {required String mensaje}) async {
-  final plantillas = await ref.read(plantillasProvider.future);
+/// Al importar asignaturas de grados distintos: a cada una, la tabla oficial de su grado.
+const _segunGrado = Plantilla(
+  id: 'pre:0158-grado',
+  nombre: 'Oficial · la de cada grado',
+  prearmada: true,
+  rubros: [],
+);
+
+/// Hoja inferior con las plantillas del docente y las prearmadas; [recomendada] va primero.
+Future<Plantilla?> elegirPlantilla(BuildContext context, WidgetRef ref,
+    {required String mensaje, Plantilla? recomendada}) async {
+  final todas = await ref.read(plantillasProvider.future);
+  final plantillas = [if (recomendada != null) recomendada, ...todas.where((p) => p.id != recomendada?.id)];
   if (!context.mounted) return null;
   return showModalBottomSheet<Plantilla>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
     shape: const RoundedRectangleBorder(),
-    builder: (context) => _ElegirPlantilla(plantillas: plantillas, mensaje: mensaje),
+    builder: (context) => _ElegirPlantilla(plantillas: plantillas, mensaje: mensaje, recomendada: recomendada?.id),
   );
 }
 
 class _ElegirPlantilla extends StatelessWidget {
-  const _ElegirPlantilla({required this.plantillas, required this.mensaje});
+  const _ElegirPlantilla({required this.plantillas, required this.mensaje, this.recomendada});
 
   final List<Plantilla> plantillas;
   final String mensaje;
+  final String? recomendada;
 
   @override
   Widget build(BuildContext context) {
@@ -157,10 +180,19 @@ class _ElegirPlantilla extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: Espacio.s),
                 child: Card(
+                  shape: p.id == recomendada
+                      ? RoundedRectangleBorder(side: BorderSide(color: scheme.primary, width: 2))
+                      : null,
                   child: ListTile(
                     onTap: () => Navigator.pop(context, p),
                     title: Text(p.nombre, style: text.titleMedium),
-                    subtitle: Text(p.rubros.map((r) => '${r.nombre} ${formatoPuntos(r.puntos)}').join(' · ')),
+                    subtitle: Text([
+                      if (p.id == recomendada) 'Recomendada · Acuerdo 0158-SE-2025',
+                      if (p.rubros.isEmpty)
+                        'A cada asignatura, la tabla oficial de su grado.'
+                      else
+                        p.rubros.map((r) => '${r.nombre} ${formatoPuntos(r.puntos)}').join(' · '),
+                    ].join('\n')),
                     trailing: const Icon(Icons.chevron_right),
                   ),
                 ),

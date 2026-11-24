@@ -36,7 +36,62 @@ class Plantilla {
 
   double get total => rubros.fold(0, (s, r) => s + r.puntos);
 
+  /// Tablas progresivas de evaluación y ponderación del Acuerdo 0158-SE-2025 (obligatorio
+  /// desde el año escolar 2025 en centros gubernamentales y no gubernamentales).
+  static const oficiales = [
+    Plantilla(id: 'pre:0158-b1', nombre: 'Oficial · I ciclo (1.° a 3.°)', prearmada: true, rubros: [
+      RubroPlantilla('Actividades de aula', 45),
+      RubroPlantilla('Actividades extra aula', 10),
+      RubroPlantilla('Valores y actitudes', 10),
+      RubroPlantilla('Expresiones artísticas, deportivas y humanísticas', 5),
+      RubroPlantilla('Exámenes escritos/prácticos', 30),
+    ]),
+    Plantilla(id: 'pre:0158-b2', nombre: 'Oficial · II ciclo (4.° a 6.°)', prearmada: true, rubros: [
+      RubroPlantilla('Actividades de aula', 35),
+      RubroPlantilla('Actividades extra aula', 10),
+      RubroPlantilla('Valores y actitudes', 10),
+      RubroPlantilla('Expresiones artísticas, deportivas y humanísticas', 5),
+      RubroPlantilla('Exámenes escritos/prácticos', 40),
+    ]),
+    Plantilla(id: 'pre:0158-b3', nombre: 'Oficial · III ciclo (7.° a 9.°)', prearmada: true, rubros: [
+      RubroPlantilla('Actividades de aula', 25),
+      RubroPlantilla('Actividades extra aula', 10),
+      RubroPlantilla('Valores y actitudes', 10),
+      RubroPlantilla('Expresiones artísticas, deportivas y humanísticas', 5),
+      RubroPlantilla('Exámenes escritos/prácticos', 50),
+    ]),
+    Plantilla(id: 'pre:0158-b3t', nombre: 'Oficial · Talleres del III ciclo técnico', prearmada: true, rubros: [
+      RubroPlantilla('Actividades de taller/laboratorio', 30),
+      RubroPlantilla('Actividades extra aula', 10),
+      RubroPlantilla('Valores y actitudes', 10),
+      RubroPlantilla('Examen escrito/práctico', 50),
+    ]),
+    Plantilla(id: 'pre:0158-m', nombre: 'Oficial · Media (BCH y fundamento del BTP)', prearmada: true, rubros: [
+      RubroPlantilla('Actividades de aula', 35),
+      RubroPlantilla('Actividades extra aula', 10),
+      RubroPlantilla('Valores y actitudes', 5),
+      RubroPlantilla('Examen escrito/práctico', 50),
+    ]),
+    Plantilla(id: 'pre:0158-mt', nombre: 'Oficial · BTP, formación específica (taller)', prearmada: true, rubros: [
+      RubroPlantilla('Actividades de taller/laboratorio', 60),
+      RubroPlantilla('Actividades extra aula', 10),
+      RubroPlantilla('Valores y actitudes', 10),
+      RubroPlantilla('Examen escrito/práctico', 20),
+    ]),
+  ];
+
+  /// La tabla oficial del grado del cuadro («TERCER GRADO SECCIÓN 1» → I ciclo). En Media,
+  /// la general: la de taller es sólo para la formación específica del BTP.
+  static Plantilla? oficialPara(String gradoSeccion) => switch (gradoDe(gradoSeccion)) {
+        null => null,
+        <= 3 => oficiales[0],
+        <= 6 => oficiales[1],
+        <= 9 => oficiales[2],
+        _ => oficiales[4],
+      };
+
   static const prearmadas = [
+    ...oficiales,
     Plantilla(id: 'pre:clasico', nombre: 'Acumulativo y examen', prearmada: true, rubros: [
       RubroPlantilla('Tareas', 30),
       RubroPlantilla('Trabajo en clase', 20),
@@ -256,4 +311,18 @@ class Horario {
         aula: j['aula'] as String? ?? '',
         edificio: j['edificio'] as String? ?? '',
       );
+}
+
+/// El número de grado de un encabezado de SACE: «ONCEAVO GRADO SECCIÓN 12» → 11.
+int? gradoDe(String gradoSeccion) {
+  final g = gradoSeccion.toUpperCase().replaceAll('É', 'E');
+  const nombres = [
+    ('DUODECIMO', 12), ('DOCEAVO', 12), ('UNDECIMO', 11), ('ONCEAVO', 11), ('DECIMO', 10),
+    ('NOVENO', 9), ('OCTAVO', 8), ('SEPTIMO', 7), ('SEXTO', 6), ('QUINTO', 5),
+    ('CUARTO', 4), ('TERCER', 3), ('SEGUNDO', 2), ('PRIMER', 1),
+  ];
+  for (final (nombre, n) in nombres) {
+    if (g.contains(nombre)) return n;
+  }
+  return int.tryParse(RegExp(r'(\d+)\s*(°|º|GRADO)').firstMatch(g)?.group(1) ?? '');
 }
