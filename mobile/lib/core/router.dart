@@ -18,6 +18,7 @@ import '../features/bienvenida/splash_page.dart';
 import '../features/calendario/calendario_page.dart';
 import '../features/clases/clase_page.dart';
 import '../features/cuenta/cuenta_page.dart';
+import '../features/portafolio/portafolio_page.dart';
 import '../features/equipos/equipos_page.dart';
 import '../features/inicio/inicio_page.dart';
 import '../features/avisos/avisos_page.dart';
@@ -147,7 +148,22 @@ final routerProvider = Provider<GoRouter>((ref) {
             ],
           ),
           GoRoute(path: '/plantillas', builder: (context, state) => const PlantillasPage()),
-          GoRoute(path: '/cuenta', builder: (context, state) => const CuentaPage()),
+          GoRoute(
+            path: '/cuenta',
+            builder: (context, state) => const CuentaPage(),
+            routes: [
+              GoRoute(
+                path: 'portafolio',
+                builder: (context, state) => const PortafolioPage(),
+                routes: [
+                  GoRoute(
+                    path: 'sexo/:claseId',
+                    builder: (context, state) => SexoAlumnosPage(claseId: state.pathParameters['claseId']!),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ],
       ),
     ],

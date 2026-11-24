@@ -623,6 +623,58 @@ class PlanesRepository {
         conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
+  // ── Ajustes y sexo de los alumnos ─────────────────────────────────────────
+
+  /// El centro de la mayoría de los cuadros importados (nombre y código de SACE).
+  Future<({String centro, String codigo})> centroPrincipal() async {
+    final db = await _db;
+    final f = await db.rawQuery('SELECT centro, codigo_centro, COUNT(*) AS n FROM clases WHERE eliminada = 0 '
+        'GROUP BY codigo_centro ORDER BY n DESC LIMIT 1');
+    return f.isEmpty
+        ? (centro: '', codigo: '')
+        : (centro: f.first['centro'] as String? ?? '', codigo: f.first['codigo_centro'] as String? ?? '');
+  }
+
+  /// Un ajuste guardado: [ambito] vacío para lo del docente, o la clave de SACE de la clase.
+  Future<Map<String, dynamic>> ajuste(String ambito, String clave) async {
+    final db = await _db;
+    final f = await db.query('ajustes', where: 'ambito = ? AND clave = ?', whereArgs: [ambito, clave]);
+    return f.isEmpty ? {} : jsonDecode(f.first['datos'] as String) as Map<String, dynamic>;
+  }
+
+  Future<void> guardarAjuste(String ambito, String clave, Map<String, dynamic> datos) async {
+    final db = await _db;
+    await db.insert('ajustes', {'ambito': ambito, 'clave': clave, 'datos': jsonEncode(datos), ..._sucia()},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// Sexo de los alumnos de una clase, por id de alumno: 'F' o 'M' (sin marcar, no está).
+  /// Se guarda por la clave del alumno, que es la misma en todos los teléfonos.
+  Future<Map<String, String>> sexos(String claseId) async {
+    final db = await _db;
+    final clase = await db.query('clases', columns: ['clave'], where: 'id = ?', whereArgs: [claseId]);
+    if (clase.isEmpty) return {};
+    final datos = await ajuste(clase.first['clave'] as String, 'sexos');
+    return {
+      for (final a in await db.query('alumnos', columns: ['id', 'clave'], where: 'clase_id = ?', whereArgs: [claseId]))
+        if (datos[a['clave']] case final String s) a['id'] as String: s,
+    };
+  }
+
+  Future<void> guardarSexos(String claseId, Map<String, String> porAlumnoId) async {
+    final db = await _db;
+    final clase = await db.query('clases', columns: ['clave'], where: 'id = ?', whereArgs: [claseId]);
+    if (clase.isEmpty) return;
+    final claves = {
+      for (final a in await db.query('alumnos', columns: ['id', 'clave'], where: 'clase_id = ?', whereArgs: [claseId]))
+        a['id'] as String: a['clave'] as String,
+    };
+    await guardarAjuste(clase.first['clave'] as String, 'sexos', {
+      for (final MapEntry(key: id, value: s) in porAlumnoId.entries)
+        if (claves[id] case final c?) c: s,
+    });
+  }
+
   static Future<void> _guardar(DatabaseExecutor db, String tabla, Map<String, Object?> fila) async {
     final n = await db.update(tabla, fila, where: 'id = ?', whereArgs: [fila['id']]);
     if (n == 0) await db.insert(tabla, fila);

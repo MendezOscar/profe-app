@@ -25,7 +25,7 @@ class LocalDb {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 7,
+        version: 8,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) => _create(db),
         onUpgrade: (db, from, to) async {
@@ -35,6 +35,7 @@ class LocalDb {
           if (from < 5) await _indices(db);
           if (from < 6) await _equiposYObservaciones(db);
           if (from < 7) await _horarios(db);
+          if (from < 8) await _ajustes(db);
         },
       ),
     );
@@ -98,6 +99,7 @@ class LocalDb {
     _crearIndices(batch);
     _crearEquiposYObservaciones(batch);
     _crearHorarios(batch);
+    _crearAjustes(batch);
     await batch.commit(noResult: true);
   }
 
@@ -216,6 +218,26 @@ class LocalDb {
         datos TEXT NOT NULL,
         actualizado_en TEXT NOT NULL,
         sucia INTEGER NOT NULL DEFAULT 1
+      )''');
+
+  /// v7 → v8: ajustes del docente.
+  static Future<void> _ajustes(Database db) async {
+    final batch = db.batch();
+    _crearAjustes(batch);
+    await batch.commit(noResult: true);
+  }
+
+  /// Datos sueltos del docente como JSON: los del portafolio (ámbito vacío) o los de una
+  /// clase (ámbito = su clave de SACE, que es la misma en todos los teléfonos), como el sexo de
+  /// cada alumno. Se sincronizan como el plan.
+  static void _crearAjustes(Batch batch) => batch.execute('''
+      CREATE TABLE IF NOT EXISTS ajustes (
+        ambito TEXT NOT NULL,
+        clave TEXT NOT NULL,
+        datos TEXT NOT NULL,
+        actualizado_en TEXT NOT NULL,
+        sucia INTEGER NOT NULL DEFAULT 1,
+        PRIMARY KEY (ambito, clave)
       )''');
 
   /// v2 → v3: planes de calificación y asistencia.

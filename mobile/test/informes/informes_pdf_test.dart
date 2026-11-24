@@ -87,4 +87,40 @@ void main() {
         centro: 'Instituto de prueba', alumno: 'Ana López', identidad: '0801201400001', seccion: '7.º grado A', anio: 2027);
     expect(String.fromCharCodes(constancia.take(5)), '%PDF-');
   });
+
+  test('El portafolio sale como PDF en Básica y en Media, con y sin datos', () async {
+    final conTodo = ClasePortafolio(
+      clase: clase,
+      planes: [plan],
+      sexos: const {'a1': 'F', 'a2': 'M'},
+      horario: const Horario(dias: [DiaClase(dia: 1, inicio: '07:00', fin: '07:45')], aula: '12'),
+      programa: const {
+        'carrera': 'Mercadotecnia',
+        'asignatura': 'QUÍMICA',
+        'grado': 10,
+        'horasSemana': 4,
+        'resultados': [
+          {'codigo': 'RA1', 'texto': 'Explicar la materia', 'criterios': 3},
+        ],
+        'meses': <String>[],
+      },
+    );
+    final vacia = ClasePortafolio(clase: clase, planes: const []);
+    for (final media in [false, true]) {
+      final pdf = await PortafolioPdf.generar(
+        DatosPortafolio(
+          docente: 'Profe Uno',
+          campos: const {'dni': '0801199000001', 'centro': 'Instituto de prueba'},
+          media: media,
+          anio: 2027,
+          introduccion: 'Este portafolio reúne mi trabajo.',
+          objetivos: 'Organizar.\nEvaluar.',
+        ),
+        [conTodo, vacia],
+      );
+      expect(esPdf(pdf), isTrue);
+    }
+    expect(edadPorIdentidad('0801-2012-01234', 2027), 15);
+    expect(edadPorIdentidad('123', 2027), isNull);
+  });
 }

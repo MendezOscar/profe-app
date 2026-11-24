@@ -230,7 +230,24 @@ void main() {
     expect([for (final d in (await planesB.horarios())[claseB]!.dias) d.dia], [5]);
   });
 
-  test('Por registro gana el cambio más nuevo', () async {
+  test('Los datos del portafolio y el sexo de los alumnos pasan de un teléfono al otro', () async {
+    final planesA = PlanesRepository(Future.value(dbA), clasesA);
+    final planesB = PlanesRepository(Future.value(dbB), clasesB);
+    final claseA = (await clasesA.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final claseB = (await clasesB.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final alumnosA = (await clasesA.detalle(claseA)).alumnos;
+
+    await planesA.guardarAjuste('', 'portafolio', {'dni': '0801199000001'});
+    await planesA.guardarSexos(claseA, {alumnosA[0].id: 'F', alumnosA[1].id: 'M'});
+    await syncB.aplicarRegistros([for (final r in await syncA.registrosPendientes()) r.json]);
+
+    expect((await planesB.ajuste('', 'portafolio'))['dni'], '0801199000001');
+    final alumnosB = (await clasesB.detalle(claseB)).alumnos;
+    expect(await planesB.sexos(claseB), {alumnosB[0].id: 'F', alumnosB[1].id: 'M'},
+        reason: 'por la clave del alumno, no por el id del teléfono');
+  });
+
+    test('Por registro gana el cambio más nuevo', () async {
     final planesA = PlanesRepository(Future.value(dbA), clasesA);
     final planesB = PlanesRepository(Future.value(dbB), clasesB);
     final claseA = (await clasesA.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;

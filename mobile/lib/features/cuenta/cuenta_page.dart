@@ -64,6 +64,16 @@ class CuentaPage extends ConsumerWidget {
             ],
             const SizedBox(height: Espacio.xl),
             Card(
+              child: ListTile(
+                leading: const Icon(Icons.folder_shared_outlined),
+                title: const Text('Portafolio docente'),
+                subtitle: const Text('Con el formato 2026, armado con lo que ya tienes en la app'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => context.go('/cuenta/portafolio'),
+              ),
+            ),
+            const SizedBox(height: Espacio.xl),
+            Card(
               child: Column(
                 children: [
                   ListTile(

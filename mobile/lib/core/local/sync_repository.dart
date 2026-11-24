@@ -292,7 +292,7 @@ class SyncRepository {
   /// Orden para aplicar: primero lo que otros registros necesitan que exista.
   static const _tipos = [
     'plantilla', 'rubro', 'actividad', 'sesion', 'parcial', 'calificacion', 'asistencia', 'equipo', 'observacion',
-    'horario',
+    'horario', 'ajuste',
   ];
 
   /// Filas del plan sin subir, cada una con lo necesario para marcarla subida después.
@@ -384,6 +384,10 @@ class SyncRepository {
           {'alumnoClave': r['alumno_clave'], 'fecha': r['fecha'], 'tipo': r['tipo'], 'texto': r['texto']},
           r['eliminado'] == 1);
     }
+    for (final r in await db.query('ajustes', where: 'sucia = 1')) {
+      agregar('ajustes', {'ambito': r['ambito'], 'clave': r['clave']}, r, 'ajuste', r['ambito'] as String,
+          r['clave'] as String, jsonDecode(r['datos'] as String) as Map<String, dynamic>, false);
+    }
     for (final r in await db.rawQuery(
         'SELECT x.*, c.clave AS clase_clave FROM horarios x JOIN clases c ON c.id = x.clase_id WHERE x.sucia = 1')) {
       agregar('horarios', {'clase_id': r['clase_id']}, r, 'horario', r['clase_clave'] as String, 'horario',
@@ -437,6 +441,10 @@ class SyncRepository {
         void agregar(String tabla, Map<String, Object?> llave, Map<String, Object?> fila) =>
             filas.add((tabla: tabla, llave: llave, cuando: cuando, fila: {...fila, ...sync}));
 
+        if (tipo == 'ajuste') {
+          agregar('ajustes', {'ambito': r['claseClave'], 'clave': clave}, {'datos': r['datos'] ?? '{}'});
+          continue;
+        }
         if (tipo == 'plantilla') {
           agregar('plantillas', {'id': clave}, {
             'nombre': datos['nombre'] ?? '',

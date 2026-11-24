@@ -9,6 +9,8 @@ import '../models/clase.dart';
 import '../planes/calculo_parcial.dart';
 import '../planes/modelos.dart';
 
+part 'portafolio_pdf.dart';
+
 /// PDF del informe de un alumno, del libro de notas y de la lista de asistencia. Se arman en
 /// el teléfono, sin internet, con la letra y el logo de la marca. Tamaño carta: el que se
 /// imprime en Honduras.
