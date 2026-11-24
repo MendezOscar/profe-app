@@ -79,6 +79,15 @@ CALIFICA POR PUNTOS
 PASA LISTA EN SEGUNDOS
 · Todos presentes de entrada: marcas solo ausencias, llegadas tarde y faltas justificadas.
 · Historial de asistencia por fecha, editable.
+· Con tu horario, ves tus clases de hoy y la app te recuerda pasar lista los días que te toca.
+
+RÚBRICAS OFICIALES
+· Las tablas del Acuerdo 0158-SE-2025 para cada ciclo, listas para aplicar; la app recomienda la
+  de tu grado.
+
+TU PORTAFOLIO DOCENTE
+· El PDF con el formato 2026: matrícula por edad y sexo, horario, rúbricas, tareas, cuadro de
+  evaluaciones, notas y nivelación salen de lo que ya tienes en la app.
 · Las inasistencias se cuentan solas para el cuadro.
 
 CIERRA EL PARCIAL Y EXPORTA PARA SACE
@@ -200,12 +209,15 @@ suspensión.
 | Información personal → Nombre | Del docente y de los alumnos del cuadro | Sí | No | Funcionalidad de la app, gestión de la cuenta | Sí |
 | Información personal → Dirección de correo | De la cuenta | Sí | No | Funcionalidad, gestión de la cuenta | Sí |
 | Información personal → ID de usuario | Id interno de la cuenta | Sí | No | Funcionalidad, gestión de la cuenta | Sí |
-| Información personal → Otra información | Número de identidad de los alumnos, que viene en el cuadro | Sí | No | Funcionalidad | Sí |
+| Información personal → Número de teléfono 🆕 | Teléfono del docente y del director para su portafolio | Sí | No | Funcionalidad | No |
+| Información personal → Otra información | Número de identidad de los alumnos, que viene en el cuadro; 🆕 DNI, títulos y años de servicio del docente y sexo de los alumnos, para el portafolio | Sí | No | Funcionalidad | Sí |
 | Archivos y documentos | El cuadro de SACE (Excel) | Sí | No | Funcionalidad | Sí |
 | Fotos y videos → Fotos ⭐ | Foto del alumno para el carnet (se guarda); la del trabajo que se califica con IA se procesa y no se guarda | Sí | No | Funcionalidad | No |
 | Mensajes → Otros mensajes en la app ⭐ | Comunicados del centro a las familias | Sí | No | Funcionalidad | No |
 | ID del dispositivo u otros IDs ⭐ | Token de notificaciones de las cuentas de familia (Firebase Cloud Messaging) | Sí | No | Funcionalidad | No |
 | Ubicación, contactos, audio, salud, finanzas, actividad | — | No | — | — | — |
+
+🆕 **Nuevo en la 1.3.0** (portafolio docente): agregar «Número de teléfono» y ampliar «Otra información».
 
 ⭐ **Nuevo en la 1.2.0**: hay que editar el formulario ya enviado y agregarlos. «Compartir» sigue
 en No también con la IA: Anthropic procesa por cuenta de ProfeApp (proveedor de servicios), igual

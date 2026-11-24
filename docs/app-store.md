@@ -65,6 +65,15 @@ CALIFICA POR PUNTOS
 
 PASA LISTA EN SEGUNDOS
 · Todos presentes de entrada: marcas solo a los que faltan, llegan tarde o justifican.
+· Con tu horario, ves tus clases de hoy y la app te recuerda pasar lista los días que te toca.
+
+RÚBRICAS OFICIALES
+· Las tablas del Acuerdo 0158-SE-2025 para cada ciclo, listas para aplicar; la app recomienda la
+  de tu grado.
+
+TU PORTAFOLIO DOCENTE
+· El PDF con el formato 2026: matrícula por edad y sexo, horario, rúbricas, tareas, cuadro de
+  evaluaciones, notas y nivelación salen de lo que ya tienes en la app.
 
 CIERRA EL PARCIAL
 · ProfeApp suma los puntos y las faltas y llena NOTA TOTAL e INASISTENCIAS en el cuadro.
@@ -93,7 +102,17 @@ siempre que la app (y su ficha) no inviten a comprar por fuera.
 
 ### Novedades de esta versión
 
-1.2.1 (compilación 12), la misma para Google Play (cabe en sus 500 caracteres):
+1.3.0 (compilación 13), la misma para Google Play (cabe en sus 500 caracteres):
+
+```
+• Horario: días, hora y aula de cada clase; tus clases de hoy y la lista según tu horario.
+• Rúbricas oficiales del Acuerdo 0158 para cada ciclo, recomendadas según el grado.
+• Portafolio docente en PDF con el formato 2026, armado con lo que ya tienes en la app.
+• Plan Pro: plan y examen con el programa oficial de tu asignatura; presentación y nivelación del portafolio con IA.
+• Mejoras y correcciones.
+```
+
+1.2.1 (compilación 12):
 
 ```
 • Califica en tanda: toma los trabajos de toda la sección y mándalos juntos al asistente con IA; en unos minutos ves la nota sugerida junto a cada alumno y decides cuáles usar.
@@ -182,7 +201,7 @@ API propia en Render, base de datos en Aiven, web en Cloudflare. Push solo para 
 
 ASISTENTE CON IA (5.1.2(i))
 Las dos cuentas tienen el plan Pro activo. Antes del primer uso la app explica qué se envía a Anthropic y pide permiso ("Acepto" / "Ahora no"); sin aceptar no se envía nada. Nunca se envían nombres ni identidades de alumnos, y las fotos no se guardan. El asistente solo propone.
-Docente: Plan → "Sugerir el plan con IA"; Actividades → "Generar examen con IA"; al calificar, el ícono de escáner junto a un alumno ("Calificar con foto (IA)"), o el ícono de tanda arriba para tomar los trabajos de varios alumnos y mandarlos juntos (las notas sugeridas llegan en unos minutos).
+Docente: Plan → "Sugerir el plan con IA" (si la asignatura tiene programa oficial de la Secretaría de Educación, el diálogo muestra sus resultados de aprendizaje); Actividades → "Generar examen con IA"; Cuenta → Portafolio docente → "Redactar con IA" y "Redactar acciones de mejora con IA" (el PDF se genera con "Generar portafolio en PDF"); al calificar, el ícono de escáner junto a un alumno ("Calificar con foto (IA)"), o el ícono de tanda arriba para tomar los trabajos de varios alumnos y mandarlos juntos (las notas sugeridas llegan en unos minutos).
 Centro: Reportes → "Preguntar a la IA" e "Informe con IA".
 
 CÁMARA Y FOTOS
@@ -221,10 +240,14 @@ publicado** y agregar las filas marcadas con ⭐, y volver a pulsar **Publicar**
 | --- | --- | --- | --- | --- |
 | Información de contacto → Nombre | Del docente, del personal del centro, de los alumnos y de las familias | Sí | No | Funcionalidad de la app |
 | Información de contacto → Correo electrónico | Correo de la cuenta | Sí | No | Funcionalidad de la app |
+| Información de contacto → Número de teléfono 🆕 | Teléfono del docente y del director que el docente escribe (opcional) para su portafolio | Sí | No | Funcionalidad de la app |
 | Contenido del usuario → Fotos o videos ⭐ | Foto del alumno para el carnet (se guarda). La foto de un trabajo que se califica con IA se procesa y no se guarda | Sí | No | Funcionalidad de la app |
-| Contenido del usuario → Otro contenido | Cuadros de SACE con identidad de los alumnos, notas, asistencia, excusas, incidencias y comunicados ⭐ | Sí | No | Funcionalidad de la app |
+| Contenido del usuario → Otro contenido | Cuadros de SACE con identidad de los alumnos, notas, asistencia, excusas, incidencias y comunicados ⭐; horario y datos del portafolio (DNI, títulos y años de servicio del docente, sexo de los alumnos, acciones de nivelación) 🆕 | Sí | No | Funcionalidad de la app |
 | Identificadores → ID de usuario | Id interno de la cuenta | Sí | No | Funcionalidad de la app |
 | Identificadores → ID del dispositivo ⭐ | Token de notificaciones de las cuentas de familia (Firebase Cloud Messaging) | Sí | No | Funcionalidad de la app |
+
+🆕 **Desde la 1.3.0** (portafolio docente): editar el cuestionario publicado, agregar el número de
+teléfono y volver a pulsar **Publicar**.
 
 Todo lo demás (ubicación, contactos, salud, compras, historial, identificadores de publicidad,
 diagnóstico) **no** se recopila. Los datos que van al asistente con IA (Anthropic) no son
