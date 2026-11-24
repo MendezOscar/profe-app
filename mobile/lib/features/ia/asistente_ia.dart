@@ -164,15 +164,100 @@ String _clave(String s) => s.trim().toUpperCase();
 
 double _num(Object? v) => (v as num).toDouble();
 
+// ── Programa oficial ─────────────────────────────────────────────────────────
+
+/// El programa oficial de la asignatura (Secretaría de Educación). En Media, sus resultados de
+/// aprendizaje; [sugeridos], los que tocan en este parcial si se reparten en orden entre todos.
+/// En Básica, los meses con programación (el servidor usa los del parcial).
+class _Programa {
+  _Programa(this.datos, this.sugeridos);
+
+  final Map<String, dynamic> datos;
+  final Set<String> sugeridos;
+
+  String get titulo => '${datos['asignatura']}, ${datos['grado']}.° grado';
+  List<Map<String, dynamic>> get resultados => (datos['resultados'] as List).cast<Map<String, dynamic>>();
+  bool get basica => resultados.isEmpty;
+
+  /// Se puede pedir sin escribir temas: en Básica siempre; en Media, con algún resultado elegido.
+  bool listo(Set<String> elegidos) => basica || elegidos.isNotEmpty;
+}
+
+Future<_Programa?> _programaDe(WidgetRef ref, PlanParcial plan, String modalidad) async {
+  final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
+  try {
+    final datos = await ref.read(apiClientProvider).get('/ia/programa',
+        query: {'modalidad': modalidad, 'grado': clase.gradoSeccion, 'asignatura': clase.asignatura},
+        parse: (d) => d is Map<String, dynamic> ? d : null);
+    if (datos == null) return null;
+    final codigos = [for (final r in (datos['resultados'] as List)) (r as Map<String, dynamic>)['codigo'] as String];
+    final parciales = await ref.read(parcialesProvider(plan.claseId).future);
+    final total = parciales.isEmpty ? 1 : parciales.length;
+    final k = parciales.indexWhere((p) => p.clave == plan.parcial.clave).clamp(0, total - 1);
+    final n = codigos.length;
+    final desde = (k * n / total).floor();
+    final hasta = ((k + 1) * n / total).floor().clamp(desde + 1, n);
+    return _Programa(datos, {if (n > 0) ...codigos.sublist(desde.clamp(0, n - 1), hasta)});
+  } on ApiException {
+    return null; // sin programa, como antes: con los temas del docente
+  }
+}
+
+class _ProgramaOficial extends StatelessWidget {
+  const _ProgramaOficial({required this.programa, required this.elegidos, required this.onCambio});
+
+  final _Programa programa;
+  final Set<String> elegidos;
+  final VoidCallback onCambio;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(Espacio.m, Espacio.s, Espacio.s, Espacio.s),
+      color: scheme.primaryContainer.withValues(alpha: 0.5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Programa oficial · ${programa.titulo}', style: text.titleSmall),
+          const SizedBox(height: Espacio.xs),
+          if (programa.basica)
+            Text('Se usan los estándares y contenidos de la programación de la Secretaría para los meses de este parcial.',
+                style: text.bodySmall)
+          else ...[
+            Text('Resultados de aprendizaje de este parcial. Cambia los que vas a trabajar:', style: text.bodySmall),
+            for (final r in programa.resultados)
+              CheckboxListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                value: elegidos.contains(r['codigo']),
+                onChanged: (v) {
+                  v == true ? elegidos.add(r['codigo'] as String) : elegidos.remove(r['codigo']);
+                  onCambio();
+                },
+                title: Text('${r['codigo']}. ${r['texto']}', maxLines: 3, overflow: TextOverflow.ellipsis),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 // ── Plan del parcial ─────────────────────────────────────────────────────────
 
 /// Propone rubros (si el parcial no tiene) y actividades; el docente elige cuáles agregar.
 Future<void> sugerirPlanIa(BuildContext context, WidgetRef ref, PlanParcial plan) async {
   if (!await _puedeUsar(context, ref, 3) || !context.mounted) return;
-  final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
+  final detalle = await ref.read(claseProvider(plan.claseId).future);
+  final clase = detalle.resumen;
+  final programa = await _programaDe(ref, plan, detalle.modalidad);
   if (!context.mounted) return;
 
   final temas = TextEditingController();
+  final elegidos = {...?programa?.sugeridos};
   var semanas = 5;
   final pedir = await showDialog<bool>(
     context: context,
@@ -189,15 +274,22 @@ Future<void> sugerirPlanIa(BuildContext context, WidgetRef ref, PlanParcial plan
                   ? 'El asistente propone rubros que suman 100 puntos y sus actividades.'
                   : 'El asistente propone actividades para los rubros que ya tienes.'),
               const SizedBox(height: Espacio.m),
+              if (programa != null) ...[
+                _ProgramaOficial(programa: programa, elegidos: elegidos, onCambio: () => setState(() {})),
+                const SizedBox(height: Espacio.m),
+              ],
               TextField(
                 controller: temas,
-                autofocus: true,
-                minLines: 4,
+                autofocus: programa == null,
+                minLines: programa == null ? 4 : 2,
                 maxLines: 8,
                 maxLength: 2000,
-                decoration: const InputDecoration(
-                  labelText: 'Temas del parcial',
-                  hintText: 'Fracciones: suma, resta y problemas. Números decimales…',
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                  labelText: programa == null ? 'Temas del parcial' : 'Indicaciones (opcional)',
+                  hintText: programa == null
+                      ? 'Fracciones: suma, resta y problemas. Números decimales…'
+                      : 'Una gira al mercado, un proyecto en equipo…',
                   alignLabelWithHint: true,
                 ),
               ),
@@ -221,7 +313,9 @@ Future<void> sugerirPlanIa(BuildContext context, WidgetRef ref, PlanParcial plan
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogo, false), child: const Text('Cancelar')),
           FilledButton.icon(
-            onPressed: () => temas.text.trim().isEmpty ? null : Navigator.pop(dialogo, true),
+            onPressed: temas.text.trim().isEmpty && !(programa?.listo(elegidos) ?? false)
+                ? null
+                : () => Navigator.pop(dialogo, true),
             icon: const Icon(iconoIa),
             label: const Text('Sugerir'),
           ),
@@ -237,6 +331,8 @@ Future<void> sugerirPlanIa(BuildContext context, WidgetRef ref, PlanParcial plan
     'parcial': plan.parcial.titulo,
     'temas': temas.text,
     'semanas': semanas,
+    'modalidad': detalle.modalidad,
+    'resultados': elegidos.toList(),
     'total': 100,
     'rubros': [for (final x in plan.rubros) {'nombre': x.nombre, 'puntos': x.puntos}],
   });
@@ -363,10 +459,13 @@ const _tipos = {
 /// Genera un examen con su clave; se imprime en PDF y, si se quiere, queda como actividad.
 Future<void> generarExamenIa(BuildContext context, WidgetRef ref, PlanParcial plan) async {
   if (!await _puedeUsar(context, ref, 4) || !context.mounted) return;
-  final clase = (await ref.read(claseProvider(plan.claseId).future)).resumen;
+  final detalle = await ref.read(claseProvider(plan.claseId).future);
+  final clase = detalle.resumen;
+  final programa = await _programaDe(ref, plan, detalle.modalidad);
   if (!context.mounted) return;
 
   final temas = TextEditingController();
+  final elegidos = {...?programa?.sugeridos};
   final puntos = TextEditingController(text: '20');
   var preguntas = 10;
   final tipos = {'opcion_multiple', 'verdadero_falso', 'respuesta_corta'};
@@ -381,13 +480,20 @@ Future<void> generarExamenIa(BuildContext context, WidgetRef ref, PlanParcial pl
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (programa != null) ...[
+                _ProgramaOficial(programa: programa, elegidos: elegidos, onCambio: () => setState(() {})),
+                const SizedBox(height: Espacio.m),
+              ],
               TextField(
                 controller: temas,
-                autofocus: true,
-                minLines: 3,
+                autofocus: programa == null,
+                minLines: programa == null ? 3 : 2,
                 maxLines: 6,
                 maxLength: 2000,
-                decoration: const InputDecoration(labelText: 'Temas que evalúa', alignLabelWithHint: true),
+                onChanged: (_) => setState(() {}),
+                decoration: InputDecoration(
+                    labelText: programa == null ? 'Temas que evalúa' : 'Indicaciones (opcional)',
+                    alignLabelWithHint: true),
               ),
               Row(
                 children: [
@@ -421,7 +527,9 @@ Future<void> generarExamenIa(BuildContext context, WidgetRef ref, PlanParcial pl
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogo, false), child: const Text('Cancelar')),
           FilledButton.icon(
-            onPressed: () => temas.text.trim().isEmpty || tipos.isEmpty ? null : Navigator.pop(dialogo, true),
+            onPressed: (temas.text.trim().isEmpty && !(programa?.listo(elegidos) ?? false)) || tipos.isEmpty
+                ? null
+                : () => Navigator.pop(dialogo, true),
             icon: const Icon(iconoIa),
             label: const Text('Generar'),
           ),
@@ -443,6 +551,9 @@ Future<void> generarExamenIa(BuildContext context, WidgetRef ref, PlanParcial pl
     'preguntas': preguntas,
     'puntos': valor,
     'tipos': tipos.toList(),
+    'modalidad': detalle.modalidad,
+    'parcial': programa == null ? null : plan.parcial.titulo,
+    'resultados': elegidos.toList(),
   });
   if (examen == null || !context.mounted) return;
   await Navigator.of(context).push(MaterialPageRoute<void>(

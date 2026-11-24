@@ -240,6 +240,9 @@ public static class AdminEndpoints
         // Asistente con IA del docente (plan Pro): propone, el docente decide.
         var ia = app.MapGroup("/api/v1/ia").WithTags("IA").RequireAuthorization(Policies.DocenteOnly).RequireRateLimiting(Limites.Usuario);
         ia.MapGet("/estado", async (IAsistenteIaService s, CancellationToken ct) => Results.Ok(await s.EstadoAsync(ct)));
+        ia.MapGet("/programa", (string? modalidad, string? grado, string? asignatura, IProgramasCurriculares p) =>
+                p.Buscar(modalidad, grado, asignatura) is { } programa ? Results.Ok(programa) : Results.NoContent())
+            .WithSummary("El programa curricular oficial de la asignatura de un cuadro de SACE (204 si no hay).");
         ia.MapPost("/plan", async (PlanIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.PlanAsync(r, ct)).ToHttp())
             .WithSummary("Rubros y actividades del parcial a partir de los temas.");
         ia.MapPost("/examen", async (ExamenIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.ExamenAsync(r, ct)).ToHttp())

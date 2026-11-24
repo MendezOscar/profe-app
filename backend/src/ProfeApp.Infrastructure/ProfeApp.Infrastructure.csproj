@@ -24,6 +24,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Programas curriculares oficiales, ya leídos (scripts/programas). -->
+    <EmbeddedResource Include="Programas\Datos\*.json.gz" />
+  </ItemGroup>
+
+  <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 

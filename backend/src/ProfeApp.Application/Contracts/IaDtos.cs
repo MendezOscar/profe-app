@@ -12,9 +12,23 @@ public sealed record EstadoIaDto(bool Habilitada, bool Disponible, decimal Credi
 /// <c>Rubros</c>: los que ya tiene el parcial (se respetan nombre y puntos); vacío para que
 /// la IA los proponga. <c>Total</c>: puntos del parcial (100 en SACE).
 /// </summary>
+/// <summary>
+/// <c>Modalidad</c> (la del cuadro de SACE) ubica el programa oficial; <c>Resultados</c>: los
+/// códigos de resultado de aprendizaje (RA1, RA2…) del parcial. Con programa, los temas son opcionales.
+/// </summary>
 public sealed record PlanIaRequest(
     string? Asignatura, string? Grado, string? Parcial, string? Temas, int Semanas, decimal Total,
-    IReadOnlyList<RubroIaDto>? Rubros);
+    IReadOnlyList<RubroIaDto>? Rubros, string? Modalidad = null, IReadOnlyList<string>? Resultados = null);
+
+/// <summary>
+/// El programa oficial de una asignatura. En Media trae sus resultados de aprendizaje (con
+/// cuántos criterios tiene cada uno); en Básica, los meses que tienen programación.
+/// </summary>
+public sealed record ProgramaDto(
+    string Carrera, string Asignatura, int Grado, int? HorasSemana,
+    IReadOnlyList<ResultadoProgramaDto> Resultados, IReadOnlyList<string> Meses);
+
+public sealed record ResultadoProgramaDto(string Codigo, string Texto, int Criterios);
 
 public sealed record RubroIaDto(string Nombre, decimal Puntos);
 
@@ -29,7 +43,8 @@ public sealed record ActividadIaDto(string Titulo, decimal Puntos, string Descri
 
 /// <summary><c>Tipos</c>: opcion_multiple, verdadero_falso, respuesta_corta, desarrollo.</summary>
 public sealed record ExamenIaRequest(
-    string? Asignatura, string? Grado, string? Temas, int Preguntas, decimal Puntos, IReadOnlyList<string>? Tipos);
+    string? Asignatura, string? Grado, string? Temas, int Preguntas, decimal Puntos, IReadOnlyList<string>? Tipos,
+    string? Modalidad = null, string? Parcial = null, IReadOnlyList<string>? Resultados = null);
 
 public sealed record ExamenIaDto(string Titulo, string Instrucciones, IReadOnlyList<PreguntaIaDto> Preguntas);
 

@@ -70,3 +70,16 @@ public interface ICostosIaService
 {
     Task<CostosIaDto> CostosAsync(int? anio, int? mes, CancellationToken ct = default);
 }
+
+/// <summary>Programas curriculares oficiales (Media por carrera, Básica por área y mes).</summary>
+public interface IProgramasCurriculares
+{
+    /// <summary>El programa de la asignatura de un cuadro de SACE, o null si no lo hay.</summary>
+    ProgramaDto? Buscar(string? modalidad, string? grado, string? asignatura);
+
+    /// <summary>
+    /// El texto del programa para la IA: en Media, los resultados de aprendizaje elegidos (todos si
+    /// no viene ninguno) con criterios y contenidos; en Básica, lo de los meses del parcial.
+    /// </summary>
+    string? Contexto(string? modalidad, string? grado, string? asignatura, string? parcial, IReadOnlyList<string>? resultados);
+}

@@ -16,7 +16,8 @@ public sealed partial class AsistenteIaService(
     AppDbContext db,
     ClienteIa ia,
     ICurrentUser currentUser,
-    IClock clock) : IAsistenteIaService
+    IClock clock,
+    IProgramasCurriculares programas) : IAsistenteIaService
 {
     /// <summary>Se agrega a los avisos de saldo agotado.</summary>
     public const string Ampliar = " Se renueva el día 1; si necesitas más, escríbenos a ProfeApp.";
@@ -59,7 +60,9 @@ public sealed partial class AsistenteIaService(
         var asignatura = Texto(r.Asignatura, 120);
         var temas = Texto(r.Temas, 2000);
         if (asignatura is null) return Result<PlanIaDto>.Fail(Error.Validation("Falta la asignatura."));
-        if (temas is null) return Result<PlanIaDto>.Fail(Error.Validation("Escribe los temas del parcial (hasta 2000 caracteres)."));
+        var programa = programas.Contexto(r.Modalidad, r.Grado, asignatura, r.Parcial, r.Resultados);
+        if (temas is null && programa is null)
+            return Result<PlanIaDto>.Fail(Error.Validation("Escribe los temas del parcial (hasta 2000 caracteres)."));
         if (r.Semanas is < 1 or > 12) return Result<PlanIaDto>.Fail(Error.Validation("El parcial dura de 1 a 12 semanas."));
         if (r.Total is <= 0 or > 1000) return Result<PlanIaDto>.Fail(Error.Validation("El total de puntos no es válido."));
         var rubros = (r.Rubros ?? []).Where(x => !string.IsNullOrWhiteSpace(x.Nombre)).Take(15).ToList();
@@ -69,7 +72,9 @@ public sealed partial class AsistenteIaService(
 
         var usuario =
             $"Asignatura: {asignatura}\nGrado: {Texto(r.Grado, 120) ?? "no indicado"}\nParcial: {Texto(r.Parcial, 60) ?? "no indicado"}\n" +
-            $"Duración: {r.Semanas} semanas\nTotal del parcial: {r.Total} puntos\n\nTemas:\n{temas}\n\n" +
+            $"Duración: {r.Semanas} semanas\nTotal del parcial: {r.Total} puntos\n\n" +
+            (programa is null ? "" : programa + "\n") +
+            (temas is null ? "" : $"{(programa is null ? "Temas" : "Indicaciones del docente")}:\n{temas}\n") + "\n" +
             (rubros.Count > 0
                 ? "Usa exactamente estos rubros con sus puntos y reparte cada uno en actividades:\n" +
                   string.Join("\n", rubros.Select(x => $"- {Texto(x.Nombre, 80)}: {x.Puntos} puntos"))
@@ -79,7 +84,11 @@ public sealed partial class AsistenteIaService(
         var sistema = Contexto + "\n\nArma el plan de evaluación de un parcial: rubros con puntos y, en cada rubro, " +
             "actividades concretas con título corto, puntos, una descripción de una o dos oraciones para el estudiante y " +
             "la semana del parcial en que va. Los puntos de las actividades de un rubro suman exactamente los del rubro. " +
-            "Reparte las actividades a lo largo de las semanas y deja el examen para la última.";
+            "Reparte las actividades a lo largo de las semanas y deja el examen para la última." +
+            (programa is null ? "" : " Si viene el programa oficial, las actividades trabajan sus contenidos y criterios de " +
+                "evaluación: cubre todos los criterios del parcial y, al final de la descripción de cada actividad, pon entre " +
+                "paréntesis los códigos que evalúa, por ejemplo (CE1.2, CE1.3). En Básica, en lugar de códigos, nombra el " +
+                "estándar que trabaja.");
 
         var resultado = await LlamarAsync<PlanIaDto>(FuncionesIa.Plan, new PeticionIa(sistema, usuario, EsquemaPlan, 8000, Breve: false), ct);
         if (!resultado.IsSuccess) return resultado;
@@ -107,7 +116,11 @@ public sealed partial class AsistenteIaService(
         var asignatura = Texto(r.Asignatura, 120);
         var temas = Texto(r.Temas, 2000);
         if (asignatura is null) return Result<ExamenIaDto>.Fail(Error.Validation("Falta la asignatura."));
-        if (temas is null) return Result<ExamenIaDto>.Fail(Error.Validation("Escribe los temas del examen (hasta 2000 caracteres)."));
+        var programa = r.Resultados is { Count: > 0 } || r.Parcial is not null
+            ? programas.Contexto(r.Modalidad, r.Grado, asignatura, r.Parcial, r.Resultados)
+            : null;
+        if (temas is null && programa is null)
+            return Result<ExamenIaDto>.Fail(Error.Validation("Escribe los temas del examen (hasta 2000 caracteres)."));
         if (r.Preguntas is < 3 or > 40) return Result<ExamenIaDto>.Fail(Error.Validation("El examen lleva de 3 a 40 preguntas."));
         if (r.Puntos is <= 0 or > 100) return Result<ExamenIaDto>.Fail(Error.Validation("El examen vale de 1 a 100 puntos."));
         var tipos = (r.Tipos ?? []).Where(TiposPregunta.Contains).Distinct().ToList();
@@ -118,12 +131,16 @@ public sealed partial class AsistenteIaService(
 
         var usuario =
             $"Asignatura: {asignatura}\nGrado: {Texto(r.Grado, 120) ?? "no indicado"}\nPreguntas: {r.Preguntas}\n" +
-            $"Valor total: {r.Puntos} puntos\nTipos de pregunta: {string.Join(", ", tipos)}\n\nTemas:\n{temas}";
+            $"Valor total: {r.Puntos} puntos\nTipos de pregunta: {string.Join(", ", tipos)}\n\n" +
+            (programa is null ? "" : programa + "\n") +
+            (temas is null ? "" : $"{(programa is null ? "Temas" : "Indicaciones del docente")}:\n{temas}");
         var sistema = Contexto + "\n\nRedacta un examen escrito para imprimir. Usa solo los tipos de pregunta pedidos, " +
             "mezclados y de dificultad progresiva, adecuados al grado. Opción múltiple: cuatro opciones sin letras, una sola " +
             "correcta, y en la respuesta el texto de la correcta. Verdadero o falso: sin opciones; respuesta «Verdadero» o " +
             "«Falso». Respuesta corta y desarrollo: sin opciones; en la respuesta, lo que se espera para dar todos los puntos. " +
-            "Los puntos de las preguntas suman exactamente el valor total. Instrucciones generales breves.";
+            "Los puntos de las preguntas suman exactamente el valor total. Instrucciones generales breves." +
+            (programa is null ? "" : " Si viene el programa oficial, las preguntas evalúan sus criterios de evaluación y " +
+                "contenidos, repartidas entre todos.");
 
         var resultado = await LlamarAsync<ExamenIaDto>(FuncionesIa.Examen, new PeticionIa(sistema, usuario, EsquemaExamen, 12000, Breve: false), ct);
         if (!resultado.IsSuccess) return resultado;

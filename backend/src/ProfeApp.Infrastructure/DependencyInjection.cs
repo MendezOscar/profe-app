@@ -88,6 +88,7 @@ public static class DependencyInjection
         services.AddSingleton<IGeneradorIa, Ia.GeneradorClaude>();
         services.AddScoped<Ia.ClienteIa>();
         services.AddScoped<IAsistenteIaService, Ia.AsistenteIaService>();
+        services.AddSingleton<IProgramasCurriculares, Programas.ProgramasCurriculares>();
         services.AddScoped<ICentroIaService, Ia.CentroIaService>();
         services.AddScoped<ICostosIaService, Ia.CostosIaService>();
         services.AddSingleton<Ia.ColaBoletas>();
