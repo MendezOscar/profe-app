@@ -109,7 +109,7 @@ las grandes.
 | Notas para el revisor y novedades | Escritas en [app-store.md](app-store.md) |
 | Enviada a revisión en App Store y Google Play | Hecho, 19 de noviembre de 2026; publicada en las dos |
 
-## 1.3.0 (compilación 13)
+## 1.3.0 (compilación 13), 23 de noviembre de 2026
 
 Horario de clases, rúbricas oficiales del Acuerdo 0158, programas oficiales en el plan y el examen
 con IA, y portafolio docente (con IA en el Pro). **Cambia la privacidad**: teléfono, DNI, títulos y
@@ -117,10 +117,10 @@ años de servicio del docente y sexo de los alumnos (portafolio).
 
 | Paso | Estado |
 | --- | --- |
-| `.ipa` y `.aab` firmados contra producción | Pendiente |
-| Privacidad de App Store y Seguridad de los datos de Play con las filas 🆕 | Pendiente |
+| `.ipa` y `.aab` firmados contra producción | Hechos |
+| Privacidad de App Store y Seguridad de los datos de Play con las filas 🆕 | Hecho |
 | Novedades, descripción y nota del revisor | Escritas en [app-store.md](app-store.md) |
-| Enviada a revisión en App Store y Google Play | Pendiente |
+| Enviada a revisión en App Store y Google Play | Hecho, 23 de noviembre de 2026 (en revisión) |
 
 ## 1.2.1 (compilación 12), 21 de noviembre de 2026
 
