@@ -120,7 +120,8 @@ años de servicio del docente y sexo de los alumnos (portafolio).
 | `.ipa` y `.aab` firmados contra producción | Hechos |
 | Privacidad de App Store y Seguridad de los datos de Play con las filas 🆕 | Hecho |
 | Novedades, descripción y nota del revisor | Escritas en [app-store.md](app-store.md) |
-| Enviada a revisión en App Store y Google Play | Hecho, 23 de noviembre de 2026 (en revisión) |
+| Enviada a revisión en App Store y Google Play | Hecho, 23 de noviembre de 2026 |
+| Aprobada y publicada en App Store y Google Play | Hecho, 24 de noviembre de 2026 |
 
 ## 1.2.1 (compilación 12), 21 de noviembre de 2026
 
