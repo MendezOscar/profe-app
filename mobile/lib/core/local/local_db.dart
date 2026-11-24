@@ -25,7 +25,7 @@ class LocalDb {
     return factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 6,
+        version: 7,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) => _create(db),
         onUpgrade: (db, from, to) async {
@@ -34,6 +34,7 @@ class LocalDb {
           if (from < 4) await _celdasSucias(db);
           if (from < 5) await _indices(db);
           if (from < 6) await _equiposYObservaciones(db);
+          if (from < 7) await _horarios(db);
         },
       ),
     );
@@ -96,6 +97,7 @@ class LocalDb {
     _crearPlanes(batch);
     _crearIndices(batch);
     _crearEquiposYObservaciones(batch);
+    _crearHorarios(batch);
     await batch.commit(noResult: true);
   }
 
@@ -198,6 +200,23 @@ class LocalDb {
     batch.execute('CREATE INDEX IF NOT EXISTS ix_equipos_clase ON equipos (clase_id)');
     batch.execute('CREATE INDEX IF NOT EXISTS ix_observaciones_alumno ON observaciones (alumno_id, fecha)');
   }
+
+  /// v6 → v7: horario de cada clase.
+  static Future<void> _horarios(Database db) async {
+    final batch = db.batch();
+    _crearHorarios(batch);
+    await batch.commit(noResult: true);
+  }
+
+  /// Días, horas, aula y edificio de una clase, como JSON en datos (ver Horario). Una fila
+  /// por clase; se sincroniza como el plan.
+  static void _crearHorarios(Batch batch) => batch.execute('''
+      CREATE TABLE IF NOT EXISTS horarios (
+        clase_id TEXT PRIMARY KEY REFERENCES clases(id) ON DELETE CASCADE,
+        datos TEXT NOT NULL,
+        actualizado_en TEXT NOT NULL,
+        sucia INTEGER NOT NULL DEFAULT 1
+      )''');
 
   /// v2 → v3: planes de calificación y asistencia.
   static Future<void> _planes(Database db) async {

@@ -9,6 +9,7 @@ import '../../core/providers.dart';
 import '../../ui/estado_vacio.dart';
 import '../centro/carga_centro.dart';
 import '../clases/eliminar_clase.dart';
+import '../clases/horario_clase.dart';
 import 'actividades_tab.dart';
 import 'estadisticas_tab.dart';
 import 'libro_tab.dart';
@@ -86,11 +87,16 @@ class _AsignaturaPageState extends ConsumerState<AsignaturaPage> {
                     tooltip: 'Más opciones',
                     onSelected: (opcion) => switch (opcion) {
                       'equipos' => context.go('/inicio/asignaturas/${widget.claseId}/equipos'),
+                      'horario' => editarHorario(context, ref, resumen),
                       'libro' => _imprimir(context, actual, asistencia: false),
                       'asistencia' => _imprimir(context, actual, asistencia: true),
                       _ => eliminarClase(context, ref, resumen),
                     },
                     itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'horario',
+                        child: ListTile(leading: Icon(Icons.schedule), title: Text('Horario y aula')),
+                      ),
                       const PopupMenuItem(
                         value: 'equipos',
                         child: ListTile(leading: Icon(Icons.groups_outlined), title: Text('Equipos de trabajo')),

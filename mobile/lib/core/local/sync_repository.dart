@@ -292,6 +292,7 @@ class SyncRepository {
   /// Orden para aplicar: primero lo que otros registros necesitan que exista.
   static const _tipos = [
     'plantilla', 'rubro', 'actividad', 'sesion', 'parcial', 'calificacion', 'asistencia', 'equipo', 'observacion',
+    'horario',
   ];
 
   /// Filas del plan sin subir, cada una con lo necesario para marcarla subida después.
@@ -382,6 +383,11 @@ class SyncRepository {
       agregar('observaciones', {'id': r['id']}, r, 'observacion', r['clase_clave'] as String, r['id'] as String,
           {'alumnoClave': r['alumno_clave'], 'fecha': r['fecha'], 'tipo': r['tipo'], 'texto': r['texto']},
           r['eliminado'] == 1);
+    }
+    for (final r in await db.rawQuery(
+        'SELECT x.*, c.clave AS clase_clave FROM horarios x JOIN clases c ON c.id = x.clase_id WHERE x.sucia = 1')) {
+      agregar('horarios', {'clase_id': r['clase_id']}, r, 'horario', r['clase_clave'] as String, 'horario',
+          jsonDecode(r['datos'] as String) as Map<String, dynamic>, false);
     }
     return pendientes;
   }
@@ -493,6 +499,8 @@ class SyncRepository {
               'texto': datos['texto'] ?? '',
               'eliminado': eliminado,
             });
+          case 'horario':
+            agregar('horarios', {'clase_id': clase}, {'datos': r['datos'] ?? '{}'});
           case 'calificacion' || 'asistencia':
             final corte = clave.indexOf('|');
             if (corte < 0) continue;

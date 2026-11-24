@@ -9,10 +9,11 @@ import '../../core/providers.dart';
 import '../../core/sace/hoja.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../theme/tokens.dart';
+import 'horario_clase.dart';
 
 /// Importa uno o varios cuadros de SACE: cada archivo es una asignatura del periodo.
 /// Reimportar un cuadro ya importado lo actualiza sin perder lo capturado. Al final
-/// ofrece aplicar un plan de calificación a las asignaturas nuevas.
+/// pide el horario de las asignaturas nuevas y ofrece aplicarles un plan de calificación.
 Future<void> importarCuadros(BuildContext context, WidgetRef ref) async {
   final cobro = ref.read(sessionProvider)?.cobro;
   if (cobro?.soloLectura ?? false) {
@@ -85,7 +86,9 @@ Future<void> importarCuadros(BuildContext context, WidgetRef ref) async {
     ].join(' · ')),
   ));
 
-  if (nuevas.isNotEmpty) await ofrecerPlan(context, ref, nuevas);
+  if (nuevas.isEmpty) return;
+  await pedirHorarios(context, ref, nuevas);
+  if (context.mounted) await ofrecerPlan(context, ref, nuevas);
 }
 
 /// Aplica la plantilla elegida a todos los parciales de esas clases que todavía no tienen plan.

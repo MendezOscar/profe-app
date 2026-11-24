@@ -12,6 +12,7 @@ import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
 import '../../ui/estado_error.dart';
 import '../../ui/selector_parcial.dart';
+import '../clases/horario_clase.dart';
 
 /// Elegir la asignatura para pasar lista.
 class AsistenciaPage extends ConsumerWidget {
@@ -20,12 +21,24 @@ class AsistenciaPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final clases = ref.watch(clasesProvider);
+    final horarios = ref.watch(horariosProvider).valueOrNull ?? const {};
+    final hoy = DateTime.now();
+    // Las que tocan hoy van primero, por hora; las demás quedan en su orden.
+    String orden(String id) => horarios[id]?.de(hoy)?.inicio ?? '~';
+    final lista = [
+      for (final (_, c) in [...?clases.valueOrNull?.indexed]
+        ..sort((a, b) => switch (orden(a.$2.id).compareTo(orden(b.$2.id))) {
+              0 => a.$1.compareTo(b.$1),
+              final n => n,
+            }))
+        c,
+    ];
     return Scaffold(
       appBar: AppBar(title: const Text('Pasar lista')),
       body: clases.when(
         loading: () => const EsqueletoLista(filas: 4, conTarjeta: true),
         error: (error, _) => EstadoError(error: error, reintentar: () => ref.invalidate(clasesProvider)),
-        data: (lista) => lista.isEmpty
+        data: (todas) => todas.isEmpty
             ? EstadoVacio(
                 icono: Icons.fact_check_outlined,
                 titulo: 'Sin asignaturas',
@@ -40,13 +53,19 @@ class AsistenciaPage extends ConsumerWidget {
                   separatorBuilder: (_, _) => const SizedBox(height: Espacio.s),
                   itemBuilder: (context, i) {
                     final c = lista[i];
+                    final horario = horarios[c.id];
+                    final hoyA = horario?.de(hoy)?.inicio;
                     return Card(
                       child: ListTile(
                         onTap: () => context.go('/asistencia/${c.id}'),
                         title: Text(c.asignatura),
-                        subtitle: Text([c.gradoSeccion, c.jornada, '${c.alumnos} alumnos']
-                            .where((t) => t.isNotEmpty)
-                            .join(' · ')),
+                        subtitle: Text([
+                          if (hoyA != null) 'Hoy ${horaTexto(context, hoyA)}',
+                          c.gradoSeccion,
+                          c.jornada,
+                          if (horario != null) horario.lugar,
+                          '${c.alumnos} alumnos',
+                        ].where((t) => t.isNotEmpty).join(' · ')),
                         trailing: const Icon(Icons.chevron_right),
                       ),
                     );
@@ -70,12 +89,15 @@ class PasarListaPage extends ConsumerStatefulWidget {
 }
 
 class _PasarListaPageState extends ConsumerState<PasarListaPage> {
-  DateTime _fecha = DateUtils.dateOnly(DateTime.now());
+  /// Null hasta que el docente elige: entonces el último día de clase (hoy, si toca).
+  DateTime? _fecha;
   String? _parcial;
 
   @override
   Widget build(BuildContext context) {
     final clase = ref.watch(claseProvider(widget.claseId)).valueOrNull?.resumen;
+    final horario = ref.watch(horariosProvider).valueOrNull?[widget.claseId];
+    final fecha = _fecha ?? diaDeClase(horario, DateUtils.dateOnly(DateTime.now()), -1, incluido: true);
     final parciales = ref.watch(parcialesProvider(widget.claseId));
     final text = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
@@ -126,7 +148,8 @@ class _PasarListaPageState extends ConsumerState<PasarListaPage> {
                 child: _Lista(
                   plan: plan,
                   parciales: lista,
-                  fecha: _fecha,
+                  fecha: fecha,
+                  horario: horario,
                   onFecha: (f) => setState(() => _fecha = f),
                   onParcial: (p) => setState(() => _parcial = p.clave),
                 ),
@@ -155,6 +178,7 @@ class _Lista extends ConsumerWidget {
     required this.plan,
     required this.parciales,
     required this.fecha,
+    required this.horario,
     required this.onFecha,
     required this.onParcial,
   });
@@ -162,6 +186,7 @@ class _Lista extends ConsumerWidget {
   final PlanParcial plan;
   final List<Parcial> parciales;
   final DateTime fecha;
+  final Horario? horario;
   final ValueChanged<DateTime> onFecha;
   final ValueChanged<Parcial> onParcial;
 
@@ -218,7 +243,7 @@ class _Lista extends ConsumerWidget {
             children: [
               IconButton(
                 tooltip: 'Día anterior',
-                onPressed: () => onFecha(fecha.subtract(const Duration(days: 1))),
+                onPressed: () => onFecha(diaDeClase(horario, fecha, -1)),
                 icon: const Icon(Icons.chevron_left),
               ),
               Expanded(
@@ -243,9 +268,9 @@ class _Lista extends ConsumerWidget {
               ),
               IconButton(
                 tooltip: 'Día siguiente',
-                onPressed: DateUtils.isSameDay(fecha, DateTime.now())
+                onPressed: diaDeClase(horario, fecha, 1).isAfter(DateTime.now())
                     ? null
-                    : () => onFecha(fecha.add(const Duration(days: 1))),
+                    : () => onFecha(diaDeClase(horario, fecha, 1)),
                 icon: const Icon(Icons.chevron_right),
               ),
               IconButton(
@@ -260,7 +285,13 @@ class _Lista extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.fromLTRB(Espacio.l, Espacio.xs, Espacio.l, Espacio.m),
           child: sesion == null
-              ? Text('Sin lista para este día.', style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))
+              ? Text(
+                  [
+                    'Sin lista para este día.',
+                    if (horario case final h? when h.dias.isNotEmpty && h.de(fecha) == null)
+                      'Según tu horario, este día no das esta clase.',
+                  ].join(' '),
+                  style: text.bodyMedium?.copyWith(color: scheme.onSurfaceVariant))
               : Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -465,4 +496,15 @@ class _ChipConteo extends StatelessWidget {
               color: estado == EstadoAsistencia.ausente && cantidad > 0 ? Theme.of(context).colorScheme.error : null,
             ),
       );
+}
+
+/// El día de clase más cercano a [desde] hacia atrás (-1) o adelante (1), según el horario.
+/// [incluido]: [desde] cuenta si toca. Sin días en el horario, simplemente el día de al lado.
+DateTime diaDeClase(Horario? horario, DateTime desde, int sentido, {bool incluido = false}) {
+  var f = incluido ? desde : DateUtils.addDaysToDate(desde, sentido);
+  if (horario == null || horario.dias.isEmpty) return f;
+  for (var i = 0; i < 7 && horario.de(f) == null; i++) {
+    f = DateUtils.addDaysToDate(f, sentido);
+  }
+  return f;
 }

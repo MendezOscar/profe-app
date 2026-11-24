@@ -213,3 +213,47 @@ class ActividadCalendario {
 
   bool get calificada => alumnos > 0 && calificados >= alumnos;
 }
+
+/// Un día en que se da la clase, con su hora (texto 'HH:mm', 24 h).
+class DiaClase {
+  const DiaClase({required this.dia, required this.inicio, required this.fin});
+
+  /// 1 lunes … 7 domingo, como [DateTime.weekday].
+  final int dia;
+  final String inicio;
+  final String fin;
+
+  Map<String, Object> toJson() => {'dia': dia, 'inicio': inicio, 'fin': fin};
+
+  static DiaClase fromJson(Map<String, dynamic> j) =>
+      DiaClase(dia: j['dia'] as int, inicio: j['inicio'] as String? ?? '', fin: j['fin'] as String? ?? '');
+}
+
+/// Cuándo y dónde da el docente una asignatura. Es sólo para él: ordena su día y dice qué
+/// días toca pasar lista. Sin días, la app sigue adivinándolos por sus listas.
+class Horario {
+  const Horario({this.dias = const [], this.aula = '', this.edificio = ''});
+
+  final List<DiaClase> dias;
+  final String aula;
+  final String edificio;
+
+  bool get vacio => dias.isEmpty && aula.isEmpty && edificio.isEmpty;
+
+  DiaClase? de(DateTime fecha) => dias.where((d) => d.dia == fecha.weekday).firstOrNull;
+
+  /// «Aula 12 · Edificio B», o vacío.
+  String get lugar => [
+        if (aula.isNotEmpty) 'Aula $aula',
+        if (edificio.isNotEmpty) 'Edificio $edificio',
+      ].join(' · ');
+
+  Map<String, Object> toJson() => {'dias': [for (final d in dias) d.toJson()], 'aula': aula, 'edificio': edificio};
+
+  static Horario fromJson(Map<String, dynamic> j) => Horario(
+        dias: [for (final d in (j['dias'] as List? ?? const [])) DiaClase.fromJson(d as Map<String, dynamic>)]
+          ..sort((a, b) => a.dia.compareTo(b.dia)),
+        aula: j['aula'] as String? ?? '',
+        edificio: j['edificio'] as String? ?? '',
+      );
+}

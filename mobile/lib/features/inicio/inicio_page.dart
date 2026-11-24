@@ -14,6 +14,7 @@ import '../../core/avisos/avisos.dart';
 import '../../core/centro/mi_carga.dart';
 import '../avisos/avisos_page.dart';
 import '../centro/carga_centro.dart';
+import '../clases/horario_clase.dart';
 import '../clases/importar_cuadros.dart';
 import '../../theme/tokens.dart';
 import '../../ui/esqueleto.dart';
@@ -89,6 +90,7 @@ class InicioPage extends ConsumerWidget {
                 child: CustomScrollView(
                   slivers: [
                     const SliverToBoxAdapter(child: _LoUrgente()),
+                    const SliverToBoxAdapter(child: TarjetaHoyClases()),
                     const SliverToBoxAdapter(child: TarjetaHoyCentro()),
                     const SliverToBoxAdapter(child: TarjetaCargaCentro()),
                     SliverToBoxAdapter(child: _PrimerosPasos(avances: avances)),

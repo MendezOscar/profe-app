@@ -122,6 +122,12 @@ final observacionesProvider = FutureProvider.family<List<Observacion>, String>(
 final conteoObservacionesProvider = FutureProvider.family<Map<String, int>, String>(
     (ref, claseId) => ref.watch(planesRepositoryProvider).conteoObservaciones(claseId));
 
+/// Horario de cada clase, por id. Se recalcula con el tablero (también tras sincronizar).
+final horariosProvider = FutureProvider<Map<String, Horario>>((ref) async {
+  await ref.watch(tableroProvider.future);
+  return ref.watch(planesRepositoryProvider).horarios();
+});
+
 /// Actividades de una semana (lunes a domingo) de todas las clases.
 final calendarioProvider = FutureProvider.family<List<ActividadCalendario>, DateTime>((ref, lunes) async {
   await ref.watch(tableroProvider.future);

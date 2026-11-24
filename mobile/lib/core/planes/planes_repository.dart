@@ -606,6 +606,23 @@ class PlanesRepository {
 
   /// Actualiza o inserta por id. No INSERT OR REPLACE: el reemplazo borra la fila y con
   /// ella, en cascada, las notas o la asistencia que cuelgan de ella.
+  // ── Horario ───────────────────────────────────────────────────────────────
+
+  /// El de cada clase que lo tiene, por id de clase.
+  Future<Map<String, Horario>> horarios() async {
+    final db = await _db;
+    return {
+      for (final f in await db.query('horarios'))
+        f['clase_id'] as String: Horario.fromJson(jsonDecode(f['datos'] as String) as Map<String, dynamic>),
+    };
+  }
+
+  Future<void> guardarHorario(String claseId, Horario horario) async {
+    final db = await _db;
+    await db.insert('horarios', {'clase_id': claseId, 'datos': jsonEncode(horario.toJson()), ..._sucia()},
+        conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
   static Future<void> _guardar(DatabaseExecutor db, String tabla, Map<String, Object?> fila) async {
     final n = await db.update(tabla, fila, where: 'id = ?', whereArgs: [fila['id']]);
     if (n == 0) await db.insert(tabla, fila);

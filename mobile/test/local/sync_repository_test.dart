@@ -201,6 +201,35 @@ void main() {
     expect(await planesB.observaciones(alumnosB[0].id), isEmpty);
   });
 
+  test('El horario de la clase pasa de un teléfono al otro y el cambio más nuevo gana', () async {
+    final planesA = PlanesRepository(Future.value(dbA), clasesA);
+    final planesB = PlanesRepository(Future.value(dbB), clasesB);
+    final claseA = (await clasesA.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+    final claseB = (await clasesB.importar(cuadroMedia(), 'cuadro.xlsx')).claseId;
+
+    await planesA.guardarHorario(
+        claseA,
+        const Horario(dias: [
+          DiaClase(dia: 1, inicio: '07:00', fin: '07:45'),
+          DiaClase(dia: 3, inicio: '09:30', fin: '10:15'),
+        ], aula: '12', edificio: 'B'));
+    final pendientes = await syncA.registrosPendientes();
+    expect(pendientes.single.json['tipo'], 'horario');
+    await syncB.aplicarRegistros([for (final r in pendientes) r.json]);
+
+    final enB = (await planesB.horarios())[claseB]!;
+    expect([for (final d in enB.dias) d.dia], [1, 3]);
+    expect(enB.de(DateTime(2026, 11, 25))?.inicio, '09:30', reason: 'el 25 de noviembre de 2026 es miércoles');
+    expect(enB.lugar, 'Aula 12 · Edificio B');
+    expect(await syncB.registrosPendientes(), isEmpty, reason: 'lo bajado no se vuelve a subir');
+
+    // Lo cambia en B; el registro viejo de A llega después y no lo pisa.
+    await Future<void>.delayed(const Duration(milliseconds: 5));
+    await planesB.guardarHorario(claseB, const Horario(dias: [DiaClase(dia: 5, inicio: '13:00', fin: '13:45')]));
+    await syncB.aplicarRegistros([for (final r in pendientes) r.json]);
+    expect([for (final d in (await planesB.horarios())[claseB]!.dias) d.dia], [5]);
+  });
+
   test('Por registro gana el cambio más nuevo', () async {
     final planesA = PlanesRepository(Future.value(dbA), clasesA);
     final planesB = PlanesRepository(Future.value(dbB), clasesB);

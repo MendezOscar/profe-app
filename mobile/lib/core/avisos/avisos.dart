@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../planes/calculo_parcial.dart';
 import '../planes/estadisticas.dart';
+import '../planes/modelos.dart';
 import '../preferencias.dart';
 import '../providers.dart';
 import '../sync/sync_controller.dart';
@@ -57,6 +58,7 @@ List<Aviso> calcularAvisos({
   required Map<String, DateTime> exportados,
   required DateTime? ultimaSync,
   required DateTime ahora,
+  Map<String, Horario> horarios = const {},
 }) {
   final hoy = DateUtils.dateOnly(ahora);
   final avisos = <Aviso>[];
@@ -111,13 +113,19 @@ List<Aviso> calcularAvisos({
       ));
     }
 
+    // Con horario, los días que puso el docente; sin él, los que se repiten en sus listas.
     final fechas = [for (final s in plan.sesiones) DateUtils.dateOnly(s.fecha)];
-    if (diasDeClase(fechas, hoy).contains(hoy.weekday) && !fechas.contains(hoy)) {
+    final hoyEnHorario = horarios[clase.id]?.de(hoy);
+    final conDias = horarios[clase.id]?.dias.isNotEmpty ?? false;
+    final hoyToca = conDias ? hoyEnHorario != null : diasDeClase(fechas, hoy).contains(hoy.weekday);
+    if (hoyToca && !fechas.contains(hoy)) {
       avisos.add(Aviso(
         id: 'lista:${clase.id}:${hoy.toIso8601String()}',
         tipo: TipoAviso.lista,
         titulo: 'Hoy no has pasado lista en $nombre',
-        detalle: 'Sueles dar esta clase este día.',
+        detalle: hoyEnHorario != null
+            ? 'Tienes esta clase hoy a las ${_hora12(hoyEnHorario.inicio)}.'
+            : 'Sueles dar esta clase este día.',
         ruta: '/asistencia/${clase.id}',
       ));
     }
@@ -221,8 +229,16 @@ final todosLosAvisosProvider = FutureProvider<List<Aviso>>((ref) async {
     },
     ultimaSync: switch (prefs.getString(claveUltimaSync)) { final t? => DateTime.parse(t), null => null },
     ahora: DateTime.now(),
+    horarios: await ref.watch(horariosProvider.future),
   );
 });
+
+/// «7:00 a. m.» desde '07:00' (los avisos se arman sin contexto para formatear).
+String _hora12(String hhmm) {
+  final partes = [for (final x in hhmm.split(':')) int.tryParse(x) ?? 0];
+  final h = partes.first, m = partes.length > 1 ? partes[1] : 0;
+  return '${h % 12 == 0 ? 12 : h % 12}:${m.toString().padLeft(2, '0')} ${h < 12 ? 'a. m.' : 'p. m.'}';
+}
 
 /// Lo que se muestra: los vigentes menos los descartados.
 final avisosProvider = FutureProvider<List<Aviso>>((ref) async {
