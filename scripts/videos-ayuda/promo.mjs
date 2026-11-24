@@ -22,13 +22,13 @@ const MUSICA = process.env.MUSICA ?? 'musica-promo.mp3';
 // Escenas: lo que dice la voz y, en las del teléfono, qué tramo de qué video de ayuda se ve.
 const escenas = [
   { voz: '¿Todavía pasas las notas a mano al cuadro de SACE? Conoce Profe App.', min: 4.5 },
-  { voz: 'Importa tus cuadros de SACE, y tus alumnos quedan listos en un minuto.', clip: ['1-importa-tus-cuadros.mp4', 38, 50] },
-  { voz: 'Califica desde el teléfono. La nota del parcial se calcula sola.', clip: ['3-califica-una-actividad.mp4', 47, 59] },
-  { voz: 'Pasa lista en segundos: marcas solo a los que faltan.', clip: ['4-pasa-lista.mp4', 23, 33] },
-  { voz: 'Al cerrar el parcial, la nota total y las inasistencias quedan listas para subir a SACE.', clip: ['5-cierra-y-exporta.mp4', 43, 63] },
-  { voz: 'Y con el plan Pro, un asistente con inteligencia artificial califica trabajos desde una foto y prepara tus exámenes. Tú siempre decides.', min: 8 },
-  { voz: 'Funciona sin internet, en tu teléfono y en tu computadora.', min: 5 },
-  { voz: 'Profe App. Descárgala hoy en App Store o Google Play.', min: 6 },
+  { voz: 'Importas tus cuadros de SACE, y en un minuto tus alumnos están listos.', clip: ['1-importa-tus-cuadros.mp4', 38, 50] },
+  { voz: 'Calificas desde el teléfono, y la nota del parcial se calcula sola.', clip: ['3-califica-una-actividad.mp4', 47, 59] },
+  { voz: 'Pasas lista en segundos, y la app sabe qué clases tienes hoy.', clip: ['4-pasa-lista.mp4', 23, 33] },
+  { voz: 'Y al cerrar el parcial, la nota total y las inasistencias ya están listas para subir a SACE.', clip: ['5-cierra-y-exporta.mp4', 43, 63] },
+  { voz: 'Con el programa oficial de tu asignatura, la IA te arma la rúbrica, con sus actividades y sus puntos.', clip: ['ia-rubrica.mp4', 0, 17.3], min: 7.5 },
+  { voz: '¿Y lo mejor? También califica con una foto, prepara tus exámenes y te arma el portafolio. Tú siempre decides.', min: 7 },
+  { voz: 'Profe App. Descárgala hoy en App Store o Google Play.', min: 5.5 },
 ];
 
 const duracion = (f) => Number(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f]).toString());
@@ -36,9 +36,19 @@ const duracion = (f) => Number(execFileSync('ffprobe', ['-v', 'error', '-show_en
 // 1. Voz de cada escena; la escena dura lo que la voz más un respiro (las del teléfono, al menos 6.5 s).
 let t = 0;
 const linea = [];
+// Si hay grabaciones propias en videos-ayuda/voz-promo/1 … 8 (.opus, .m4a, .wav o .mp3), se usan en lugar
+// de la voz del Mac, pulidas: sin silencios al principio y al final (un clic suelto no cuenta), sin
+// ruido de fondo ni retumbe, con más presencia, eses suaves, volumen parejo y sin picos.
+const recorte = 'silenceremove=start_periods=1:start_duration=0.08:start_threshold=-42dB:start_silence=0.06';
+const pulido = ['highpass=f=85', 'afftdn=nf=-50:tn=1', recorte, 'areverse', recorte, 'areverse',
+  'equalizer=f=180:t=q:w=1:g=1.5', 'equalizer=f=400:t=q:w=1.2:g=-2', 'equalizer=f=3500:t=q:w=1.4:g=2.5',
+  'deesser=i=0.4', 'acompressor=threshold=-22dB:ratio=3:attack=8:release=120:makeup=4', 'loudnorm=I=-18:TP=-2:LRA=7',
+  'alimiter=limit=0.89', 'aresample=48000'].join(',');
 escenas.forEach((e, i) => {
-  e.audio = join(tmp, `voz${i}.aiff`);
-  execFileSync('say', ['-v', VOZ, '-r', '170', '-o', e.audio, e.voz]);
+  const propia = ['opus', 'm4a', 'wav', 'mp3'].map((x) => join(videos, 'voz-promo', `${i + 1}.${x}`)).find(existsSync);
+  e.audio = join(tmp, `voz${i}.wav`);
+  if (propia) execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', propia, '-af', pulido, '-ar', '48000', e.audio]);
+  else execFileSync('say', ['-v', VOZ, '-r', '170', '--data-format=LEI16@48000', '-o', e.audio, e.voz]);
   const largo = Math.max(e.min ?? 6.5, duracion(e.audio) + 1.1);
   linea.push([t, t + largo]);
   e.inicio = t;
@@ -46,6 +56,7 @@ escenas.forEach((e, i) => {
 });
 const total = t;
 console.log('Duración:', total.toFixed(1), 's');
+if (total > 59) console.warn(`Ojo: dura ${total.toFixed(1)} s, más de un minuto con el respiro final. Graba las frases más ágiles.`);
 
 // 2. Fondo animado: un cuadro por vez desde promo.html (determinista, sin depender del reloj).
 const tipos = { '.html': 'text/html', '.ttf': 'font/ttf', '.png': 'image/png' };

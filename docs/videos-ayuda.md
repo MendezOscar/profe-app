@@ -47,11 +47,16 @@ DEMO_PASSWORD=<la del docente demo> node grabar.mjs   # ~8 min; deja los .mp4 en
 
 ## Video promocional del modo docente
 
-`promo-docente.mp4` (vertical, ~54 s, para Reels, TikTok, Shorts y estados de WhatsApp): textos
+`promo-docente.mp4` (vertical, ~56 s, para Reels, TikTok, Shorts y estados de WhatsApp): textos
 animados de `scripts/videos-ayuda/promo.html` con tomas de los videos de ayuda dentro de un teléfono,
-voz Paulina y la misma música. Necesita los videos de ayuda ya grabados en `videos-ayuda/`; si se
-regrabaron, revisar los tramos (`clip`) de cada escena en `promo.mjs`.
+más la toma de «Sugerir el plan con IA» (`ia-rubrica.mp4`, la graba `grabar-ia.mjs` contra la API local
+con `Anthropic:ApiKey` en sus user-secrets). Voz grabada por ProfeApp en `videos-ayuda/voz-promo/1 … 8`
+(una frase por escena; `promo.mjs` recorta silencios, quita ruido, ecualiza, comprime y nivela) y música
+«Fridaze» de Lauren Duski en `videos-ayuda/musica-promo.mp3`. Sin grabaciones usa la voz del Mac (`VOZ`).
 
 ```sh
 cd scripts/videos-ayuda && node promo.mjs    # ~4 min; deja videos-ayuda/promo-docente.mp4
 ```
+
+Si se regrabaron los videos de ayuda, revisar los tramos (`clip`) de cada escena en `promo.mjs`.
+`MUSICA` y `SALIDA` cambian la pista y el archivo; `REUSAR_FONDO=1` solo vuelve a mezclar audio.
