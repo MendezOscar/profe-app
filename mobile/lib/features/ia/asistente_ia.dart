@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/informes/compartir.dart';
 import '../../core/informes/informes_pdf.dart';
+import '../../core/models/clase.dart';
 import '../../core/planes/calculo_parcial.dart';
 import '../../core/planes/modelos.dart';
 import '../../core/preferencias.dart';
@@ -163,6 +164,59 @@ Future<Map<String, dynamic>?> _pedir(BuildContext context, WidgetRef ref, String
 String _clave(String s) => s.trim().toUpperCase();
 
 double _num(Object? v) => (v as num).toDouble();
+
+// ── Portafolio docente ───────────────────────────────────────────────────────
+
+/// Introducción y objetivos del portafolio (1 crédito). [asignaturas]: «Matemática, décimo grado».
+Future<({String introduccion, List<String> objetivos})?> redactarPresentacionIa(BuildContext context, WidgetRef ref,
+    {required String nivel, required List<String> asignaturas}) async {
+  if (!await _puedeUsar(context, ref, 1) || !context.mounted) return null;
+  final r = await _pedir(context, ref, '/ia/portafolio/presentacion', {'nivel': nivel, 'asignaturas': asignaturas});
+  if (r == null) return null;
+  return (introduccion: r['introduccion'] as String, objetivos: (r['objetivos'] as List).cast<String>());
+}
+
+/// Una acción de mejora por alumno bajo 70 de una clase (1½ créditos). No viajan nombres: cada
+/// alumno va con un código y la respuesta se vuelve a cruzar aquí. Devuelve alumnoId → acción.
+Future<Map<String, String>?> accionesNivelacionIa(BuildContext context, WidgetRef ref, ClaseResumen clase,
+    List<PlanParcial> planes, {bool verificar = true}) async {
+  final bajos = alumnosBajo70(planes);
+  if (bajos.isEmpty) return const {};
+  if (verificar && (!await _puedeUsar(context, ref, 1.5) || !context.mounted)) return null;
+  final ultimo = planes.lastWhere((p) => p.calificaciones.values.any((m) => m.isNotEmpty));
+  final alumnos = <String, String>{};
+  final r = await _pedir(context, ref, '/ia/portafolio/nivelacion', {
+    'asignatura': clase.asignatura,
+    'grado': clase.gradoSeccion,
+    'alumnos': [
+      for (final (i, b) in bajos.indexed)
+        () {
+          final codigo = 'A${i + 1}';
+          alumnos[codigo] = b.alumno.id;
+          return {
+            'codigo': codigo,
+            'parciales': b.parciales,
+            'rubros': [
+              for (final rubro in ultimo.rubros)
+                {
+                  'nombre': rubro.nombre,
+                  'obtenido': ultimo.actividades
+                      .where((a) => a.rubroId == rubro.id)
+                      .fold(0.0, (s, a) => s + (ultimo.calificaciones[a.id]?[b.alumno.id] ?? 0)),
+                  'posible': ultimo.actividades.where((a) => a.rubroId == rubro.id).fold(0.0, (s, a) => s + a.puntos),
+                },
+            ],
+            'ausencias': calcularParcial(ultimo).porAlumno[b.alumno.id]?.inasistencias ?? 0,
+          };
+        }(),
+    ],
+  });
+  if (r == null) return null;
+  return {
+    for (final a in (r['acciones'] as List).cast<Map<String, dynamic>>())
+      if (alumnos[a['codigo']] case final id?) id: a['accion'] as String,
+  };
+}
 
 // ── Programa oficial ─────────────────────────────────────────────────────────
 

@@ -12,6 +12,7 @@ import '../../core/planes/modelos.dart';
 import '../../core/providers.dart';
 import '../../core/sync/sync_controller.dart';
 import '../../theme/tokens.dart';
+import '../ia/asistente_ia.dart';
 import '../../ui/esqueleto.dart';
 import '../../ui/shell.dart';
 
@@ -20,11 +21,29 @@ const _claveDatos = 'portafolio';
 const _claveIntroduccion = 'portafolio-introduccion';
 const _claveObjetivos = 'portafolio-objetivos';
 
+/// Por alumno de cada clase: la acción de mejora del plan de nivelación.
+const _claveNivelacion = 'nivelacion';
+
 /// Cuántos alumnos tienen el sexo marcado en cada clase.
 final _sexosMarcadosProvider = FutureProvider<Map<String, int>>((ref) async {
   final clases = await ref.watch(clasesProvider.future);
   final repo = ref.watch(planesRepositoryProvider);
   return {for (final c in clases) c.id: (await repo.sexos(c.id)).length};
+});
+
+/// Por clase: alumnos bajo 70 y cuántos ya tienen acción de mejora.
+final _nivelacionProvider = FutureProvider<Map<String, ({int bajos, int conAccion})>>((ref) async {
+  final clases = await ref.watch(clasesProvider.future);
+  final repo = ref.watch(planesRepositoryProvider);
+  final r = <String, ({int bajos, int conAccion})>{};
+  for (final c in clases) {
+    final parciales = await ref.watch(parcialesProvider(c.id).future);
+    final bajos = alumnosBajo70(await repo.planes([for (final p in parciales) (c.id, p)]));
+    if (bajos.isEmpty) continue;
+    final acciones = await repo.porAlumno(c.id, _claveNivelacion);
+    r[c.id] = (bajos: bajos.length, conAccion: bajos.where((b) => acciones.containsKey(b.alumno.id)).length);
+  }
+  return r;
 });
 
 /// Portafolio docente con el formato departamental 2026: el docente completa sus datos una vez
@@ -61,6 +80,7 @@ class _PortafolioPageState extends ConsumerState<PortafolioPage> {
   bool? _media;
   bool _cargado = false;
   bool _generando = false;
+  bool _redactando = false;
   Timer? _guardado;
 
   @override
@@ -132,6 +152,80 @@ class _PortafolioPageState extends ConsumerState<PortafolioPage> {
     ref.read(syncControllerProvider.notifier).programar();
   }
 
+  Future<void> _presentacionIa() async {
+    if ((_introduccion.text.trim().isNotEmpty || _objetivos.text.trim().isNotEmpty) &&
+        await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('¿Reemplazar lo que escribiste?'),
+                content: const Text('El asistente redacta de nuevo la introducción y los objetivos.'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+                  FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Reemplazar')),
+                ],
+              ),
+            ) !=
+            true) {
+      return;
+    }
+    if (!mounted) return;
+    final clases = await ref.read(clasesProvider.future);
+    if (!mounted) return;
+    final r = await redactarPresentacionIa(context, ref,
+        nivel: (_media ?? false) ? 'Educación Media' : 'Educación Básica',
+        asignaturas: [for (final c in clases) '${c.asignatura}, ${c.gradoSeccion.toLowerCase()}']);
+    if (r == null || !mounted) return;
+    setState(() {
+      _introduccion.text = r.introduccion;
+      _objetivos.text = r.objetivos.join('\n');
+    });
+    _cambio();
+  }
+
+  /// Acciones de mejora para las clases con alumnos bajo 70 que todavía no las tienen todas.
+  Future<void> _nivelacionIa(Map<String, ({int bajos, int conAccion})> estado) async {
+    final pendientes = estado.entries.where((e) => e.value.conAccion < e.value.bajos).map((e) => e.key).toList();
+    if (pendientes.isEmpty) return;
+    final creditos = pendientes.length * 1.5;
+    final seguir = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(iconoIa),
+        title: const Text('Plan de nivelación con IA'),
+        content: Text('Se redacta una acción de mejora para cada alumno bajo 70 en '
+            '${pendientes.length == 1 ? 'una asignatura' : '${pendientes.length} asignaturas'}. '
+            'Usa ${formatoCreditos(creditos)} créditos. No se envían nombres de alumnos.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Redactar')),
+        ],
+      ),
+    );
+    if (seguir != true || !mounted) return;
+    setState(() => _redactando = true);
+    try {
+      final repo = ref.read(planesRepositoryProvider);
+      final clases = {for (final c in await ref.read(clasesProvider.future)) c.id: c};
+      var primera = true;
+      for (final id in pendientes) {
+        final clase = clases[id];
+        if (clase == null || !mounted) continue;
+        final parciales = await ref.read(parcialesProvider(id).future);
+        final planes = await repo.planes([for (final p in parciales) (id, p)]);
+        if (!mounted) return;
+        // El saldo se revisa una vez por todas; si falla una, las anteriores quedan guardadas.
+        final acciones = await accionesNivelacionIa(context, ref, clase, planes, verificar: primera);
+        primera = false;
+        if (acciones == null) break;
+        await repo.guardarPorAlumno(id, _claveNivelacion, {...await repo.porAlumno(id, _claveNivelacion), ...acciones});
+      }
+      ref.invalidate(_nivelacionProvider);
+      ref.read(syncControllerProvider.notifier).programar();
+    } finally {
+      if (mounted) setState(() => _redactando = false);
+    }
+  }
+
   Future<void> _generar() async {
     setState(() => _generando = true);
     try {
@@ -159,6 +253,7 @@ class _PortafolioPageState extends ConsumerState<PortafolioPage> {
           sexos: await repo.sexos(c.id),
           horario: horarios[c.id],
           programa: programa,
+          acciones: await repo.porAlumno(c.id, _claveNivelacion),
         ));
       }
       final datos = DatosPortafolio(
@@ -271,8 +366,17 @@ class _PortafolioPageState extends ConsumerState<PortafolioPage> {
                       ),
                   ]),
                   const SizedBox(height: Espacio.xl),
-                  Text('II. Presentación', style: text.titleMedium),
-                  const SizedBox(height: Espacio.m),
+                  Row(
+                    children: [
+                      Expanded(child: Text('II. Presentación', style: text.titleMedium)),
+                      TextButton.icon(
+                        onPressed: clases.isEmpty ? null : _presentacionIa,
+                        icon: const Icon(iconoIa, size: 18),
+                        label: const Text('Redactar con IA'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: Espacio.s),
                   TextField(
                     controller: _introduccion,
                     minLines: 3,
@@ -311,6 +415,41 @@ class _PortafolioPageState extends ConsumerState<PortafolioPage> {
                         onTap: () => context.go('/cuenta/portafolio/sexo/${c.id}'),
                       ),
                     ),
+                  const SizedBox(height: Espacio.l),
+                  Text('IX. Plan de nivelación', style: text.titleMedium),
+                  const SizedBox(height: Espacio.xs),
+                  Builder(builder: (context) {
+                    final nivelacion = ref.watch(_nivelacionProvider).valueOrNull;
+                    if (nivelacion == null) return const LinearProgressIndicator();
+                    if (nivelacion.isEmpty) {
+                      return Text('Ningún alumno está bajo 70 en los parciales calificados.',
+                          style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant));
+                    }
+                    final bajos = nivelacion.values.fold(0, (s, n) => s + n.bajos);
+                    final listas = nivelacion.values.fold(0, (s, n) => s + n.conAccion);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          '$bajos ${bajos == 1 ? 'alumno está' : 'alumnos están'} bajo 70 en '
+                          '${nivelacion.length == 1 ? 'una asignatura' : '${nivelacion.length} asignaturas'}; '
+                          '$listas con acción de mejora. Sin acción, la columna queda en blanco para escribirla a mano.',
+                          style: text.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+                        ),
+                        if (listas < bajos)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: TextButton.icon(
+                              onPressed: _redactando ? null : () => _nivelacionIa(nivelacion),
+                              icon: _redactando
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                                  : const Icon(iconoIa, size: 18),
+                              label: const Text('Redactar acciones de mejora con IA'),
+                            ),
+                          ),
+                      ],
+                    );
+                  }),
                   const SizedBox(height: Espacio.xl),
                   FilledButton.icon(
                     onPressed: _generando || clases.isEmpty ? null : _generar,

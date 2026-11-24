@@ -69,6 +69,10 @@ public sealed class GeneradorDePrueba : IGeneradorIa
                 ? """{"resumen":"El centro avanza bien.","fortalezas":["Asistencia alta"],"alertas":["Matemáticas baja"],"recomendaciones":["Tutorías"]}"""
             : requeridos.Contains("cuerpo")
                 ? """{"titulo":"Reunión de padres","cuerpo":"Les invitamos el viernes a las 3:00 p. m."}"""
+            : requeridos.Contains("introduccion")
+                ? """{"introduccion":"Este portafolio reúne mi trabajo del año.","objetivos":["Organizar la práctica.","Evaluar con criterios claros."]}"""
+            : requeridos.Contains("acciones")
+                ? """{"acciones":[{"codigo":"A1","accion":"Tutoría semanal en fracciones."},{"codigo":"Z9","accion":"Inventada."}]}"""
             : requeridos.Contains("rubros")
                 ? """{"rubros":[{"nombre":"Tareas","puntos":30,"actividades":[{"titulo":"Tarea 1","puntos":30,"descripcion":"Resolver ejercicios.","semana":9}]},{"nombre":"Inventado","puntos":10,"actividades":[]},{"nombre":"Examen","puntos":70,"actividades":[{"titulo":"Examen parcial","puntos":70,"descripcion":"Prueba escrita.","semana":4}]}]}"""
                 : """{"titulo":"Examen de fracciones","instrucciones":"Lee con atención.","preguntas":[{"tipo":"opcion_multiple","enunciado":"¿Cuánto es 1/2 + 1/4?","opciones":["3/4","2/6","1/8","1"],"respuesta":"3/4","puntos":5},{"tipo":"verdadero_falso","enunciado":"1/2 es mayor que 1/3.","opciones":["x"],"respuesta":"Verdadero","puntos":5}]}""";

@@ -47,6 +47,8 @@ public static class CreditosIa
         FuncionesIa.CalificarTanda => 2,
         FuncionesIa.Informe => 6,
         FuncionesIa.Pregunta => 3,
+        FuncionesIa.Presentacion => 2,
+        FuncionesIa.Nivelacion => 3,
         _ => 1, // comentario, boleta y comunicado
     };
 
@@ -55,7 +57,8 @@ public static class CreditosIa
 
     /// <summary>Lo que usa el docente desde su saldo.</summary>
     public static readonly string[] DelDocente =
-        [FuncionesIa.Plan, FuncionesIa.Examen, FuncionesIa.Comentario, FuncionesIa.Calificar, FuncionesIa.CalificarTanda];
+        [FuncionesIa.Plan, FuncionesIa.Examen, FuncionesIa.Comentario, FuncionesIa.Calificar, FuncionesIa.CalificarTanda,
+         FuncionesIa.Presentacion, FuncionesIa.Nivelacion];
 
     /// <summary>Lo que usa la dirección desde el saldo del centro.</summary>
     public static readonly string[] DeLaDireccion =
@@ -77,6 +80,12 @@ public static class FuncionesIa
     /// <summary>Un trabajo calificado en tanda (lote de Anthropic, a mitad de precio).</summary>
     public const string CalificarTanda = "calificar_tanda";
     public const string Pregunta = "pregunta";
+
+    /// <summary>Introducción y objetivos del portafolio docente.</summary>
+    public const string Presentacion = "presentacion";
+
+    /// <summary>Acciones de mejora para los alumnos bajo 70 de una asignatura (portafolio).</summary>
+    public const string Nivelacion = "nivelacion";
 }
 
 /// <summary>

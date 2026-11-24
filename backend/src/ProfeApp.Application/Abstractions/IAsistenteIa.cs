@@ -11,6 +11,8 @@ public interface IAsistenteIaService
     Task<Result<PlanIaDto>> PlanAsync(PlanIaRequest request, CancellationToken ct = default);
     Task<Result<ExamenIaDto>> ExamenAsync(ExamenIaRequest request, CancellationToken ct = default);
     Task<Result<ComentarioIaDto>> ComentarioAsync(ComentarioIaRequest request, CancellationToken ct = default);
+    Task<Result<PresentacionIaDto>> PresentacionAsync(PresentacionIaRequest request, CancellationToken ct = default);
+    Task<Result<NivelacionIaDto>> NivelacionAsync(NivelacionIaRequest request, CancellationToken ct = default);
     Task<Result<CalificacionIaDto>> CalificarAsync(CalificarIaRequest request, CancellationToken ct = default);
 
     /// <summary>Manda a calificar en tanda (hasta 10 trabajos por envío); los resultados llegan en minutos.</summary>

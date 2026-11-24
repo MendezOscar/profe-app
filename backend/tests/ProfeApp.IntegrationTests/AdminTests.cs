@@ -409,6 +409,36 @@ public class AdminTests(ApiFixture fixture) : ApiTestBase(fixture)
     }
 
     [Fact]
+    public async Task El_portafolio_con_IA_redacta_la_presentacion_y_la_nivelacion_sin_nombres()
+    {
+        var plataforma = await PlataformaAsync();
+        var correo = $"profe-portafolio-{Guid.NewGuid():N}@prueba.hn";
+        var cuenta = await ReadAsync(await plataforma.PostAsJsonAsync("/api/v1/plataforma/docentes", new { email = correo, nombre = "Profe Portafolio" }));
+        var id = cuenta.GetProperty("usuarioId").GetGuid();
+        (await plataforma.PutAsJsonAsync($"/api/v1/plataforma/docentes/{id}/plan", new
+        {
+            planNombre = "Docente Pro", monto = 100m, pagadoHasta = Hoy.AddMonths(1), diasGracia = 0, comoPagar = (string?)null, conIa = true,
+        })).IsSuccessStatusCode.Should().BeTrue();
+        var docente = await EntrarConTemporalAsync(correo, cuenta.GetProperty("claveTemporal").GetString()!);
+
+        var presentacion = await ReadAsync(await docente.PostAsJsonAsync("/api/v1/ia/portafolio/presentacion",
+            new { nivel = "Educación Media", asignaturas = new[] { "Matemática, décimo grado" }, indicaciones = (string?)null }));
+        presentacion.GetProperty("introduccion").GetString().Should().NotBeEmpty();
+        presentacion.GetProperty("objetivos").GetArrayLength().Should().Be(2);
+
+        var nivelacion = await ReadAsync(await docente.PostAsJsonAsync("/api/v1/ia/portafolio/nivelacion", new
+        {
+            asignatura = "Matemática", grado = "Décimo grado",
+            alumnos = new[] { new { codigo = "A1", parciales = new[] { "PARCIAL I: 62" }, rubros = new[] { new { nombre = "Examen", obtenido = 20m, posible = 50m } }, ausencias = 3 } },
+        }));
+        nivelacion.GetProperty("acciones").GetArrayLength().Should().Be(1, "solo los códigos que se mandaron");
+        GeneradorDePrueba.Peticiones.Last().Usuario.Should().Contain("A1").And.Contain("Examen 20 de 50");
+
+        var estado = await ReadAsync(await docente.GetAsync("/api/v1/ia/estado"));
+        estado.GetProperty("creditos").GetDecimal().Should().Be(2.5m, "presentación 1 + nivelación 1½");
+    }
+
+    [Fact]
     public async Task Calificar_en_tanda_cuesta_un_credito_por_trabajo_y_deja_las_sugerencias()
     {
         var plataforma = await PlataformaAsync();

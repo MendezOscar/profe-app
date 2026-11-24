@@ -649,19 +649,24 @@ class PlanesRepository {
   }
 
   /// Sexo de los alumnos de una clase, por id de alumno: 'F' o 'M' (sin marcar, no está).
-  /// Se guarda por la clave del alumno, que es la misma en todos los teléfonos.
-  Future<Map<String, String>> sexos(String claseId) async {
+  Future<Map<String, String>> sexos(String claseId) => porAlumno(claseId, 'sexos');
+
+  Future<void> guardarSexos(String claseId, Map<String, String> porAlumnoId) => guardarPorAlumno(claseId, 'sexos', porAlumnoId);
+
+  /// Un texto por alumno de una clase (sexo, acción de nivelación…), por id de alumno. Se
+  /// guarda por la clave del alumno, que es la misma en todos los teléfonos.
+  Future<Map<String, String>> porAlumno(String claseId, String clave) async {
     final db = await _db;
     final clase = await db.query('clases', columns: ['clave'], where: 'id = ?', whereArgs: [claseId]);
     if (clase.isEmpty) return {};
-    final datos = await ajuste(clase.first['clave'] as String, 'sexos');
+    final datos = await ajuste(clase.first['clave'] as String, clave);
     return {
       for (final a in await db.query('alumnos', columns: ['id', 'clave'], where: 'clase_id = ?', whereArgs: [claseId]))
         if (datos[a['clave']] case final String s) a['id'] as String: s,
     };
   }
 
-  Future<void> guardarSexos(String claseId, Map<String, String> porAlumnoId) async {
+  Future<void> guardarPorAlumno(String claseId, String clave, Map<String, String> porAlumnoId) async {
     final db = await _db;
     final clase = await db.query('clases', columns: ['clave'], where: 'id = ?', whereArgs: [claseId]);
     if (clase.isEmpty) return;
@@ -669,7 +674,7 @@ class PlanesRepository {
       for (final a in await db.query('alumnos', columns: ['id', 'clave'], where: 'clase_id = ?', whereArgs: [claseId]))
         a['id'] as String: a['clave'] as String,
     };
-    await guardarAjuste(clase.first['clave'] as String, 'sexos', {
+    await guardarAjuste(clase.first['clave'] as String, clave, {
       for (final MapEntry(key: id, value: s) in porAlumnoId.entries)
         if (claves[id] case final c?) c: s,
     });

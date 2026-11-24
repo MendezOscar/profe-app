@@ -182,6 +182,86 @@ public sealed partial class AsistenteIaService(
             : Result<ComentarioIaDto>.Fail(resultado.Error!);
     }
 
+    // ── Portafolio docente ───────────────────────────────────────────────────
+
+    public async Task<Result<PresentacionIaDto>> PresentacionAsync(PresentacionIaRequest r, CancellationToken ct = default)
+    {
+        var asignaturas = (r.Asignaturas ?? []).Select(a => Texto(a, 120)).OfType<string>().Distinct().Take(20).ToList();
+        if (asignaturas.Count == 0) return Result<PresentacionIaDto>.Fail(Error.Validation("Importa tus cuadros primero."));
+        var permiso = await PuedeAsync(CreditosIa.Medios(FuncionesIa.Presentacion), ct);
+        if (permiso is not null) return Result<PresentacionIaDto>.Fail(permiso);
+
+        var usuario = $"Nivel: {Texto(r.Nivel, 40) ?? "no indicado"}\nAsignaturas y grados que imparte:\n" +
+            string.Join("\n", asignaturas.Select(a => "- " + a)) +
+            (Texto(r.Indicaciones, 500) is { } i ? $"\nEl docente quiere destacar: {i}" : "");
+        var sistema = Contexto + "\n\nRedacta la presentación del portafolio docente del año (formato de la Secretaría de " +
+            "Educación): una introducción de dos o tres párrafos cortos en primera persona, que explique qué reúne el " +
+            "portafolio, para qué sirve (organizar la práctica, evaluar y mejorar) y el compromiso con el aprendizaje de los " +
+            "estudiantes de esas asignaturas, y de 3 a 5 objetivos que empiecen con un verbo en infinitivo. Sin nombres de " +
+            "personas ni del centro, sin fechas y sin frases de relleno.";
+        return await LlamarAsync<PresentacionIaDto>(FuncionesIa.Presentacion,
+            new PeticionIa(sistema, usuario, EsquemaPresentacion, 2000, Breve: true), ct);
+    }
+
+    public async Task<Result<NivelacionIaDto>> NivelacionAsync(NivelacionIaRequest r, CancellationToken ct = default)
+    {
+        var asignatura = Texto(r.Asignatura, 120);
+        if (asignatura is null) return Result<NivelacionIaDto>.Fail(Error.Validation("Falta la asignatura."));
+        var alumnos = (r.Alumnos ?? []).Where(a => IdValido().IsMatch(a.Codigo ?? "")).Take(60).ToList();
+        if (alumnos.Count == 0) return Result<NivelacionIaDto>.Fail(Error.Validation("Ningún alumno está bajo 70."));
+        var permiso = await PuedeAsync(CreditosIa.Medios(FuncionesIa.Nivelacion), ct);
+        if (permiso is not null) return Result<NivelacionIaDto>.Fail(permiso);
+
+        var usuario = $"Asignatura: {asignatura}\nGrado: {Texto(r.Grado, 120) ?? "no indicado"}\nNota mínima para aprobar: 70\n\n" +
+            string.Join("\n", alumnos.Select(a =>
+                $"{a.Codigo}: {string.Join(", ", (a.Parciales ?? []).Take(4).Select(p => Texto(p, 40)))}; ausencias {a.Ausencias}" +
+                ((a.Rubros ?? []).Count > 0
+                    ? "; último parcial por rubro: " + string.Join(", ", a.Rubros!.Take(10).Select(x => $"{Texto(x.Nombre, 60)} {x.Obtenido} de {x.Posible}"))
+                    : "")));
+        var sistema = Contexto + "\n\nPara el plan de nivelación y mejora de los aprendizajes del portafolio docente, escribe " +
+            "una acción de mejora concreta para cada estudiante (uno por código): qué va a hacer el docente con él, " +
+            "según sus rubros más bajos y su asistencia, en una sola oración de máximo 25 palabras, sin repetir la misma " +
+            "acción para todos. Devuelve una acción por cada código recibido.";
+        var resultado = await LlamarAsync<NivelacionIaDto>(FuncionesIa.Nivelacion,
+            new PeticionIa(sistema, usuario, EsquemaNivelacion, 4000, Breve: true), ct);
+        if (!resultado.IsSuccess) return resultado;
+        var codigos = alumnos.Select(a => a.Codigo).ToHashSet();
+        return new NivelacionIaDto(resultado.Value.Acciones.Where(a => codigos.Contains(a.Codigo)).ToList());
+    }
+
+    private static readonly Dictionary<string, JsonElement> EsquemaPresentacion = Esquema(new
+    {
+        type = "object",
+        additionalProperties = false,
+        required = new[] { "introduccion", "objetivos" },
+        properties = new
+        {
+            introduccion = new { type = "string" },
+            objetivos = new { type = "array", items = new { type = "string" } },
+        },
+    });
+
+    private static readonly Dictionary<string, JsonElement> EsquemaNivelacion = Esquema(new
+    {
+        type = "object",
+        additionalProperties = false,
+        required = new[] { "acciones" },
+        properties = new
+        {
+            acciones = new
+            {
+                type = "array",
+                items = new
+                {
+                    type = "object",
+                    additionalProperties = false,
+                    required = new[] { "codigo", "accion" },
+                    properties = new { codigo = new { type = "string" }, accion = new { type = "string" } },
+                },
+            },
+        },
+    });
+
     // ── Calificar desde una foto ─────────────────────────────────────────────
 
     public async Task<Result<CalificacionIaDto>> CalificarAsync(CalificarIaRequest r, CancellationToken ct = default)

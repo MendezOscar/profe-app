@@ -3,7 +3,14 @@ part of 'informes_pdf.dart';
 /// Lo de una clase que va al portafolio: todos sus parciales, el sexo de los alumnos, el
 /// horario y, si se pudo consultar, el programa oficial.
 class ClasePortafolio {
-  const ClasePortafolio({required this.clase, required this.planes, this.sexos = const {}, this.horario, this.programa});
+  const ClasePortafolio({
+    required this.clase,
+    required this.planes,
+    this.sexos = const {},
+    this.horario,
+    this.programa,
+    this.acciones = const {},
+  });
 
   final ClaseResumen clase;
   final List<PlanParcial> planes;
@@ -14,6 +21,9 @@ class ClasePortafolio {
 
   /// Lo que devuelve /ia/programa (null sin programa o sin internet).
   final Map<String, dynamic>? programa;
+
+  /// alumnoId → acción de mejora del plan de nivelación.
+  final Map<String, String> acciones;
 
   List<AlumnoPlan> get alumnos => planes.isEmpty ? const [] : planes.first.alumnos;
   String get titulo => '${clase.asignatura} · ${clase.gradoSeccion}';
@@ -43,6 +53,18 @@ class DatosPortafolio {
   final String objetivos;
 
   String campo(String clave) => (campos[clave] as String?)?.trim() ?? '';
+}
+
+/// Alumnos con algún parcial calificado bajo 70, con esos parciales («PARCIAL I: 62»).
+List<({AlumnoPlan alumno, List<String> parciales})> alumnosBajo70(List<PlanParcial> planes) {
+  final parciales = planes.where((p) => p.calificaciones.values.any((m) => m.isNotEmpty)).toList();
+  final notas = [for (final p in parciales) calcularParcial(p).porAlumno];
+  return [
+    for (final a in planes.isEmpty ? const <AlumnoPlan>[] : planes.first.alumnos)
+      if ([for (final (i, n) in notas.indexed) if ((n[a.id]?.nota ?? 100) < 70) '${parciales[i].parcial.titulo}: ${n[a.id]!.nota}']
+          case final List<String> l when l.isNotEmpty)
+        (alumno: a, parciales: l),
+  ];
 }
 
 /// Edad aproximada por el año de inscripción en la identidad (0801-2012-01234 → 2012).
@@ -568,13 +590,8 @@ class PortafolioPdf {
   static List<pw.Widget> _nivelacion(List<ClasePortafolio> clases) {
     final bloques = <pw.Widget>[];
     for (final c in clases) {
-      final parciales = c.planes.where((p) => p.calificaciones.values.any((m) => m.isNotEmpty)).toList();
-      final notas = [for (final p in parciales) calcularParcial(p).porAlumno];
       final bajos = [
-        for (final a in c.alumnos)
-          if ([for (final (i, n) in notas.indexed) if ((n[a.id]?.nota ?? 100) < 70) '${parciales[i].parcial.titulo}: ${n[a.id]!.nota}']
-              case final List<String> l when l.isNotEmpty)
-            [a.nombre, l.join(' · '), ''],
+        for (final b in alumnosBajo70(c.planes)) [b.alumno.nombre, b.parciales.join(' · '), c.acciones[b.alumno.id] ?? ''],
       ];
       if (bajos.isEmpty) continue;
       bloques

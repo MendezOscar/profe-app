@@ -65,6 +65,23 @@ public sealed record RubroNotaIaDto(string Nombre, decimal Obtenido, decimal Pos
 
 public sealed record ComentarioIaDto(string Texto);
 
+// ── Portafolio docente ───────────────────────────────────────────────────────
+
+/// <summary><c>Asignaturas</c>: «Matemática, décimo grado» (sin datos de alumnos).</summary>
+public sealed record PresentacionIaRequest(string? Nivel, IReadOnlyList<string>? Asignaturas, string? Indicaciones);
+
+public sealed record PresentacionIaDto(string Introduccion, IReadOnlyList<string> Objetivos);
+
+/// <summary>Alumnos bajo 70 de una asignatura, sin nombres: cada uno con un código (A1, A2…).</summary>
+public sealed record NivelacionIaRequest(string? Asignatura, string? Grado, IReadOnlyList<AlumnoNivelacionIaDto>? Alumnos);
+
+/// <summary><c>Parciales</c>: «PARCIAL I: 62». <c>Rubros</c>: lo obtenido en el último parcial.</summary>
+public sealed record AlumnoNivelacionIaDto(string Codigo, IReadOnlyList<string>? Parciales, IReadOnlyList<RubroNotaIaDto>? Rubros, int Ausencias);
+
+public sealed record NivelacionIaDto(IReadOnlyList<AccionNivelacionIaDto> Acciones);
+
+public sealed record AccionNivelacionIaDto(string Codigo, string Accion);
+
 // ── Centro (plan Pro) ────────────────────────────────────────────────────────
 
 /// <summary>Créditos que usó la dirección este mes; el saldo es de 25 por docente activo.</summary>

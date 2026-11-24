@@ -1063,6 +1063,8 @@ const _nombresFuncionIa = {
   'plan': 'Plan del parcial',
   'examen': 'Examen',
   'comentario': 'Comentario de alumno',
+  'presentacion': 'Presentación del portafolio',
+  'nivelacion': 'Plan de nivelación',
   'calificar': 'Calificar con foto',
   'calificar_tanda': 'Calificar en tanda (mitad de precio)',
   'boleta': 'Comentario de boleta',

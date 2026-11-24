@@ -245,6 +245,12 @@ public static class AdminEndpoints
             .WithSummary("El programa curricular oficial de la asignatura de un cuadro de SACE (204 si no hay).");
         ia.MapPost("/plan", async (PlanIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.PlanAsync(r, ct)).ToHttp())
             .WithSummary("Rubros y actividades del parcial a partir de los temas.");
+        ia.MapPost("/portafolio/presentacion", async (PresentacionIaRequest r, IAsistenteIaService s, CancellationToken ct) =>
+                (await s.PresentacionAsync(r, ct)).ToHttp())
+            .WithSummary("Introducción y objetivos del portafolio docente.");
+        ia.MapPost("/portafolio/nivelacion", async (NivelacionIaRequest r, IAsistenteIaService s, CancellationToken ct) =>
+                (await s.NivelacionAsync(r, ct)).ToHttp())
+            .WithSummary("Una acción de mejora para cada alumno bajo 70 de una asignatura (sin nombres).");
         ia.MapPost("/examen", async (ExamenIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.ExamenAsync(r, ct)).ToHttp())
             .WithSummary("Examen con clave de respuestas.");
         ia.MapPost("/calificar", async (CalificarIaRequest r, IAsistenteIaService s, CancellationToken ct) => (await s.CalificarAsync(r, ct)).ToHttp())
