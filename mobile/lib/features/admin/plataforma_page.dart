@@ -520,13 +520,10 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
   var _guardando = false;
   String? _error;
 
-  /// Si se le pide el documento a la facturación central. Se puede emitir después desde el
-  /// historial, así que anotar el pago sin documento no pierde nada.
-  var _facturar = true;
-
-  /// Con CAI, es decir factura. Apagado a propósito: se emite **sólo si el catedrático la
-  /// pide**, porque un número autorizado del SAR que se quema no se devuelve.
-  var _conCai = false;
+  /// Qué papel se le da por este pago. El comprobante por omisión: lo normal es dejarle
+  /// algo, y la factura se emite **sólo si el catedrático la pide**, porque un número
+  /// autorizado del SAR que se quema no se devuelve.
+  var _documento = _Documento.comprobante;
 
   @override
   void dispose() {
@@ -618,30 +615,27 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
                 hintText: 'Número de transferencia, banco, quién depositó',
               ),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: _facturar,
-              onChanged: (v) => setState(() => _facturar = v),
-              // «Documento», no «documento fiscal»: puede salir comprobante, que no lo es.
-              title: const Text('Emitir documento'),
-              subtitle: Text(_facturar
-                  ? 'Le pide el número a la facturación central.'
-                  : 'El pago queda anotado sin documento. Se le puede emitir después desde el historial.'),
-            ),
-            if (_facturar)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: _conCai,
-                onChanged: (v) => setState(() => _conCai = v),
-                // El rótulo dice qué hace encenderlo; el texto, qué va a salir tal como
-                // está. Antes el rótulo decía «factura» y debajo decía «comprobante».
-                title: const Text('Emitir factura con CAI'),
-                subtitle: Text(_conCai
-                    ? 'Va a salir una factura con CAI. Quema un número autorizado del SAR, '
-                        'que no se devuelve.'
-                    : 'Va a salir un comprobante con el correlativo propio, sin valor fiscal.'),
+            // Una pregunta con tres respuestas, no dos interruptores: «Emitir documento» y
+            // «Emitir factura con CAI» se leían como lo mismo dicho dos veces.
+            const SizedBox(height: Espacio.s),
+            Text('Qué se le entrega', style: text.labelLarge),
+            RadioGroup<_Documento>(
+              groupValue: _documento,
+              onChanged: (v) => setState(() => _documento = v ?? _Documento.comprobante),
+              child: Column(
+                children: [
+                  for (final opcion in _Documento.values)
+                    RadioListTile<_Documento>(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: opcion,
+                      title: Text(opcion.titulo),
+                      subtitle: Text(opcion.explicacion),
+                    ),
+                ],
               ),
-            if (_facturar && _conCai && (widget.cuenta.cobro.rtn ?? '').isEmpty)
+            ),
+            if (_documento == _Documento.factura && (widget.cuenta.cobro.rtn ?? '').isEmpty)
               Text(
                 'Esta cuenta no tiene RTN: la factura saldrá a consumidor final. '
                 'Si la pide con RTN, ponéselo primero en su plan.',
@@ -691,8 +685,8 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
         // Sólo si se cambió a mano: si no, la cuenta la hace el servidor.
         'pagadoHasta': _elegida == null ? null : _iso(_elegida!),
         'referencia': _referencia.text.trim().isEmpty ? null : _referencia.text.trim(),
-        'facturar': _facturar,
-        'conCai': _conCai,
+        'facturar': _documento != _Documento.ninguno,
+        'conCai': _documento == _Documento.factura,
       });
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -702,6 +696,27 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
       });
     }
   }
+}
+
+/// Qué papel deja un pago. Son tres y excluyentes, así que es una elección, no dos
+/// interruptores que hay que cruzar para saber qué sale.
+enum _Documento {
+  comprobante,
+  factura,
+  ninguno;
+
+  String get titulo => switch (this) {
+        _Documento.comprobante => 'Comprobante',
+        _Documento.factura => 'Factura con CAI',
+        _Documento.ninguno => 'Nada, solo registrar el cobro',
+      };
+
+  String get explicacion => switch (this) {
+        _Documento.comprobante => 'Numeración propia, sin valor fiscal.',
+        _Documento.factura =>
+          'Quema un número autorizado del SAR, que no se devuelve. Solo si la pide.',
+        _Documento.ninguno => 'Se le puede emitir después desde el historial.',
+      };
 }
 
 /// Lo que ya se cobró, para no anotar dos veces el mismo depósito, con el documento que
