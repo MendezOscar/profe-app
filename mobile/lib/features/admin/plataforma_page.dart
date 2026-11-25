@@ -520,9 +520,13 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
   var _guardando = false;
   String? _error;
 
-  /// Si se le pide el documento a la facturación central. Hay cuentas que no piden factura,
-  /// y un número del SAR quemado no se devuelve: se puede emitir después desde el historial.
+  /// Si se le pide el documento a la facturación central. Se puede emitir después desde el
+  /// historial, así que anotar el pago sin documento no pierde nada.
   var _facturar = true;
+
+  /// Con CAI, es decir factura. Apagado a propósito: se emite **sólo si el catedrático la
+  /// pide**, porque un número autorizado del SAR que se quema no se devuelve.
+  var _conCai = false;
 
   @override
   void dispose() {
@@ -623,10 +627,20 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
                   ? 'Le pide el número a la facturación central, que lleva el CAI de los tres servicios.'
                   : 'El pago queda anotado sin documento. Se le puede emitir después desde el historial.'),
             ),
-            if (_facturar && (widget.cuenta.cobro.rtn ?? '').isEmpty)
+            if (_facturar)
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _conCai,
+                onChanged: (v) => setState(() => _conCai = v),
+                title: const Text('Con CAI: factura'),
+                subtitle: Text(_conCai
+                    ? 'Quema un número autorizado del SAR, que no se devuelve. Sólo si la pide.'
+                    : 'Sale un comprobante con el correlativo propio, sin valor fiscal.'),
+              ),
+            if (_facturar && _conCai && (widget.cuenta.cobro.rtn ?? '').isEmpty)
               Text(
-                'Esta cuenta no tiene RTN: el documento saldrá a consumidor final. '
-                'Si lo pide con RTN, ponéselo primero en su plan.',
+                'Esta cuenta no tiene RTN: la factura saldrá a consumidor final. '
+                'Si la pide con RTN, ponéselo primero en su plan.',
                 style: text.bodySmall?.copyWith(color: scheme.error),
               ),
             if (_error != null) ...[
@@ -674,6 +688,7 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
         'pagadoHasta': _elegida == null ? null : _iso(_elegida!),
         'referencia': _referencia.text.trim().isEmpty ? null : _referencia.text.trim(),
         'facturar': _facturar,
+        'conCai': _conCai,
       });
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -702,7 +717,26 @@ class _HistorialState extends ConsumerState<_Historial> {
   String? _pidiendo;
   String? _error;
 
+  /// Se pregunta antes: la factura quema un número autorizado del SAR y el comprobante no,
+  /// así que no es un detalle que se pueda decidir por la cuenta.
   Future<void> _emitir(String pagoId) async {
+    final conCai = await showDialog<bool>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: const Text('¿Qué documento se emite?'),
+        content: const Text(
+          'La factura lleva CAI y quema un número autorizado del SAR, que no se devuelve. '
+          'El comprobante lleva el correlativo propio y no tiene valor fiscal.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(contexto), child: const Text('Cancelar')),
+          TextButton(onPressed: () => Navigator.pop(contexto, false), child: const Text('Comprobante')),
+          FilledButton(onPressed: () => Navigator.pop(contexto, true), child: const Text('Factura con CAI')),
+        ],
+      ),
+    );
+    if (conCai == null || !mounted) return;
+
     setState(() {
       _pidiendo = pagoId;
       _error = null;
@@ -710,7 +744,7 @@ class _HistorialState extends ConsumerState<_Historial> {
     try {
       await ref
           .read(apiClientProvider)
-          .post<void>('/plataforma/${widget.ruta}/pagos/$pagoId/documento');
+          .post<void>('/plataforma/${widget.ruta}/pagos/$pagoId/documento?conCai=$conCai');
       ref.invalidate(pagosProvider(widget.ruta));
     } on ApiException catch (e) {
       setState(() => _error = e.isNetworkError ? 'Necesitas internet.' : e.message);

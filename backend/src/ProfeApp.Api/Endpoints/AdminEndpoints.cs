@@ -310,9 +310,11 @@ public static class AdminEndpoints
                 .WithSummary("Anota un pago y corre el vencimiento.");
             plataforma.MapGet($"/{ruta}/{{id:guid}}/pagos", async (Guid id, IPlataformaService s, CancellationToken ct) =>
                 (await s.PagosAsync(tipo, id, ct)).ToHttp());
+            // conCai sólo si la piden como factura: por omisión sale comprobante, porque un
+            // número autorizado del SAR que se quema no se devuelve.
             plataforma.MapPost($"/{ruta}/{{id:guid}}/pagos/{{pagoId:guid}}/documento",
-                    async (Guid id, Guid pagoId, IPlataformaService s, CancellationToken ct) =>
-                        (await s.EmitirDocumentoAsync(tipo, id, pagoId, ct)).ToHttp())
+                    async (Guid id, Guid pagoId, bool? conCai, IPlataformaService s, CancellationToken ct) =>
+                        (await s.EmitirDocumentoAsync(tipo, id, pagoId, conCai ?? false, ct)).ToHttp())
                 .WithSummary("Emite el documento de un pago que se registró sin él.");
             plataforma.MapPost($"/{ruta}/{{id:guid}}/suspender", async (Guid id, IPlataformaService s, CancellationToken ct) =>
                 (await s.CambiarEstadoAsync(tipo, id, false, ct)).ToHttp());

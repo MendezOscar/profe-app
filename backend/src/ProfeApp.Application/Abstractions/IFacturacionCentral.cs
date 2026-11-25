@@ -31,6 +31,11 @@ public interface IFacturacionCentral
 /// relación: es la etiqueta que les permite juntar los documentos de un mismo cliente sin
 /// tener nuestro padrón.
 /// </param>
+/// <param name="ConCai">
+/// Si va con CAI, es decir si es factura. Se decide <b>pago por pago</b>: el catedrático que
+/// no la pide recibe un comprobante, y un número autorizado del SAR que se quema no se
+/// devuelve. Null toma lo que diga la configuración del servidor.
+/// </param>
 public sealed record PeticionFactura(
     string Cliente,
     string? RazonSocial,
@@ -39,7 +44,8 @@ public sealed record PeticionFactura(
     decimal Monto,
     string ReferenciaDelCliente,
     DateOnly? PagadoEl = null,
-    string? Referencia = null);
+    string? Referencia = null,
+    bool? ConCai = null);
 
 /// <summary>
 /// Cómo salió el pedido. No es un <c>Result</c> del sistema a propósito: que la facturación

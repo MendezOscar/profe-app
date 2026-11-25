@@ -22,8 +22,9 @@ public sealed class FacturacionCentralOptions
     public string? ApiKey { get; set; }
 
     /// <summary>
-    /// Con CAI. En falso sale un comprobante con el correlativo propio de la facturación, que
-    /// es lo que se le da a quien no pide factura.
+    /// Con CAI cuando el pago no dice otra cosa. Es sólo el valor por defecto: lo normal es
+    /// que la pantalla lo mande pago por pago, porque la factura se emite <b>sólo si el
+    /// catedrático la pide</b> y un número autorizado que se quema no se devuelve.
     /// </summary>
     public bool Fiscal { get; set; } = true;
 
@@ -74,7 +75,7 @@ public sealed class FacturacionCentralCliente(
             new Cliente(peticion.Cliente, peticion.RazonSocial, peticion.Rtn),
             [new Linea(peticion.Concepto, 1, peticion.Monto)],
             peticion.ReferenciaDelCliente,
-            _options.Fiscal,
+            peticion.ConCai ?? _options.Fiscal,
             peticion.PagadoEl?.ToString("yyyy-MM-dd"),
             peticion.Referencia);
 

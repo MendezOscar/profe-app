@@ -30,13 +30,19 @@ public sealed record PlanCobroRequest(
 
 /// <summary>
 /// Sin <c>PagadoHasta</c>, el servidor suma los períodos al vencimiento que ya tenía (o a
-/// hoy, si no tenía). <c>Facturar</c> en falso anota el pago sin pedirle documento a la
-/// facturación central: hay cuentas que no piden factura, y un número del SAR quemado no se
-/// devuelve. Se puede emitir después desde el historial.
+/// hoy, si no tenía).
 /// </summary>
+/// <param name="Facturar">
+/// En falso anota el pago sin pedirle documento a la facturación central. Se puede emitir
+/// después desde el historial.
+/// </param>
+/// <param name="ConCai">
+/// Con CAI, es decir factura. <b>Sólo si el catedrático la pide</b>: un número autorizado del
+/// SAR que se quema no se devuelve. En falso sale un comprobante, que es lo normal.
+/// </param>
 public sealed record RegistrarPagoRequest(
     decimal Monto, int Periodos, DateOnly? PagadoHasta = null, string? Referencia = null, DateOnly? PagadoEl = null,
-    bool Facturar = true);
+    bool Facturar = true, bool ConCai = false);
 
 /// <summary>
 /// Un pago con su documento. <c>ErrorDocumento</c> con <c>NumeroDocumento</c> en null es un

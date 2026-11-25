@@ -291,7 +291,7 @@ public sealed class AdminService(
 
         // Primero queda guardado el cobro, después se pide el documento: la plata ya entró y
         // el vencimiento ya corrió, así que una facturación caída no puede tumbar nada de eso.
-        if (request.Facturar) await FacturarAsync(pago, cuenta, ct);
+        if (request.Facturar) await FacturarAsync(pago, cuenta, request.ConCai, ct);
 
         return Describir(cuenta);
     }
@@ -301,7 +301,7 @@ public sealed class AdminService(
     /// sí, o la facturación estaba caída. Reintentar es gratis porque allá la clave de
     /// idempotencia es el id del pago: si ya salió, vuelve el mismo número.
     /// </summary>
-    public async Task<Result<PagoDto>> EmitirDocumentoAsync(TipoCuenta tipo, Guid id, Guid pagoId, CancellationToken ct = default)
+    public async Task<Result<PagoDto>> EmitirDocumentoAsync(TipoCuenta tipo, Guid id, Guid pagoId, bool conCai, CancellationToken ct = default)
     {
         var (cuenta, cuentaId) = await CuentaAsync(tipo, id, ct);
         if (cuenta is null) return Result<PagoDto>.Fail(Error.NotFound(tipo == TipoCuenta.Centro ? "El centro" : "El docente"));
@@ -314,7 +314,7 @@ public sealed class AdminService(
         if (pago.NumeroDocumento is not null)
             return Result<PagoDto>.Fail(Error.Conflict("Ese pago ya tiene documento.", "ya_facturado"));
 
-        await FacturarAsync(pago, cuenta, ct);
+        await FacturarAsync(pago, cuenta, conCai, ct);
 
         if (pago.NumeroDocumento is null)
             return Result<PagoDto>.Fail(Error.Validation(pago.ErrorDocumento ?? "No se pudo emitir el documento."));
@@ -326,7 +326,7 @@ public sealed class AdminService(
     /// Le pide el número a la facturación central y guarda lo que vuelva —el documento o el
     /// motivo—. No lanza: el pago ya está escrito y lo único que falta es su papel.
     /// </summary>
-    private async Task FacturarAsync(Pago pago, ICobrable cuenta, CancellationToken ct)
+    private async Task FacturarAsync(Pago pago, ICobrable cuenta, bool conCai, CancellationToken ct)
     {
         // Un servidor sin facturación central configurada no es un pago fallido: no se le
         // marca nada al pago, porque no hay nada que reintentar hasta que se configure.
@@ -342,7 +342,8 @@ public sealed class AdminService(
                 Monto: pago.Monto,
                 ReferenciaDelCliente: pago.CuentaId.ToString(),
                 PagadoEl: pago.PagadoEl,
-                Referencia: pago.Referencia),
+                Referencia: pago.Referencia,
+                ConCai: conCai),
             ct);
 
         pago.DocumentoIntentadoEl = clock.Now.UtcDateTime;

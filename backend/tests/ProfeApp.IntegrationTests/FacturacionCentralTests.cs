@@ -31,10 +31,14 @@ public class FacturacionCentralTests
     {
         public HttpRequestMessage? Ultima { get; private set; }
 
+        /// <summary>Se lee acá: el cliente desecha la petición al salir, y con ella el cuerpo.</summary>
+        public string? Cuerpo { get; private set; }
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Ultima = request;
+            Cuerpo = request.Content?.ReadAsStringAsync(cancellationToken).GetAwaiter().GetResult();
             return Task.FromResult(responder(request));
         }
     }
@@ -159,6 +163,31 @@ public class FacturacionCentralTests
         resultado.Emitida.Should().BeFalse();
         resultado.SePuedeReintentar.Should().BeFalse();
         resultado.Error.Should().Contain("llave");
+    }
+
+    [Fact]
+    public async Task La_factura_con_CAI_se_decide_pago_por_pago()
+    {
+        // La variable del servidor es sólo el valor por defecto: la factura se emite **sólo si
+        // el catedrático la pide**, y un número autorizado del SAR que se quema no se devuelve.
+        var (cliente, servidor) = Armar(_ => Emitida());
+
+        await cliente.EmitirAsync(Pago, Peticion() with { ConCai = false });
+        servidor.Cuerpo.Should().Contain("\"fiscal\":false");
+
+        await cliente.EmitirAsync(Pago, Peticion() with { ConCai = true });
+        servidor.Cuerpo.Should().Contain("\"fiscal\":true");
+    }
+
+    [Fact]
+    public async Task Sin_decir_nada_toma_lo_del_servidor()
+    {
+        var (cliente, servidor) = Armar(_ => Emitida());
+
+        await cliente.EmitirAsync(Pago, Peticion());
+
+        // Options.Fiscal viene en true por defecto.
+        servidor.Cuerpo.Should().Contain("\"fiscal\":true");
     }
 
     [Fact]

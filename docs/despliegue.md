@@ -226,7 +226,7 @@ que vive en GarajApp. Acá queda el cobro, el vencimiento y el historial; allá,
 | --- | --- |
 | `FacturacionCentral__BaseUrl` | La dirección de la facturación central, sin barra al final. |
 | `FacturacionCentral__ApiKey` | La llave de ProfeApp. Se genera en GarajApp → Facturación → Servicios, **se enseña una sola vez** y se guarda sólo acá. |
-| `FacturacionCentral__Fiscal` | `true` (por defecto) emite con CAI; `false` emite un comprobante sin valor fiscal. |
+| `FacturacionCentral__Fiscal` | Sólo el valor por defecto, para cuando la pantalla no dice nada. **La pantalla sí lo dice**, pago por pago. Se puede omitir. |
 
 Sin las dos primeras, el servidor **no llama a nadie** y los pagos quedan anotados sin
 documento, sin marcarles ningún error.
@@ -240,6 +240,17 @@ documento, sin marcarles ningún error.
 | La facturación está caída | El pago **igual queda registrado**. El motivo se guarda y se enseña en la fila, con un botón de **Emitir** para reintentar. |
 | Se toca Emitir dos veces | Vuelve el mismo documento: la clave de idempotencia es el id del pago, así que **no se quema otro número del SAR**. |
 | La cuenta no tiene RTN | El documento sale a **consumidor final**. El RTN se pone en el plan de la cuenta. |
+
+**La factura se emite sólo si la piden.** Al registrar el pago hay dos interruptores: *Emitir el
+documento fiscal* y, debajo, *Con CAI: factura*. El segundo viene apagado a propósito:
+
+- **Con CAI** es factura, y **quema un número autorizado del SAR que no se devuelve**. Va sólo
+  cuando el catedrático o el centro la pide.
+- **Sin CAI** sale un comprobante con el correlativo propio de la facturación, sin valor fiscal.
+  Es lo normal del docente que no pide factura.
+
+Lo mismo al emitir tarde desde el historial: el botón **Emitir** pregunta cuál de los dos antes
+de pedir nada.
 
 **La llave es una credencial de máquina**: identifica a ProfeApp entero ante la facturación.
 Va en la cabecera `X-Billing-Key`, nunca en la dirección —la dirección queda escrita en los
