@@ -213,3 +213,39 @@ registrar pago, plan y vencimiento, reponer contraseña y suspender.
 - **Registrar pago** suma los meses al vencimiento que ya tenía (no a hoy); cada pago queda en
   `pagos` con hasta dónde dejó pagado. El estado del plan vive 5 minutos en memoria, salvo al
   registrar un pago o cambiar el plan, que lo renuevan al instante.
+
+## 10. El documento fiscal (facturación central)
+
+El CAI del SAR es **uno solo para los tres servicios** de la empresa —ProfeApp, GarajApp y
+StockRuta—, así que ProfeApp no numera facturas: le pide el número a la **facturación central**,
+que vive en GarajApp. Acá queda el cobro, el vencimiento y el historial; allá, el documento.
+
+**Variables de entorno en Render** (ninguna va en el repositorio):
+
+| Variable | Qué es |
+| --- | --- |
+| `FacturacionCentral__BaseUrl` | La dirección de la facturación central, sin barra al final. |
+| `FacturacionCentral__ApiKey` | La llave de ProfeApp. Se genera en GarajApp → Facturación → Servicios, **se enseña una sola vez** y se guarda sólo acá. |
+| `FacturacionCentral__Fiscal` | `true` (por defecto) emite con CAI; `false` emite un comprobante sin valor fiscal. |
+
+Sin las dos primeras, el servidor **no llama a nadie** y los pagos quedan anotados sin
+documento, sin marcarles ningún error.
+
+**Cómo se porta:**
+
+| Situación | Qué pasa |
+| --- | --- |
+| Se registra un pago con «Emitir el documento fiscal» | El pago se guarda **primero**; después se pide el número. El número y el CAI quedan en la fila del pago. |
+| Se registra sin emitir | El pago queda anotado y sin documento. Se le puede emitir después, desde el historial. |
+| La facturación está caída | El pago **igual queda registrado**. El motivo se guarda y se enseña en la fila, con un botón de **Emitir** para reintentar. |
+| Se toca Emitir dos veces | Vuelve el mismo documento: la clave de idempotencia es el id del pago, así que **no se quema otro número del SAR**. |
+| La cuenta no tiene RTN | El documento sale a **consumidor final**. El RTN se pone en el plan de la cuenta. |
+
+**La llave es una credencial de máquina**: identifica a ProfeApp entero ante la facturación.
+Va en la cabecera `X-Billing-Key`, nunca en la dirección —la dirección queda escrita en los
+registros del servidor y de cualquier proxy del camino—. Si se filtra, se rota en GarajApp y se
+cambia la variable acá; la anterior deja de valer en el acto.
+
+> **La migración va antes que el código.** `ElDocumentoDeLaMensualidad` agrega cinco columnas a
+> `pagos` y el `rtn` a `tenants` e `instituciones`. Desplegar el código contra una base sin esas
+> columnas rompe el historial de pagos con un error genérico.

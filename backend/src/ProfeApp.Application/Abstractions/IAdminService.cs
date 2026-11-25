@@ -24,6 +24,9 @@ public interface IPlataformaService
     Task<Result<CobroDto>> FijarPlanAsync(TipoCuenta tipo, Guid id, PlanCobroRequest request, CancellationToken ct = default);
     Task<Result<CobroDto>> RegistrarPagoAsync(TipoCuenta tipo, Guid id, RegistrarPagoRequest request, CancellationToken ct = default);
     Task<Result<IReadOnlyList<PagoDto>>> PagosAsync(TipoCuenta tipo, Guid id, CancellationToken ct = default);
+
+    /// <summary>El documento del pago que se registró sin él. Reintentar no quema otro número.</summary>
+    Task<Result<PagoDto>> EmitirDocumentoAsync(TipoCuenta tipo, Guid id, Guid pagoId, CancellationToken ct = default);
     Task<Result> CambiarEstadoAsync(TipoCuenta tipo, Guid id, bool activa, CancellationToken ct = default);
 
     /// <summary>Del docente personal, o del administrador del centro.</summary>

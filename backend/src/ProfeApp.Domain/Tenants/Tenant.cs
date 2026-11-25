@@ -26,4 +26,7 @@ public class Tenant : BaseEntity, ICobrable
     public DateOnly? PagadoHasta { get; set; }
     public int DiasGracia { get; set; }
     public string? ComoPagar { get; set; }
+
+    /// <summary>Para su factura. Sin RTN el documento sale a consumidor final.</summary>
+    public string? Rtn { get; set; }
 }

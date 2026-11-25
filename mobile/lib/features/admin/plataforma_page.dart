@@ -520,6 +520,10 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
   var _guardando = false;
   String? _error;
 
+  /// Si se le pide el documento a la facturación central. Hay cuentas que no piden factura,
+  /// y un número del SAR quemado no se devuelve: se puede emitir después desde el historial.
+  var _facturar = true;
+
   @override
   void dispose() {
     _monto.dispose();
@@ -610,6 +614,21 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
                 hintText: 'Número de transferencia, banco, quién depositó',
               ),
             ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _facturar,
+              onChanged: (v) => setState(() => _facturar = v),
+              title: const Text('Emitir el documento fiscal'),
+              subtitle: Text(_facturar
+                  ? 'Le pide el número a la facturación central, que lleva el CAI de los tres servicios.'
+                  : 'El pago queda anotado sin documento. Se le puede emitir después desde el historial.'),
+            ),
+            if (_facturar && (widget.cuenta.cobro.rtn ?? '').isEmpty)
+              Text(
+                'Esta cuenta no tiene RTN: el documento saldrá a consumidor final. '
+                'Si lo pide con RTN, ponéselo primero en su plan.',
+                style: text.bodySmall?.copyWith(color: scheme.error),
+              ),
             if (_error != null) ...[
               const SizedBox(height: Espacio.s),
               Text(_error!, style: TextStyle(color: scheme.error)),
@@ -654,6 +673,7 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
         // Sólo si se cambió a mano: si no, la cuenta la hace el servidor.
         'pagadoHasta': _elegida == null ? null : _iso(_elegida!),
         'referencia': _referencia.text.trim().isEmpty ? null : _referencia.text.trim(),
+        'facturar': _facturar,
       });
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {
@@ -665,35 +685,105 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
   }
 }
 
-/// Lo que ya se cobró, para no anotar dos veces el mismo depósito.
-class _Historial extends ConsumerWidget {
+/// Lo que ya se cobró, para no anotar dos veces el mismo depósito, con el documento que
+/// dejó cada pago. El que no tiene documento se puede emitir desde aquí: allá la clave de
+/// idempotencia es el id del pago, así que pedirlo de nuevo no quema otro número del SAR.
+class _Historial extends ConsumerStatefulWidget {
   const _Historial({required this.ruta});
 
   final String ruta;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => ref.watch(pagosProvider(ruta)).when(
-        loading: () => const Padding(padding: EdgeInsets.all(Espacio.m), child: LinearProgressIndicator()),
-        error: (e, _) => Padding(padding: const EdgeInsets.all(Espacio.m), child: Text('$e')),
-        data: (pagos) => pagos.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.symmetric(vertical: Espacio.m),
-                child: Text('Todavía no se le registró ningún pago.'),
-              )
-            : Column(
-                children: [
-                  for (final p in pagos)
-                    ListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      leading: const Icon(Icons.receipt_long_outlined),
-                      title: Text('${_lempiras((p['monto'] as num).toDouble())} · ${fechaCorta(p['pagadoEl'] as String)}'),
-                      subtitle: Text('dejó pagado hasta ${fechaCorta(p['cubreHasta'] as String)}'
-                          '${p['referencia'] == null ? '' : ' · ${p['referencia']}'}'),
-                    ),
-                ],
-              ),
-      );
+  ConsumerState<_Historial> createState() => _HistorialState();
+}
+
+class _HistorialState extends ConsumerState<_Historial> {
+  /// El pago que se está emitiendo ahora, para no dejar tocar dos veces el mismo botón.
+  String? _pidiendo;
+  String? _error;
+
+  Future<void> _emitir(String pagoId) async {
+    setState(() {
+      _pidiendo = pagoId;
+      _error = null;
+    });
+    try {
+      await ref
+          .read(apiClientProvider)
+          .post<void>('/plataforma/${widget.ruta}/pagos/$pagoId/documento');
+      ref.invalidate(pagosProvider(widget.ruta));
+    } on ApiException catch (e) {
+      setState(() => _error = e.isNetworkError ? 'Necesitas internet.' : e.message);
+    } finally {
+      if (mounted) setState(() => _pidiendo = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final text = Theme.of(context).textTheme;
+
+    return ref.watch(pagosProvider(widget.ruta)).when(
+          loading: () => const Padding(padding: EdgeInsets.all(Espacio.m), child: LinearProgressIndicator()),
+          error: (e, _) => Padding(padding: const EdgeInsets.all(Espacio.m), child: Text('$e')),
+          data: (pagos) => pagos.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.symmetric(vertical: Espacio.m),
+                  child: Text('Todavía no se le registró ningún pago.'),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: Espacio.s),
+                        child: Text(_error!, style: TextStyle(color: scheme.error)),
+                      ),
+                    for (final p in pagos) _fila(p, scheme, text),
+                  ],
+                ),
+        );
+  }
+
+  Widget _fila(Map<String, dynamic> p, ColorScheme scheme, TextTheme text) {
+    final id = p['id'] as String;
+    final numero = p['numeroDocumento'] as String?;
+    final cai = p['caiDocumento'] as String?;
+    final fallo = p['errorDocumento'] as String?;
+
+    // Con CAI es factura; sin CAI es el comprobante que se le da a quien no la pide.
+    final documento = numero == null
+        ? null
+        : '${cai == null ? 'Comprobante' : 'Factura'} $numero';
+
+    return ListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      leading: const Icon(Icons.receipt_long_outlined),
+      title: Text('${_lempiras((p['monto'] as num).toDouble())} · ${fechaCorta(p['pagadoEl'] as String)}'),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('dejó pagado hasta ${fechaCorta(p['cubreHasta'] as String)}'
+              '${p['referencia'] == null ? '' : ' · ${p['referencia']}'}'),
+          if (documento != null) Text(documento, style: text.bodySmall)
+          // El motivo se enseña: un pago sin factura y sin explicación es un reclamo
+          // esperando a que la cuenta lo descubra.
+          else if (fallo != null)
+            Text('Sin documento: $fallo', style: text.bodySmall?.copyWith(color: scheme.error))
+          else
+            Text('Sin documento', style: text.bodySmall),
+        ],
+      ),
+      trailing: numero != null
+          ? null
+          : _pidiendo == id
+              ? const SizedBox(
+                  width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : TextButton(onPressed: _pidiendo == null ? () => _emitir(id) : null, child: const Text('Emitir')),
+    );
+  }
 }
 
 /// El plan que fija la plataforma: cuánto, hasta cuándo, cuántos días de gracia, cómo
@@ -712,6 +802,7 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
   late final _nombre = TextEditingController(text: _c.planNombre ?? '');
   late final _monto = TextEditingController(text: _c.monto > 0 ? _lempiras(_c.monto).substring(2) : '');
   late final _comoPagar = TextEditingController(text: _c.comoPagar ?? '');
+  late final _rtn = TextEditingController(text: _c.rtn ?? '');
   late DateTime? _hasta = _c.pagadoHasta;
   late int _gracia = _c.diasGracia;
   late String? _nivel = _c.nivel;
@@ -725,6 +816,7 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
     _nombre.dispose();
     _monto.dispose();
     _comoPagar.dispose();
+    _rtn.dispose();
     super.dispose();
   }
 
@@ -829,6 +921,17 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
                 hintText: 'Banco, cuenta y a nombre de quién. Se muestra sólo en la web.',
               ),
             ),
+            TextField(
+              controller: _rtn,
+              maxLength: 20,
+              keyboardType: TextInputType.number,
+              inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9-]'))],
+              decoration: const InputDecoration(
+                labelText: 'RTN (opcional)',
+                hintText: '0801…',
+                helperText: 'Lo que lleva impresa su factura. Sin RTN sale a consumidor final.',
+              ),
+            ),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               value: _conIa,
@@ -881,6 +984,7 @@ class _HojaPlanState extends ConsumerState<_HojaPlan> {
         if (!widget.cuenta.esCentro) 'nivel': _nivel,
         'conIa': _conIa,
         'iaMultiplicador': _iaMultiplicador,
+        'rtn': _rtn.text.trim(),
       });
       if (mounted) Navigator.pop(context, true);
     } on ApiException catch (e) {

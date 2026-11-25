@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ProfeApp.Application.Abstractions;
 using ProfeApp.Application.Services;
 using ProfeApp.Infrastructure.Cobros;
+using ProfeApp.Infrastructure.Facturacion;
 using ProfeApp.Infrastructure.Identity;
 using ProfeApp.Infrastructure.Instituciones;
 using ProfeApp.Infrastructure.Mantenimiento;
@@ -20,6 +21,13 @@ public static class DependencyInjection
     {
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.Section));
         services.Configure<ClockOptions>(configuration.GetSection(ClockOptions.Section));
+
+        // La facturación central: el CAI es uno solo para los tres servicios, así que el
+        // número de la factura de una mensualidad se pide allá. La llave va por variable de
+        // entorno; sin ella el cliente no llama a nadie y lo dice.
+        services.Configure<FacturacionCentralOptions>(configuration.GetSection(FacturacionCentralOptions.Section));
+        services.AddHttpClient();
+        services.AddScoped<IFacturacionCentral, FacturacionCentralCliente>();
 
         services.AddSingleton<IClock, SystemClock>();
         services.AddScoped<AuditingInterceptor>();

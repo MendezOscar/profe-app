@@ -20,6 +20,12 @@ public interface ICobrable
     /// <summary>Banco, cuenta, a quién avisar del depósito.</summary>
     string? ComoPagar { get; set; }
 
+    /// <summary>
+    /// RTN de quien paga, para su factura. Sin él el documento sale a consumidor final, que
+    /// es lo normal del docente y lo que ningún centro acepta.
+    /// </summary>
+    string? Rtn { get; set; }
+
     /// <summary>Plan Pro: asistente con IA.</summary>
     bool ConIa { get; set; }
 
@@ -132,4 +138,27 @@ public class Pago : BaseEntity
 
     /// <summary>Número de transferencia, banco, quién depositó.</summary>
     public string? Referencia { get; set; }
+
+    // ── El documento fiscal, que lo emite la facturación central ─────────────
+    //
+    // Se guarda el número, no el documento: el documento vive allá, con el CAI. Acá queda lo
+    // que hace falta para contestar «¿me diste factura de esto?» sin salir a preguntar.
+
+    /// <summary>El número que le tocó. Null si se registró sin pedir documento.</summary>
+    public string? NumeroDocumento { get; set; }
+
+    /// <summary>El CAI con que salió. Null en el comprobante sin valor fiscal.</summary>
+    public string? CaiDocumento { get; set; }
+
+    /// <summary>El id allá, para volver a pedirlo o bajarlo.</summary>
+    public Guid? DocumentoId { get; set; }
+
+    /// <summary>
+    /// Por qué no salió. Se guarda a propósito: un catch que descarta el error deja un pago
+    /// sin factura y sin nadie que se entere.
+    /// </summary>
+    public string? ErrorDocumento { get; set; }
+
+    /// <summary>Cuándo se intentó por última vez. Null es que nunca se pidió.</summary>
+    public DateTime? DocumentoIntentadoEl { get; set; }
 }

@@ -17,6 +17,7 @@ class Cobro {
     this.topeAsignaturas,
     this.conIa = false,
     this.iaMultiplicador = 1,
+    this.rtn,
   });
 
   final EstadoCobro estado;
@@ -39,6 +40,9 @@ class Cobro {
   /// Multiplica los topes mensuales de IA (1 = normal).
   final int iaMultiplicador;
 
+  /// RTN de la cuenta, para su factura. Sin él sale a consumidor final.
+  final String? rtn;
+
   bool get soloLectura => estado == EstadoCobro.soloLectura;
 
   /// Hay algo que avisar: por vencer, en gracia o ya de sólo lectura.
@@ -60,6 +64,7 @@ class Cobro {
         topeAsignaturas: json['topeAsignaturas'] as int?,
         conIa: json['conIa'] as bool? ?? false,
         iaMultiplicador: json['iaMultiplicador'] as int? ?? 1,
+        rtn: json['rtn'] as String?,
       );
 
   static String? _iso(DateTime? d) => d == null
@@ -80,6 +85,7 @@ class Cobro {
         'topeAsignaturas': topeAsignaturas,
         'conIa': conIa,
         'iaMultiplicador': iaMultiplicador,
+        'rtn': rtn,
       };
 }
 

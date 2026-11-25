@@ -25,6 +25,7 @@ public sealed class AdminService(
     UserManager<AppUser> users,
     ICurrentUser currentUser,
     CobroService cobros,
+    IFacturacionCentral facturacion,
     IClock clock) : ICentroService, IPlataformaService
 {
     private static readonly string[] Planes = ["pequeno", "mediano", "grande", "red"];
@@ -238,6 +239,7 @@ public sealed class AdminService(
         if (request.DiasGracia is < 0 or > 60) return Result<CobroDto>.Fail(Error.Validation("Los días de gracia van de 0 a 60."));
         if (request.PlanNombre?.Length > 80) return Result<CobroDto>.Fail(Error.Validation("El nombre del plan admite hasta 80 caracteres."));
         if (request.ComoPagar?.Length > 500) return Result<CobroDto>.Fail(Error.Validation("Cómo pagar admite hasta 500 caracteres."));
+        if (request.Rtn?.Length > 20) return Result<CobroDto>.Fail(Error.Validation("El RTN admite hasta 20 caracteres."));
         if (request.Nivel is not null && (tipo == TipoCuenta.Centro || !NivelesDocente.Todos.Contains(request.Nivel)))
             return Result<CobroDto>.Fail(Error.Validation("Nivel desconocido."));
         if (request.IaMultiplicador is < 1 or > 5) return Result<CobroDto>.Fail(Error.Validation("Los topes de IA van de x1 a x5."));
@@ -247,6 +249,7 @@ public sealed class AdminService(
         cuenta.PagadoHasta = request.PagadoHasta;
         cuenta.DiasGracia = request.DiasGracia;
         cuenta.ComoPagar = Limpio(request.ComoPagar);
+        cuenta.Rtn = Limpio(request.Rtn);
         if (cuenta is Tenant espacio) espacio.Nivel = request.Nivel;
         if (request.ConIa is { } conIa) cuenta.ConIa = conIa;
         if (request.IaMultiplicador is { } mult) cuenta.IaMultiplicador = mult;
@@ -271,7 +274,7 @@ public sealed class AdminService(
         if (hasta < cuenta.PagadoHasta)
             return Result<CobroDto>.Fail(Error.Validation("El pago no puede dejar un vencimiento anterior al que ya tenía."));
 
-        db.Pagos.Add(new Pago
+        var pago = new Pago
         {
             CuentaId = cuentaId,
             PagadoEl = request.PagadoEl ?? hoy,
@@ -280,11 +283,100 @@ public sealed class AdminService(
             CubreHasta = hasta,
             Referencia = Limpio(request.Referencia),
             CreatedAt = clock.Now,
-        });
+        };
+        db.Pagos.Add(pago);
         cuenta.PagadoHasta = hasta;
         await db.SaveChangesAsync(ct);
         cobros.Olvidar(cuentaId);
+
+        // Primero queda guardado el cobro, después se pide el documento: la plata ya entró y
+        // el vencimiento ya corrió, así que una facturación caída no puede tumbar nada de eso.
+        if (request.Facturar) await FacturarAsync(pago, cuenta, ct);
+
         return Describir(cuenta);
+    }
+
+    /// <summary>
+    /// El documento del pago que se registró sin él: la cuenta no lo pidió entonces y después
+    /// sí, o la facturación estaba caída. Reintentar es gratis porque allá la clave de
+    /// idempotencia es el id del pago: si ya salió, vuelve el mismo número.
+    /// </summary>
+    public async Task<Result<PagoDto>> EmitirDocumentoAsync(TipoCuenta tipo, Guid id, Guid pagoId, CancellationToken ct = default)
+    {
+        var (cuenta, cuentaId) = await CuentaAsync(tipo, id, ct);
+        if (cuenta is null) return Result<PagoDto>.Fail(Error.NotFound(tipo == TipoCuenta.Centro ? "El centro" : "El docente"));
+
+        // Por la cuenta y por el pago: un id de pago de otra cuenta no es un 403, es un 404.
+        var pago = await db.Pagos.FirstOrDefaultAsync(p => p.Id == pagoId && p.CuentaId == cuentaId, ct);
+        if (pago is null) return Result<PagoDto>.Fail(Error.NotFound("El pago"));
+        if (!facturacion.Configurada)
+            return Result<PagoDto>.Fail(Error.Validation("Este servidor no tiene configurada la facturación central."));
+        if (pago.NumeroDocumento is not null)
+            return Result<PagoDto>.Fail(Error.Conflict("Ese pago ya tiene documento.", "ya_facturado"));
+
+        await FacturarAsync(pago, cuenta, ct);
+
+        if (pago.NumeroDocumento is null)
+            return Result<PagoDto>.Fail(Error.Validation(pago.ErrorDocumento ?? "No se pudo emitir el documento."));
+
+        return ADto(pago);
+    }
+
+    /// <summary>
+    /// Le pide el número a la facturación central y guarda lo que vuelva —el documento o el
+    /// motivo—. No lanza: el pago ya está escrito y lo único que falta es su papel.
+    /// </summary>
+    private async Task FacturarAsync(Pago pago, ICobrable cuenta, CancellationToken ct)
+    {
+        // Un servidor sin facturación central configurada no es un pago fallido: no se le
+        // marca nada al pago, porque no hay nada que reintentar hasta que se configure.
+        if (!facturacion.Configurada) return;
+
+        var resultado = await facturacion.EmitirAsync(
+            pago.Id,
+            new PeticionFactura(
+                Cliente: NombreDe(cuenta),
+                RazonSocial: null,
+                Rtn: cuenta.Rtn,
+                Concepto: Concepto(cuenta, pago),
+                Monto: pago.Monto,
+                ReferenciaDelCliente: pago.CuentaId.ToString(),
+                PagadoEl: pago.PagadoEl,
+                Referencia: pago.Referencia),
+            ct);
+
+        pago.DocumentoIntentadoEl = clock.Now.UtcDateTime;
+
+        if (resultado.Emitida)
+        {
+            pago.NumeroDocumento = resultado.Numero;
+            pago.CaiDocumento = resultado.Cai;
+            pago.DocumentoId = resultado.DocumentoId;
+            pago.ErrorDocumento = null;
+        }
+        else
+        {
+            // Se guarda el motivo, no se descarta: si no, queda un pago sin factura y sin
+            // nadie que se entere hasta que la cuenta la reclame.
+            pago.ErrorDocumento = resultado.Error;
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static string NombreDe(ICobrable cuenta) => cuenta switch
+    {
+        Institucion i => i.Nombre,
+        Tenant t => t.Name,
+        _ => "Cliente",
+    };
+
+    /// <summary>Lo que va escrito en el documento. Con los meses, que es lo que se discute.</summary>
+    private static string Concepto(ICobrable cuenta, Pago pago)
+    {
+        var que = cuenta is Institucion ? "licencia" : "plan";
+        var meses = pago.Periodos <= 1 ? "1 mes" : $"{pago.Periodos} meses";
+        return $"ProfeApp — {que}{(cuenta.PlanNombre is { } plan ? $" {plan}" : "")} ({meses})";
     }
 
     /// <summary>Del último hacia atrás y con tope: en pantalla caben los de este año.</summary>
@@ -296,7 +388,9 @@ public sealed class AdminService(
             .Where(p => p.CuentaId == cuentaId)
             .OrderByDescending(p => p.PagadoEl).ThenByDescending(p => p.CreatedAt)
             .Take(24)
-            .Select(p => new PagoDto(p.Id, p.PagadoEl, p.Monto, p.Periodos, p.CubreHasta, p.Referencia))
+            .Select(p => new PagoDto(
+                p.Id, p.PagadoEl, p.Monto, p.Periodos, p.CubreHasta, p.Referencia,
+                p.NumeroDocumento, p.CaiDocumento, p.DocumentoId, p.ErrorDocumento))
             .ToListAsync(ct);
     }
 
@@ -455,7 +549,7 @@ public sealed class AdminService(
             .ToDictionaryAsync(x => x.Key, x => (DateOnly?)x.Ultimo, ct);
 
     private CobroDto Describir(ICobrable cuenta) =>
-        CobroService.Describir(SituacionCobro.Para(cuenta, clock.Today), cuenta is Institucion, (cuenta as Tenant)?.Nivel) with { ConIa = cuenta.ConIa, IaMultiplicador = cuenta.IaMultiplicador };
+        CobroService.Describir(SituacionCobro.Para(cuenta, clock.Today), cuenta is Institucion, (cuenta as Tenant)?.Nivel) with { ConIa = cuenta.ConIa, IaMultiplicador = cuenta.IaMultiplicador, Rtn = cuenta.Rtn };
 
     /// <summary>Contraseña temporal nueva; se cierran sus sesiones.</summary>
     private async Task<Result<CuentaCreada>> ReponerAsync(AppUser usuario, CancellationToken ct)
@@ -471,6 +565,10 @@ public sealed class AdminService(
         cobros.OlvidarUsuario(usuario.Id);
         return new CuentaCreada(usuario.Id, usuario.Email!, usuario.FullName, clave);
     }
+
+    private static PagoDto ADto(Pago p) => new(
+        p.Id, p.PagadoEl, p.Monto, p.Periodos, p.CubreHasta, p.Referencia,
+        p.NumeroDocumento, p.CaiDocumento, p.DocumentoId, p.ErrorDocumento);
 
     private static string? Limpio(string? texto) => string.IsNullOrWhiteSpace(texto) ? null : texto.Trim();
 

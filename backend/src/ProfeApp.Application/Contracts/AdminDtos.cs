@@ -7,7 +7,8 @@ namespace ProfeApp.Application.Contracts;
 public sealed record CobroDto(
     string Estado, string? PlanNombre, decimal Monto, DateOnly? PagadoHasta, int DiasGracia,
     DateOnly? BloqueaEn, int? DiasRestantes, bool SoloLectura, string Mensaje, string? ComoPagar,
-    string? Nivel = null, int? TopeAsignaturas = null, bool ConIa = false, int IaMultiplicador = 1);
+    string? Nivel = null, int? TopeAsignaturas = null, bool ConIa = false, int IaMultiplicador = 1,
+    string? Rtn = null);
 
 public sealed record InstitucionDto(
     Guid Id, string Nombre, string Plan, int MaxDocentes, int Docentes, bool Activa, CobroDto Cobro,
@@ -24,16 +25,27 @@ public sealed record ActualizarInstitucionRequest(string Plan, int MaxDocentes);
 /// <c>ConIa</c>: plan Pro (null = no cambia). <c>IaMultiplicador</c>: topes de IA x1 a x5 (null = no cambia).
 /// </summary>
 public sealed record PlanCobroRequest(
-    string? PlanNombre, decimal Monto, DateOnly? PagadoHasta, int DiasGracia, string? ComoPagar, string? Nivel = null, bool? ConIa = null, int? IaMultiplicador = null);
+    string? PlanNombre, decimal Monto, DateOnly? PagadoHasta, int DiasGracia, string? ComoPagar, string? Nivel = null, bool? ConIa = null, int? IaMultiplicador = null,
+    string? Rtn = null);
 
 /// <summary>
 /// Sin <c>PagadoHasta</c>, el servidor suma los períodos al vencimiento que ya tenía (o a
-/// hoy, si no tenía).
+/// hoy, si no tenía). <c>Facturar</c> en falso anota el pago sin pedirle documento a la
+/// facturación central: hay cuentas que no piden factura, y un número del SAR quemado no se
+/// devuelve. Se puede emitir después desde el historial.
 /// </summary>
 public sealed record RegistrarPagoRequest(
-    decimal Monto, int Periodos, DateOnly? PagadoHasta = null, string? Referencia = null, DateOnly? PagadoEl = null);
+    decimal Monto, int Periodos, DateOnly? PagadoHasta = null, string? Referencia = null, DateOnly? PagadoEl = null,
+    bool Facturar = true);
 
-public sealed record PagoDto(Guid Id, DateOnly PagadoEl, decimal Monto, int Periodos, DateOnly CubreHasta, string? Referencia);
+/// <summary>
+/// Un pago con su documento. <c>ErrorDocumento</c> con <c>NumeroDocumento</c> en null es un
+/// pago que se intentó facturar y no se pudo: se enseña el motivo y se puede reintentar.
+/// </summary>
+public sealed record PagoDto(
+    Guid Id, DateOnly PagadoEl, decimal Monto, int Periodos, DateOnly CubreHasta, string? Referencia,
+    string? NumeroDocumento = null, string? CaiDocumento = null, Guid? DocumentoId = null,
+    string? ErrorDocumento = null);
 
 /// <summary>Un docente del plan personal, como lo ve la plataforma.</summary>
 public sealed record DocentePlataformaDto(

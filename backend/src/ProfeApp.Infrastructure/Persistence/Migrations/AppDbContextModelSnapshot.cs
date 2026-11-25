@@ -1545,6 +1545,11 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("id");
 
+                    b.Property<string>("CaiDocumento")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("cai_documento");
+
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
@@ -1561,10 +1566,28 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasColumnType("uuid")
                         .HasColumnName("cuenta_id");
 
+                    b.Property<Guid?>("DocumentoId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("documento_id");
+
+                    b.Property<DateTime?>("DocumentoIntentadoEl")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("documento_intentado_el");
+
+                    b.Property<string>("ErrorDocumento")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasColumnName("error_documento");
+
                     b.Property<decimal>("Monto")
                         .HasPrecision(12, 2)
                         .HasColumnType("numeric(12,2)")
                         .HasColumnName("monto");
+
+                    b.Property<string>("NumeroDocumento")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("numero_documento");
 
                     b.Property<DateOnly>("PagadoEl")
                         .HasColumnType("date")
@@ -1589,6 +1612,9 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_pagos");
+
+                    b.HasIndex("NumeroDocumento")
+                        .HasDatabaseName("ix_pagos_numero_documento");
 
                     b.HasIndex("CuentaId", "PagadoEl")
                         .HasDatabaseName("ix_pagos_cuenta_id_pagado_el");
@@ -2199,6 +2225,11 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(80)")
                         .HasColumnName("plan_nombre");
 
+                    b.Property<string>("Rtn")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("rtn");
+
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -2345,6 +2376,11 @@ namespace ProfeApp.Infrastructure.Persistence.Migrations
                         .HasMaxLength(80)
                         .HasColumnType("character varying(80)")
                         .HasColumnName("plan_nombre");
+
+                    b.Property<string>("Rtn")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("rtn");
 
                     b.Property<DateTimeOffset?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
