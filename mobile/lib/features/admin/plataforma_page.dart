@@ -622,9 +622,10 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
               contentPadding: EdgeInsets.zero,
               value: _facturar,
               onChanged: (v) => setState(() => _facturar = v),
-              title: const Text('Emitir el documento fiscal'),
+              // «Documento», no «documento fiscal»: puede salir comprobante, que no lo es.
+              title: const Text('Emitir documento'),
               subtitle: Text(_facturar
-                  ? 'Le pide el número a la facturación central, que lleva el CAI de los tres servicios.'
+                  ? 'Le pide el número a la facturación central.'
                   : 'El pago queda anotado sin documento. Se le puede emitir después desde el historial.'),
             ),
             if (_facturar)
@@ -632,10 +633,13 @@ class _HojaPagoState extends ConsumerState<_HojaPago> {
                 contentPadding: EdgeInsets.zero,
                 value: _conCai,
                 onChanged: (v) => setState(() => _conCai = v),
-                title: const Text('Con CAI: factura'),
+                // El rótulo dice qué hace encenderlo; el texto, qué va a salir tal como
+                // está. Antes el rótulo decía «factura» y debajo decía «comprobante».
+                title: const Text('Emitir factura con CAI'),
                 subtitle: Text(_conCai
-                    ? 'Quema un número autorizado del SAR, que no se devuelve. Sólo si la pide.'
-                    : 'Sale un comprobante con el correlativo propio, sin valor fiscal.'),
+                    ? 'Va a salir una factura con CAI. Quema un número autorizado del SAR, '
+                        'que no se devuelve.'
+                    : 'Va a salir un comprobante con el correlativo propio, sin valor fiscal.'),
               ),
             if (_facturar && _conCai && (widget.cuenta.cobro.rtn ?? '').isEmpty)
               Text(
