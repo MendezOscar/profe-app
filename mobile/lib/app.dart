@@ -1,6 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
+// Los delegados de idioma de Material y Cupertino se mudaron con sus bibliotecas, y
+// flutter_localizations todavía exporta los suyos: se esconden los viejos para que no haya
+// dos nombres iguales. De aquí sale solo el de widgets, que no se mudó.
+import 'package:flutter_localizations/flutter_localizations.dart'
+    hide GlobalCupertinoLocalizations, GlobalMaterialLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'core/avisos/push.dart';
 

@@ -1,7 +1,7 @@
 // Tokens de diseño de ProfeApp: los valores con nombre que usan todas las pantallas.
 // Una pantalla nueva no inventa números ni colores: toma uno de aquí o del tema
 // (Theme.of(context).colorScheme / textTheme / extension<ColoresEstado>()).
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Escala de espacios, de 4 en 4 (con 2 para ajustes finos junto al texto).
 abstract final class Espacio {

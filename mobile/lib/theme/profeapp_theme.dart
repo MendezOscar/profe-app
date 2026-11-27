@@ -1,7 +1,7 @@
 // ProfeApp — tema de marca (brand/flutter/lib/theme/profeapp_theme.dart).
 // Única diferencia con el kit: Archivo va incluida en assets/fonts en lugar de
 // google_fonts, que la descarga al abrir la app y sin señal caería a otra fuente.
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 import 'tokens.dart';
 
